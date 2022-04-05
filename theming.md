@@ -4,25 +4,25 @@ There are many aspects to a Pogoshell theme. Along with providing the very found
 ## Manditory And Optional
 The first thing to mention is that there are a list of elements that are absolutely manditory in any Pogoshell theme. There are also manditory files necessary for Pogoshell's various built-in plugins, but they're not listed here. An important thing to always remember is to include all files you need that aren't in the standard distribution.
 
-- Manditory files
--- THEME/your_theme.theme
-- Manditory named elements
--- "list" type LISTVIEW
--- "title" type TEXTBAR
--- "root" type TRICONTAINER
-- Optional named elements
--- "status" type TEXTBAR
--- "mtitle" type TEXTBAR
--- "mflow" type TEXTFLOW
--- "msgbox" type TRICONTAINER
--- "dflow" type TEXTFLOW
--- "dtitle" type TEXTBAR
--- "dlgbox" type TRICONTAINER
--- "jpgviewer" type TYPEFACE
--- "textnormal" type TYPEFACE
--- "textbold" type TYPEFACE
--- "textemph" type TYPEFACE
--- "textbig" type TYPEFACE
+* Manditory files
+  - THEME/your_theme.theme
+* Manditory named elements
+  - "list" type LISTVIEW
+  - "title" type TEXTBAR
+  - "root" type TRICONTAINER
+* Optional named elements
+  - "status" type TEXTBAR
+  - "mtitle" type TEXTBAR
+  - "mflow" type TEXTFLOW
+  - "msgbox" type TRICONTAINER
+  - "dflow" type TEXTFLOW
+  - "dtitle" type TEXTBAR
+  - "dlgbox" type TRICONTAINER
+  - "jpgviewer" type TYPEFACE
+  - "textnormal" type TYPEFACE
+  - "textbold" type TYPEFACE
+  - "textemph" type TYPEFACE
+  - "textbig" type TYPEFACE
 
 ## Elements
 Each named element in a Pogoshell theme corresponds to a predefined component of the GUI. While most are optional, some optional elements predicate the need to include other optional components. Here is a run down of what each element requires and what function it performs.

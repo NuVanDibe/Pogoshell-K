@@ -13,6 +13,8 @@
 #include "settings.h"
 #include "misc.h" 
 
+extern uint16 marked;
+
 void bmp_view(char *fname);
 void jpg_view(char *fname);
 void jpe_view(char *fname);
@@ -56,7 +58,7 @@ static int check_extention(char *data, DirList *entry)
 	return 0;
 }
 
-/* void clear_vram(void)
+void clear_vram(void)
 {
 	unsigned short *vram = (unsigned short *) VRAM;
 	int i;
@@ -64,7 +66,7 @@ static int check_extention(char *data, DirList *entry)
 	// Start after screen.
 	for (i = 240*160; i < (VRAM_END-VRAM)/sizeof(unsigned short); i++)
 		vram[i] = 0;
-}*/
+}
 
 int execute_mb(char *cmd, char *fname, int keys)
 {
@@ -74,7 +76,7 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//close(fd);
 
 	save_state();
-	//clear_vram();
+	clear_vram();
 	
 	set_ram_start(0);
 
@@ -133,7 +135,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	args[0] = fname;
 
 	save_state();
-	//clear_vram();
+	clear_vram();
 
 	//sprintf(tmp, ".shell/plugins/%s", cmd);
 	strcpy(tmp, GET_PATH(PLUGINS));
@@ -187,7 +189,7 @@ int set_font(char *cmd, char *fname, int keys)
 
 int changedir(char *cmd, char *fname, int keys)
 {
-	filesys_cd(fname);
+	filesys_cd(fname, marked);
 	return 2;
 }
 

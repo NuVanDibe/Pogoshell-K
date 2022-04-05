@@ -57,13 +57,14 @@ char *path[4];
 
 int sram_game_size = 64;
 
+uint16 marked;
+
 const char *PogoVersion = "2.0b3mod5";
 
 /* State, saved to  /sram/.state */
 struct {
 	unsigned /*short*/ char settings[NO_SETTINGS];
-	char dirstart;
-	char marked;
+	uint16 marked;
 }  __attribute__ ((packed)) state;
 
 /* Save current state to SRAM */
@@ -74,6 +75,7 @@ void save_state(void)
 	char *name = filesys_get_current();
 
 	memcpy(state.settings, settings, NO_SETTINGS);
+	state.marked = marked;
 	
 	fd = open("/sram/.state", O_CREAT);
 	if(fd >= 0)
@@ -132,7 +134,8 @@ int load_state(int what)
 		read(fd, &state, sizeof(state));
 		read(fd, tmp, 100);
 		close(fd);
-		filesys_cd(tmp);
+		filesys_cd_marked(tmp);
+		marked = state.marked;
 		memcpy(settings, state.settings, NO_SETTINGS);
 		/*if (settings[SF_THEME] >= theme_count)
 			settings[SF_THEME] = 0;
@@ -374,7 +377,7 @@ void update_list(void)
 		listview_addline(MainList, filetype_icon(t), &dirname[i*32], &dirsize[i*10]);
 	}
 
-	listview_set_marked(MainList, 0);
+	listview_set_marked(MainList, marked);
 
 	if(filesys_getstate() == FSTATE_SRAM)
 		pprintf(tmp, TEXT(TITLEBAR_SRAM));
@@ -391,7 +394,7 @@ static BitMap **icon_list;
 void textreader_set_font(int n, Font *f);
 
 
-void setup_screen()
+void setup_screen(void)
 {
 	char tmp[80];
 	int i, count;
@@ -593,7 +596,6 @@ int main(int argc, char **argv)
 	int converted = 0;
 	int have_state;
 	int count = 0;
-	int marked = 1;
 	int srsize = -1;
 	//uint32 *mem = (uint32 *)0x02000000;
 
@@ -672,7 +674,7 @@ int main(int argc, char **argv)
 
 	sram_fd = open("/sram", 0);
 
-	filesys_cd("");
+	filesys_cd_marked("");
 
 	read_texts(config_fp);
 	read_users(config_fp);
@@ -834,10 +836,10 @@ int main(int argc, char **argv)
 			
 		case RAWKEY_B:
 			if(qualifiers == 2)
-				filesys_cd("");
+				filesys_cd_marked("");
 			else
 			if(qualifiers == 1)
-				filesys_cd("/sram");
+				filesys_cd_marked("/sram");
 			else
 				filesys_parent();
 			update_list();

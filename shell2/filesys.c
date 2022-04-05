@@ -4,12 +4,21 @@
 #include "filesys.h"
 #include "filetype.h"
 
+#define MARKED_STACK_DEPTH 128
+
+extern uint16 marked;
+
 //static int dot_hide = 0;
 static char current[128];
+#if 0
 static char return_dir[128];
+#endif
+static uint16 marked_stack[MARKED_STACK_DEPTH];
 static char currtemp[128];
 static DirList *lastlist;
 static uint64 key[2];
+
+int current_marked_level = 0;
 
 /*
 static char *tmp_item;
@@ -209,7 +218,7 @@ int filesys_change_hidden_dir(void)
 			{
 				ioctl(rfd, RM_SETKEY, key);
 				close(rfd);
-				return filesys_cd(tmp);
+				return filesys_cd(tmp, marked);
 			}
 		}
 		close(rfd);
@@ -269,7 +278,9 @@ char *filesys_get_current(void)
 int filesys_parent(void)
 {
 	char *p = strrchr(current, '/');
+#if 0
 	*return_dir = 0;
+#endif
 
 	//if(p)
 	//	fprintf(stderr, "%s => %s\n", current, p);
@@ -279,12 +290,18 @@ int filesys_parent(void)
 	if(p)
 	{
 		*p = 0;
-		return 1;
+		current_marked_level--;
+		if (current_marked_level < MARKED_STACK_DEPTH)
+			marked = marked_stack[current_marked_level];
+		else
+			marked = 0;
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
+#if 0
 int filesys_back(void)
 {
 	if(*return_dir)
@@ -297,7 +314,9 @@ int filesys_back(void)
 	return filesys_parent();
 
 }
+#endif
 
+#if 0
 int filesys_enter(int i)
 {
 	if(i < 0) return NULL;
@@ -311,6 +330,7 @@ int filesys_enter(int i)
 	}
 	return 0;
 }
+#endif
 
 char *filesys_fullname(int i)
 {
@@ -321,15 +341,42 @@ char *filesys_fullname(int i)
 	return currtemp;
 }
 
-int filesys_cd(char *name)
+int filesys_cd_marked(char *name)
+{
+	char *p;
+	int slash = 0;
+
+	if (filesys_cd(name, 0)) {
+		p = current;
+		while (*p) {
+			if (*p == '/') {
+				if (slash < MARKED_STACK_DEPTH)
+					marked_stack[slash] = 0;
+				slash++;
+			}
+			p++;
+		}
+		current_marked_level = slash;
+		return 1;
+	}
+	return 0;
+}
+
+int filesys_cd(char *name, uint16 prev_marked)
 {
 	DIR *dir;
 
 	if((dir = opendir(name)))
 	{
 		closedir(dir);
+#if 0
 		strcpy(return_dir, current);
+#endif
 		strcpy(current, name);
+		if (current_marked_level < MARKED_STACK_DEPTH)
+			marked_stack[current_marked_level] = prev_marked;
+		current_marked_level++;
+		marked = 0;
 		return 1;
 	}
 	//fprintf(stderr, "Couldnt open %s\n", name);

@@ -1,0 +1,22 @@
+
+QUICKSTART
+----------
+
+* If you have an XRom-cart, copy the PogoShell/xrom/*.* on top of the files
+  in PogoShell/ (This replaces Pogo.gba and build.bat with XRom specific
+  version. Also note that TEST doesn't currently work for XRom).
+
+* Double click BUILD.BAT to generate the rom you need
+
+* Double click TEST.BAT to try out PogoShell in an emulator (Not on XRom)
+
+* When you feel comfortable, copy some games/roms/texts to the "root" folder
+
+* Run BUILD.BAT and TEST.BAT again. If everything works...
+
+* Start your Flasher software and write FLASHME.GBA to your flash cart.
+  Note that you should _turn_off_ writing of the menu if the flasher normally
+  adds one. Pogoshell needs to be the first rom on the cart to work fully.
+
+
+-- Sasq

@@ -1,0 +1,42 @@
+
+HOW TO BUILD libpogo AND PogoShell
+
+o Get DevKitAdvance, either the the real archive or my minimal version
+  (enough to compile libpogo, pogoshell and other libpogo based apps).
+
+o Unpack devkitaddv and add devkitadv\bin to your path
+
+o From the pogodist root directory, type "make". This should build
+  libpogo and pogoshell. If you don't have the compiled tools in
+  the tools directory, it will try to build this with Visual C++ which
+  will fail if you don't have VC set up for commandline compilation
+  (with CL.EXE). That's why I include the EXE:s in the source
+  distribution.
+
+o Type "make distro" to make the PogoShell directory with the
+  necesary files to build & test a pogoshell rom. Now you should be
+  able to run PogoShell as normal.
+
+
+
+HOW LIBFLASHCART WORKS
+
+In the beginning of shell2\Makefile you will find a line
+specifying which flashcart library to use when building pogoshell,
+like so:
+  
+LIBFCLASHCART = ../libfc_visoly_xg1/libflashcart.a
+
+You can change this line to build a pogoshell version for another
+flashcart that you have a library for.
+
+(NOTE: When compiling pogoshell with libfc_xrom for XRom support,
+ remember to call MAKEFS with the "-x" flag to force the filesystem
+ to pad all romstarts to even 128KByte boundries!!)
+
+If you want to support a new flashcart, take a look at the the
+source for the already provided libraries and change it to your
+liking.
+
+  
+  

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="7"
+   name=""
+   committed-date="2004-09-26T16:13:52.583986Z"
+   url="svn://www.nightmode.org/pogodist/libfc_ez"
+   last-author="sasq"
+   kind="dir"
+   uuid="a7b739c6-7ae2-0310-9053-c36e4a660fe8"
+   revision="56"/>
+<entry
+   committed-rev="7"
+   name="ez.s"
+   text-time="2005-01-06T08:42:05.000000Z"
+   committed-date="2004-09-26T16:13:52.583986Z"
+   checksum="05b8c4591ac2f7df7e772d9f327f77b4"
+   last-author="sasq"
+   kind="file"
+   prop-time="2005-01-06T08:42:05.000000Z"/>
+<entry
+   committed-rev="7"
+   name="main.c"
+   text-time="2005-01-06T08:42:05.000000Z"
+   committed-date="2004-09-26T16:13:52.583986Z"
+   checksum="cf7c993ecb73941953a91ef2bfbf3478"
+   last-author="sasq"
+   kind="file"
+   prop-time="2005-01-06T08:42:05.000000Z"/>
+<entry
+   committed-rev="7"
+   name="Makefile"
+   text-time="2005-01-06T08:42:05.000000Z"
+   committed-date="2004-09-26T16:13:52.583986Z"
+   checksum="1684e5de7d4788dd9e1cd5f6067200d1"
+   last-author="sasq"
+   kind="file"
+   prop-time="2005-01-06T08:42:05.000000Z"/>
+</wc-entries>

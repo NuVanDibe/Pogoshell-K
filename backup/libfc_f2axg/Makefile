@@ -1,0 +1,35 @@
+#
+# libflashcart Makefile
+# (C) 2002 - 2004 Jonas Minnberg
+
+CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
+LIBNAME = libflashcart.a
+OBJDIR = obj
+
+
+ASFLAGS = -mthumb-interwork
+
+PREFIX = arm-elf-
+AS = $(PREFIX)as
+CC = $(PREFIX)gcc
+LD = $(PREFIX)gcc
+AR = $(PREFIX)ar
+OBJCOPY = $(PREFIX)objcopy
+
+OBJFILES = main.o dual.o
+
+%.o : %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+%.o : %.s
+	$(AS) $(ASFLAGS) $< -o $@
+
+all: $(LIBNAME)
+
+$(LIBNAME) : $(OBJFILES)
+	$(AR) rs $@ $(OBJFILES)
+
+clean :
+	rm -f $(OBJFILES) $(LIBNAME) *.bak *.opt *.ncb
+
+rebuild: clean all

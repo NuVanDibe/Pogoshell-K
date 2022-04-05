@@ -218,9 +218,17 @@ char *gets(char *buffer)
 DIR *opendir(const char *name)
 {
 	struct stat s;
-	if((stat(name, &s) >= 0) && (s.st_mode & S_IFDIR))
+/*	char tmp_name[256];
+	int i;
+
+	i = strlen(name);
+
+	strcpy(tmp_name, name);
+	if (tmp_name[i-1] == '/')
+		tmp_name[i-1] = '\0'; */
+	if((stat(/*tmp_name*/name, &s) >= 0) && (s.st_mode & S_IFDIR))
 	{
-		return fopen(name, "rb");
+		return fopen(/*tmp_name*/name, "rb");
 	}
 	return NULL;
 }

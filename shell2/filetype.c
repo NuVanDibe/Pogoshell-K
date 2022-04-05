@@ -28,7 +28,7 @@ void statusbar_set(char *);
 extern Screen *MainScreen;
 
 extern void LZ77UnCompWram(void *Srcp, void *Destp);
-extern void SoftReset(unsigned int flags);
+extern void SoftReset(unsigned char flags);
 
 void save_state(void);
 
@@ -56,7 +56,7 @@ static int check_extention(char *data, DirList *entry)
 	return 0;
 }
 
-void clear_vram(void)
+/* void clear_vram(void)
 {
 	unsigned short *vram = (unsigned short *) VRAM;
 	int i;
@@ -64,7 +64,7 @@ void clear_vram(void)
 	// Start after screen.
 	for (i = 240*160; i < (VRAM_END-VRAM)/sizeof(unsigned short); i++)
 		vram[i] = 0;
-}
+}*/
 
 int execute_mb(char *cmd, char *fname, int keys)
 {
@@ -74,7 +74,7 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//close(fd);
 
 	save_state();
-	clear_vram();
+	//clear_vram();
 	
 	set_ram_start(0);
 
@@ -106,7 +106,7 @@ int execute_rom(char *cmd, char *fname, int keys)
 	const char *args[] = {NULL, NULL};
 
 	save_state();
-	clear_vram();
+	//clear_vram();
 
 	savesys_handleexec(fname);
 
@@ -133,7 +133,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	args[0] = fname;
 
 	save_state();
-	clear_vram();
+	//clear_vram();
 
 	//sprintf(tmp, ".shell/plugins/%s", cmd);
 	strcpy(tmp, GET_PATH(PLUGINS));
@@ -165,6 +165,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		SETW(REG_IF, 0);
 		SETW(REG_IME, 0);
 		SETW(REG_SOUNDBIAS, 0x0200);
+		//SoftReset(0xfc);
 		((void(*)(void))0x02000000)();
 	}
 

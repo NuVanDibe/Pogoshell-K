@@ -17,10 +17,15 @@
 #include "widgets/widgets.h"
 #include "guiparser.h"
 
+/*extern uint32 *mem_base;
+
+extern int theme_count;
+char theme_name[32];
+*/
 int sram_fd = -1;
 #define free_space() ioctl(sram_fd, SR_FREESPACE)
 
-
+extern void SoftReset(unsigned char flags);
 // Device init funtions
 void filesys_init();
 void deb_init();
@@ -52,13 +57,13 @@ char *path[4];
 
 int sram_game_size = 64;
 
-const char *PogoVersion = "2.0b3";
+const char *PogoVersion = "2.0b3mod5";
 
 /* State, saved to  /sram/.state */
 struct {
-	unsigned char settings[NO_SETTINGS];
-	signed char dirstart;
-	signed char marked;
+	unsigned /*short*/ char settings[NO_SETTINGS];
+	char dirstart;
+	char marked;
 }  __attribute__ ((packed)) state;
 
 /* Save current state to SRAM */
@@ -129,6 +134,9 @@ int load_state(int what)
 		close(fd);
 		filesys_cd(tmp);
 		memcpy(settings, state.settings, NO_SETTINGS);
+		/*if (settings[SF_THEME] >= theme_count)
+			settings[SF_THEME] = 0;
+		get_theme_name(settings[SF_THEME], theme_name);*/
 		return 1;
 	}
 
@@ -405,6 +413,7 @@ void setup_screen()
 	theme = (char *)0x02000000;
 
 	strcpy(tmp, GET_PATH(THEMES));
+	//strcat(tmp, theme_name);
 	strcat(tmp, "default.theme");
 	//fp = fopen(".shell/themes/default.theme", "rb");
 	fp = fopen(tmp, "rb");
@@ -472,7 +481,7 @@ void setup_screen()
 
 void cmd_about(char *dummy)
 {
-	msgbox_info("About PogoShell 2.0 Beta", "PogoShell v2.0 (Beta 3 release)\nCreated by Sasq in 2003/2004\nPress SELECT for help\nat anytime. Enjoy!");
+	msgbox_info("About PogoShell 2.0 Beta", "PogoShell v2.0 (Beta 3 mod5 release)\nCreated by Sasq in 2003/2004\nAltered by Kuwanger in 2006\nPress SELECT for help\nat anytime. Enjoy!");
 }
 
 // Commands
@@ -546,12 +555,18 @@ void cmd_help(char *name)
 
 void cmd_settings(char *name)
 {
-	settings_edit();
+	/*int r;
+
+	r =*/ settings_edit();
 	if(settings_get(SF_SCROLLBAR))
 		MainList->scrollbar = ListBar;
 	else
 		MainList->scrollbar = NULL;
 	save_state();
+	/*if (r) {
+		mem_base = NULL;
+		((void(*)(void))0x08000000)();
+	}*/
 	update_list();
 }
 
@@ -572,7 +587,7 @@ int sram_strcmp(const char *a, const char *b);
 
 int main(int argc, char **argv)
 {
-	char tmp[50];
+	uchar tmp[50];
 	FILE *fp;
 	int c, i;
 	int converted = 0;
@@ -581,6 +596,8 @@ int main(int argc, char **argv)
 	int marked = 1;
 	int srsize = -1;
 	//uint32 *mem = (uint32 *)0x02000000;
+
+	SoftReset(0xfc);
 
 	rtc_enable();
 	i = rtc_check();
@@ -661,6 +678,7 @@ int main(int argc, char **argv)
 	read_users(config_fp);
 
 	settings_init();
+	//strcpy(theme_name, "default.theme");
 
 	have_state = load_state(ALL);
 
@@ -750,11 +768,17 @@ int main(int argc, char **argv)
 
 		case RAWKEY_LEFT:
 			filesys_update_key(0x2);
+			h = listview_get_marked(MainList);
 			listview_set_marked(MainList, marked - MainList->showing);
+			if (h == listview_get_marked(MainList))
+				listview_set_marked(MainList, 0);
 			break;
 		case RAWKEY_RIGHT:
 			filesys_update_key(0x3);
+			h = listview_get_marked(MainList);
 			listview_set_marked(MainList, marked + MainList->showing);
+			if (h == listview_get_marked(MainList))
+				listview_set_marked(MainList, MainList->lines-1);
 			break;
 		case RAWKEY_UP:
 			filesys_update_key(0x0);

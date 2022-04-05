@@ -22,6 +22,7 @@ LZ77UnCompWram:
 	.ALIGN
 	.POOL
 
+@extern void SoftReset(unsigned char mask)
 SoftReset:
 
 	stmfd	sp!,{r0-r12,lr}

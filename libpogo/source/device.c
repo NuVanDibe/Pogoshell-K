@@ -211,7 +211,7 @@ void execv(const char *cmdname, const char *const *argv)
 	{
 		l = lseek(fd, 0, SEEK_MEM);
 		close(fd);
-		if((l & 0x28000000) && ((l&0x00007FFF) == 0))
+		if((l&0x00007FFF) == 0)
 		{
 
 			make_arguments(cmdname, argv);

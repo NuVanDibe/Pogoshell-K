@@ -16,7 +16,7 @@ typedef struct _MemHead {
 	uint32 data[0];
 } MemHead;
 
-uint32 *mem_base;
+uint32 *mem_base = NULL;
 MemHead *first_block;
 int mem_size = 63*1024;
 
@@ -65,8 +65,7 @@ void *memory_alloc(int alloc_size)
 	{
 		//mem_base = &__eheap_start;
 		//mem_size = (0x02040000 - (int)mem_base) / 4;
-		mem_base = &__iheap_start;
-		mem_size = (0x03007E00 - (int)mem_base) / 4;
+		memory_init(&__iheap_start, (0x03007E00 - (int) &__iheap_start) / 4);
 	}
 	
 	if(!first_block)

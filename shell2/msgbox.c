@@ -83,10 +83,14 @@ int msgbox_list(char *title, char **lines, int num)
 
 	listview_set_attribute(MessageList, WATR_COLOR, &MessageTxt->textcolor);
 
-	MessageWin->height = MessageList->w.height + 8;
+	//MessageWin->height = MessageList->w.height + 8;
+	i = MessageList->w.height;
+	i += w->height;
+	i += 4;
+	MessageWin->height = i;
 	i = MessageList->w.width;
-	if(w->height > i)
-		i = w->height;
+	if(w->width > i)
+		i = w->width;
 	i += 4;
 	MessageWin->width = i;
 	MessageWin->x = (240 - MessageWin->width) / 2;

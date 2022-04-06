@@ -69,6 +69,20 @@ void backdrop_set_border(BackDrop *bd, int border)
 	bd->border = border;
 }
 
+void backdrop_subrender(BackDrop *bd, Rect *r, Rect *subr, BitMap *bm)
+{
+	// Draw inner
+
+	if (bm) {
+		if(bd->style & STYLE_BITMAP)
+			bitmap_blit(bm, subr->x, subr->y, bd->bitmap, subr->x - r->x, subr->y - r->y, subr->w, subr->h);
+		else if(bd->style & STYLE_HVRANGE)
+			bitmap_fillsubrange(bm, r, subr, &bd->color[2], &bd->color[3], bd->style);
+		else
+			bitmap_fillbox(bm, subr, TO_RGB16(bd->color[2]));
+	}
+}
+
 void backdrop_render(BackDrop *bd, Rect *r, BitMap *bm)
 {
 	Rect org = *r, *orgr = &org;

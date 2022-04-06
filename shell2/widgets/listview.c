@@ -117,12 +117,10 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 			//fprintf(stderr, "Redrawing %d\n", i);
 
 			if (lv->dirty != 0xFF) {
-				if(sbm)
-					bitmap_blit(bm, r2.x, r2.y, sbm, 0, (y+lv->marginy) % sbm->height, r2.w, lineh);
+				if (lv->backdrop)
+					backdrop_subrender(lv->backdrop, r, &r2, bm);
 				else
-				{
 					bitmap_fillbox(bm, &r2, bdcol);
-				}
 			}
 
 			d = dst;
@@ -412,6 +410,11 @@ void listview_setline(ListView *lv, int index, BitMap *bm, ...)
 
 	lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
 	lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
+
+	if (lv->backdrop) {
+		lv->w.height += lv->backdrop->border*2;
+		lv->w.width += lv->backdrop->border*2;
+	}
 
 	va_end(vl);
 }

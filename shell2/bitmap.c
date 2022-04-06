@@ -169,6 +169,7 @@ void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
 	int high, low;
+	//int over;
 
 	while(dh--)
 	{
@@ -177,9 +178,19 @@ void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
 		{
 			high = *d & 0x739c;
 			low = *d & 0x0c63;
+//			high += (col & 0x739c)<<1;
+//			low += (col & 0x0c63)<<1;
 			high += (col & 0x739c);
 			low += (col & 0x0c63);
+/*			over = (high&0x8420);
+			over >>= 1;
+			over |= (over>>1);
+			over |= (over>>2);
+			over |= (over>>1);
+			*d = ((high&0x7bde)+(low&0x318c))|over;
+*/
 			*d = (high+(low&0x318c))>>1;
+//			*d = (high+(low&0x318c))>>2;
 			d++;
 		}
 
@@ -193,7 +204,7 @@ enum
 	STYLE_VRANGE = 2,
 };
 
-void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 style)
+void bitmap_fillsubrange(BitMap *bm, Rect *r, Rect *subr, Color *color0, Color *color1, uint16 style)
 {
 	uint16 *d;
 	int x,y,w,h,bmw;
@@ -203,15 +214,93 @@ void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 
 	c1 = (color0->g << 2);
 	c2 = (color0->r << 2);
 
+	bmw = bm->width;
+
+	d = (uint16 *)bm->pixels + r->x + r->y * bmw;
+
 	if(style & STYLE_HRANGE)
 	{
 		d0 = ( (color1->b - color0->b) << 7) / (r->w);
 		d1 = ( (color1->g - color0->g) << 2) / (r->w);
 		d2 = ( (color1->r - color0->r) << 2) / (r->w);
 
-		bmw = bm->width;
+		for(x=0; x<r->w; x++)
+		{
+			col16 = (c0 & 0x7C00) | (c1 & 0x03E0) | ((c2 >> 5) & 0x1F);
 
-		d = (uint16 *)bm->pixels + r->x + r->y * bmw;
+			c0 += d0;
+			c1 += d1;
+			c2 += d2;
+
+			if (r->x + x >= subr->x &&
+				r->x + x < subr->x + subr->w)
+			{
+				for (h = 0; h < r->h; h++)
+				{
+					if (r->y + h >= subr->y &&
+						r->y + h < subr->y + subr->h)
+						*d = col16;
+					d += bmw;
+				}
+
+				d -= (bmw * r->h - 1);
+			} else
+				d++;
+		}
+	}
+	else
+	{
+		d0 = ( (color1->b - color0->b) << 7) / (r->h);
+		d1 = ( (color1->g - color0->g) << 2) / (r->h);
+		d2 = ( (color1->r - color0->r) << 2) / (r->h);
+
+		for(y=0; y<r->h; y++)
+		{
+			col16 = (c0 & 0x7C00) | (c1 & 0x03E0) | ((c2 >> 5) & 0x1F);
+
+			c0 += d0;
+			c1 += d1;
+			c2 += d2;
+
+			if (r->y + y >= subr->y &&
+				r->y + y < subr->y + subr->h)
+			{
+				for (w = 0; w < r->w; w++)
+				{
+					if (r->x + w >= subr->x &&
+						r->x + w < subr->x + subr->w)
+						*d = col16;
+					d++;
+				}
+				d += (bmw - r->w);
+			} else
+				d += bmw;
+		}
+
+	}
+
+}
+
+void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 style)
+{
+	bitmap_fillsubrange(bm, r, r, color0, color1, style);
+#if 0
+	uint16 *d;
+	int x,y,w,h,bmw;
+	uint16 c0, c1, c2, d0, d1, d2, col16;
+
+	c0 = (color0->b << 7);
+	c1 = (color0->g << 2);
+	c2 = (color0->r << 2);
+
+	bmw = bm->width;
+	d = (uint16 *)bm->pixels + r->x + r->y * bmw;
+
+	if(style & STYLE_HRANGE)
+	{
+		d0 = ( (color1->b - color0->b) << 7) / (r->w);
+		d1 = ( (color1->g - color0->g) << 2) / (r->w);
+		d2 = ( (color1->r - color0->r) << 2) / (r->w);
 
 		for(x=0; x<r->w; x++)
 		{
@@ -239,9 +328,6 @@ void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 
 		d1 = ( (color1->g - color0->g) << 2) / (r->h);
 		d2 = ( (color1->r - color0->r) << 2) / (r->h);
 
-
-		d = (uint16 *)bm->pixels + r->x + r->y * bm->width;
-
 		for(y=0; y<r->h; y++)
 		{
 			col16 = (c0 & 0x7C00) | (c1 & 0x03E0) | ((c2 >> 5) & 0x1F);
@@ -255,11 +341,11 @@ void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 
 			while(w--)
 				*d++ = col16;
 
-			d += (bm->width - r->w);
+			d += (bmw - r->w);
 		}
 
 	}
-
+#endif
 }
 
 

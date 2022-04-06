@@ -69,7 +69,8 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 		break;
 	case WATR_RGB:
 		l = (int)val;
-		tb->textcolor[n].r = l>>16;
+		tb->textcolor[n].a = (l>>24) & 0xff;
+		tb->textcolor[n].r = (l>>16) & 0xff;
 		tb->textcolor[n].g = (l>>8) & 0xff;
 		tb->textcolor[n].b = l & 0xff;
 		tb->w.flags |= WFLG_REDRAW;

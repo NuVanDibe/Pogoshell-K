@@ -98,7 +98,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		sbar.y += 1;
 		sbar.h -= 2;
 
-		bitmap_addbox(bm, &sbar, 0x0C63);
+		bitmap_avgbox(bm, &sbar, 0x0C63);
 
 		i = lv->lines;
 		if(i < lv->showing)
@@ -158,7 +158,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 			if(i == lv->marked)
 			{
-				if(lv->textcolor[3].a == 0xfF)
+				if(lv->textcolor[3].a == 0xFF)
 					bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
 				else if(lv->textcolor[3].a > 0x7F)
 					bitmap_avgbox(bm, &r2, TO_RGB16(lv->textcolor[3]));

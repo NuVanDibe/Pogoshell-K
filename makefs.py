@@ -6,7 +6,7 @@ Pogoshell v2.0b3-mod5.
 
 Uses rijndael.py from the tlslite package
 
-Usage: makefs.py [-rexmcva:] pogo.gba root flashme.gba
+Usage: makefs.py [-rxmcva:] [--exclude=] pogo.gba root flashme.gba
 
 Made by Kuwanger in Jan/Feb 2006
 """

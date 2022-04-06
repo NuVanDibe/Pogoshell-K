@@ -196,6 +196,10 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 			free(lv->backdrop);
 
 		lv->backdrop = (BackDrop *)val;
+		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
+		lv->w.height += lv->backdrop->border*2;
+		lv->w.width += lv->backdrop->border*2;
 		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLWIDTH:
@@ -239,12 +243,17 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		if(lv->font)
 			free(lv->font);
 		lv->font = (Font *)val;
-		if(lv->font->height >= lv->lineh)
+		if (lv->font->height > lv->lineh)
 			lv->lineh = lv->font->height + 1;
-		lv->w.flags |= WFLG_REDRAW;
 		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
+		if (lv->backdrop) {
+			lv->w.height += lv->backdrop->border*2;
+			lv->w.width += lv->backdrop->border*2;
+		}
 		if(lv->textcolor[0].a != 0x01);
 			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_SCROLLBAR:
 		if(lv->scrollbar)
@@ -259,6 +268,11 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		if((attr & 0xF) == 1)
 			lv->marginy = (int)val;
 		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
+		if (lv->backdrop) {
+			lv->w.height += lv->backdrop->border*2;
+			lv->w.width += lv->backdrop->border*2;
+		}
 		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_ALIGN:
@@ -283,14 +297,13 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 
 	lv->w.height = 0;
 	lv->w.width = 0;
-
 	lv->marginx = 0;
 	lv->marginy = 0;
 
 	lv->w.type = WIDGET_LISTVIEW;
 	lv->font = font;
 
-	if(font)
+	if (font)
 		lv->lineh = font->height + 1;
 	else
 		lv->lineh = 0;
@@ -305,13 +318,13 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 
 	lv->iconw = 0;
 
-	lv->icons = malloc(sizeof(BitMap *) * maxlines);
-	memset(lv->icons, 0, sizeof(BitMap *) * maxlines);
+	lv->icons = pmalloc(sizeof(BitMap *) * maxlines);
+	//memset(lv->icons, 0, sizeof(BitMap *) * maxlines);
 
 	for(i=0; i<columns; i++)
 	{
-		lv->texts[i] = (char **)malloc(sizeof(char *) * maxlines);
-		memset(lv->texts[i], 0, sizeof(char *) * maxlines);
+		lv->texts[i] = (char **)pmalloc(sizeof(char *) * maxlines);
+		//memset(lv->texts[i], 0, sizeof(char *) * maxlines);
 		lv->colwidth[i] = 1;
 		lv->colalign[i] = ALIGN_LEFT;
 	}

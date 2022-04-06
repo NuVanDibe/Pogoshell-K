@@ -273,7 +273,7 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **data)
   * Returns true on success and false on failure (failure isn't possible).
   */
   
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight, int jpg_size);
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
 
 /** Perform a 2D inverse DCT computation on the input.
   *
@@ -291,8 +291,6 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride);
   * failure (failure isn't possible).
   */
   
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage, int jpg_size);
-
-#define PTR (0x02000000)
+int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight);
 
 #endif /* GBA_IMAGE_JPEG_H */

@@ -178,6 +178,43 @@ static int rf_read(int fd, void *dest, int size)
 	return size;
 }
 
+static int rf_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+{
+	int fd = (int) dir;
+	Romfile *rf;
+	OpenFile *f;
+	int rsize;
+	
+	f = &open_filetab[fd];
+	rf = f->file;
+
+	if (!(rf->size & 0x80000000)) {
+		*result = NULL;
+		return EBADF;
+	}
+	rsize = rf->size & 0x7fffffff;
+
+	if (f->pos % sizeof(Romfile)) {
+		*result = NULL;
+		return ENOENT;
+	}
+
+	/* Get ptr to current pos in ROM */
+	rf = &((uchar *)rootdir)[rf->start + f->pos];
+	if (f->pos + sizeof(Romfile) > rsize) {
+		*result = NULL;
+		return 0;
+	}
+
+	f->pos += sizeof(Romfile);
+
+	memcpy(entry->d_name, rf->name, 32);
+	entry->d_size = rf->size;
+	*result = entry;
+
+	return 0;
+}
+
 static int rf_close(int fd)
 {
 	OpenFile *f;
@@ -330,6 +367,7 @@ void filesys_init(void)
 	rfdev.lseek = rf_lseek;
 	rfdev.stat = rf_stat;
 	rfdev.ioctl = rf_ioctl;
+	rfdev.readdir_r = rf_readdir_r;
 	device_register(&rfdev, "/rom", NULL, -1);
 }
 

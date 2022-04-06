@@ -8,14 +8,13 @@
 #include "filetype.h"
 #include "filesys.h"
 #include "savesystem.h"
-#include "freespace.h"
 #include "jpgview.h"
 #include "text.h"
 #include "users.h"
 #include "settings.h"
 #include "misc.h"
-#include "msgbox.h"
 #include "widgets/widgets.h"
+#include "msgbox.h"
 #include "guiparser.h"
 
 //extern uint32 *mem_base;
@@ -49,9 +48,17 @@ BitMap *IconSet = NULL;
 int IconHeight;
 
 Screen *MainScreen;
-Window *MessageWin;
+
+Window *MessageWin = NULL;
+TextBar *MessageTitle;
 TextFlow *MessageTxt;
 ListView *MessageList;
+tbox *MessageBox;
+
+Window *DialogWin = NULL;
+TextBar *DialogTitle;
+TextFlow *DialogTxt;
+tbox *DialogBox;
 
 FILE *config_fp;
 
@@ -69,9 +76,12 @@ const char *PogoVersion = "2.0b3mod5";
 //DirList dirlist[MAX_FILE_COUNT];
 //char dirsize[MAX_FILE_COUNT][10];
 //char dirname[MAX_FILE_COUNT][32];
-DirList *dirlist = (DirList *) 0x02000000;
-char *dirsize = (char *) (0x02000000+(sizeof(DirList))*MAX_FILE_COUNT);
-char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
+DirList *dirlist;
+// = (DirList *) 0x02000000;
+char *dirsize;
+// = (char *) (0x02000000+(sizeof(DirList))*MAX_FILE_COUNT);
+char *dirname;
+// = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
 
 /* State, saved to  /sram/.state */
 struct {
@@ -162,9 +172,10 @@ int load_state(int what)
 	return 0;
 }
 
-char *clipboard = (char *)(FREEPTR);
+char *clipboard;
 char clipname[36];
-int clipsize;
+int clipsize = 0;
+int maxclipsize;
 
 int sram_copy(char *name)
 {
@@ -183,7 +194,7 @@ int sram_copy(char *name)
 		//lseek(fd, 0, SEEK_SET);
 		l = sb.st_size;
 
-		if(l > 128*1024)
+		if(l > maxclipsize)
 			return -2;
 
 		if(l >= 0)
@@ -349,16 +360,18 @@ void update_list(void)
 	int i, t, filecount;
 
 	listview_clear(MainList);
-	//listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
+	if (!DialogBox)
+		listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
 	screen_redraw(MainScreen);
 	filecount = filesys_getfiles(dirlist);
-	//listview_clear(MainList);
+	if (!DialogBox)
+		listview_clear(MainList);
 	for(i=0; i<filecount; i++)
 	{
 		if(dirlist[i].type || settings_get(SF_HIDESIZE) || (filesys_getstate() == FSTATE_GAMES))
 			dirsize[i*10] = 0;
 		else
-			sprintf(&dirsize[i*10], "%d", dirlist[i].size);
+			sprintf(&dirsize[i*10], "%d", dirlist[i].entry.d_size);
 
 		t = filetype_lookup(&dirlist[i]);
 /*
@@ -374,7 +387,7 @@ void update_list(void)
 			backdrop_set_attribute(MainList->backdrop, WATR_BITMAP, &BackgroundBM);
 		}
 */		
-		strcpy(&dirname[i*32], dirlist[i].name);
+		strcpy(&dirname[i*32], dirlist[i].entry.d_name);
 		if((t > 1) && settings_get(SF_HIDEEXT))
 		{
 			char *p = strrchr(&dirname[i*32], '.');
@@ -390,6 +403,9 @@ void update_list(void)
 		marked = new_marked;
 		new_marked = -1;
 	}
+	if (marked == 0xFFFF && filecount)
+		marked = 0;
+
 	listview_set_marked(MainList, marked);
 
 	if(filesys_getstate() == FSTATE_SRAM)
@@ -416,6 +432,7 @@ void setup_screen(void)
 	Font *font;
 	
 	FILE *fp;
+	Widget *dbox;
 	Widget *mbox;
 	Window *win; 
 	//BitMap *screen = bitmap_getscreen();
@@ -440,11 +457,27 @@ void setup_screen(void)
 	root = guiparser_create(theme, "root");
 
 	mbox = guiparser_findwidget("msgbox");
+	dbox = guiparser_findwidget("dlgbox");
 
 	StatusBar = (TextBar *)guiparser_findwidget("status");
 	TitleBar = (TextBar *)guiparser_findwidget("title");
 	MainList = (ListView *)guiparser_findwidget("list");
 	MessageTxt = (TextFlow *)guiparser_findwidget("mflow");
+	MessageTitle = (TextBar *)guiparser_findwidget("mtitle");
+	DialogTxt = (TextFlow *)guiparser_findwidget("dflow");
+	DialogTitle = (TextBar *)guiparser_findwidget("dtitle");
+
+	if(dbox)
+	{
+		DialogWin = window_new(MainScreen, 50, 50, 140, 60);
+		window_setwidget(DialogWin, dbox);
+		window_hide(DialogWin);
+		DialogBox = malloc(sizeof(tbox));
+		DialogBox->win = DialogWin;
+		DialogBox->title = DialogTitle;
+		DialogBox->txt = DialogTxt;
+		DialogBox->list = NULL;
+	}
 
 	if(mbox)
 	{
@@ -464,6 +497,11 @@ void setup_screen(void)
 		listview_set_attribute(MessageList, WATR_COLOR+2, &(MessageTxt->textcolor[2]));
 		listview_set_attribute(MessageList, WATR_COLOR+3, &(MessageTxt->textcolor[3]));
 		listview_set_attribute(MessageList, WATR_ALIGN, (void *) MessageTxt->align);
+		MessageBox = malloc(sizeof(tbox));
+		MessageBox->win = MessageWin;
+		MessageBox->title = MessageTitle;
+		MessageBox->txt = MessageTxt;
+		MessageBox->list = MessageList;
 	}
 
 	if (IconSet) {
@@ -506,7 +544,7 @@ void setup_screen(void)
 
 void cmd_about(char *dummy)
 {
-	msgbox_info("About PogoShell 2.0 Beta", "PogoShell v2.0 (Beta 3 mod5 release)\nCreated by Sasq in 2003/2004\nAltered by Kuwanger in 2006\nPress SELECT for help\nat anytime. Enjoy!");
+	msgbox_info(MessageBox, "About PogoShell 2.0 Beta", "PogoShell v2.0 (Beta 3 mod5 release)\nCreated by Sasq in 2003/2004\nAltered by Kuwanger in 2006\nPress SELECT for help\nat anytime. Enjoy!");
 }
 
 // Commands
@@ -541,7 +579,7 @@ void cmd_sramdel(char *name)
 	
 	//fprintf(stderr, "Delete %s\n", name);
 	sprintf(tmp, TEXT(WISH_SRAM_DEL), basename(name));
-	if(msgbox_yesno(tmp) == 1)
+	if(msgbox_yesno(MessageBox, tmp) == 1)
 	{
 		i = sram_del(name);
 		sprintf(tmp, TEXT(SRAM_DEL), basename(name), i);
@@ -569,11 +607,11 @@ void cmd_help(char *name)
 	switch(i)
 	{
 	case FSTATE_NORMAL:
-		msgbox_info(TEXT(MAIN_HELP_TITLE), TEXT(MAIN_HELP_TEXT));
+		msgbox_info(MessageBox, TEXT(MAIN_HELP_TITLE), TEXT(MAIN_HELP_TEXT));
 		break;
 	case FSTATE_SRAM:
 	default:
-		msgbox_info(TEXT(SRAM_HELP_TITLE), TEXT(SRAM_HELP_TEXT));
+		msgbox_info(MessageBox, TEXT(SRAM_HELP_TITLE), TEXT(SRAM_HELP_TEXT));
 		break;
 	}
 }
@@ -625,6 +663,10 @@ int main(int argc, char **argv)
 	//uint32 *mem = (uint32 *)0x02000000;
 
 	SoftReset(0xfc); //Reset sound, sio, and other registers
+
+	dirlist = pmalloc(sizeof(DirList) * MAX_FILE_COUNT);
+	dirsize = pmalloc(10 * MAX_FILE_COUNT);
+	dirname = pmalloc(32 * MAX_FILE_COUNT);
 
 	rtc_enable();
 	i = rtc_check();
@@ -775,6 +817,10 @@ int main(int argc, char **argv)
 		save_state();
 	}
 
+	// Give the clipboard whatever space is free.
+	clipboard = pmemory_pointer();
+	maxclipsize = pmemory_free();
+
 	savesys_savelastgame();
 
 	while(1)
@@ -807,8 +853,8 @@ int main(int argc, char **argv)
 					//strcpy(filename, "/rom/");
 					strcpy(filename, GET_PATH(SCREENSAVERS));
 					strcat(filename, de->d_name);
-					strcpy(dl.name, de->d_name);
-					dl.size = de->d_size;
+					strcpy(dl.entry.d_name, de->d_name);
+					dl.entry.d_size = de->d_size;
 					dl.type = 0;
 					i = filetype_lookup(&dl);
 					if (filetype_handle(filename, i, 0) == 2)
@@ -941,7 +987,7 @@ int main(int argc, char **argv)
 					strcat(main_tmp, TEXT(CMD_SRAM));
 					i += 2;
 				}
-				i = msgbox_list2(TEXT(COMMANDS), main_tmp, i);
+				i = msgbox_list2(MessageBox, TEXT(COMMANDS), main_tmp, i);
 
 				if(i >= 0)
 					commands[i](name);

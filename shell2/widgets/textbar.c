@@ -69,7 +69,16 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 	switch(attr & 0xFF0)
 	{
 	case WATR_BACKDROP:
+		if (tb->backdrop)
+			free(tb->backdrop);
+
 		tb->backdrop = (BackDrop *)val;
+		if(tb->font) {
+			tb->w.height = tb->font->height+tb->margin*2;
+			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+			tb->w.height += tb->backdrop->border*2;
+			tb->w.width += tb->backdrop->border*2;
+		}
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLOR:
@@ -87,18 +96,30 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 		if(strcmp(tb->text, (char *)val) != 0)
 		{
 			strcpy(tb->text, (char *)val);
-			if(tb->font)
+			if(tb->font) {
+				tb->w.height = tb->font->height+tb->margin*2;
 				tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+				if (tb->backdrop) {
+					tb->w.height += tb->backdrop->border*2;
+					tb->w.width += tb->backdrop->border*2;
+				}
+			}
 			tb->w.flags |= WFLG_REDRAW;
 		}
 		break;
 	case WATR_FONT:
 		if(tb->font != (Font *)val)
 		{
+			if (tb->font)
+				free(tb->font);
 			tb->font = (Font *)val;
-			tb->w.flags |= WFLG_REDRAW;
 			tb->w.height = tb->font->height+tb->margin*2;
 			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+			if (tb->backdrop) {
+				tb->w.height += tb->backdrop->border*2;
+				tb->w.width += tb->backdrop->border*2;
+			}
+			tb->w.flags |= WFLG_REDRAW;
 		}
 		break;
 	case WATR_ALIGN:
@@ -113,8 +134,14 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 	//	break;
 	case WATR_MARGIN:
 		tb->margin = (int)val;
-		if(tb->font)
+		if(tb->font) {
 			tb->w.height = tb->font->height+tb->margin*2;
+			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+			if (tb->backdrop) {
+				tb->w.height += tb->backdrop->border*2;
+				tb->w.width += tb->backdrop->border*2;
+			}
+		}
 		break;
 	default:
 		//dprint("Illegal Attribute!!!\n");
@@ -145,7 +172,8 @@ TextBar *textbar_new(Font *font, int texlen)
 
 	tb->w.type = WIDGET_TEXTBAR;
 	tb->margin = 1;
-	tb->w.height = font->height+tb->margin*2;
+	tb->w.height = (font) ? font->height : 0;
+	tb->w.height += tb->margin*2;
 	tb->w.width = 0;
 	tb->textcolor = Black_Color;
 	tb->w.flags = WFLG_REDRAW;

@@ -70,10 +70,10 @@ void print_memory(void)
 }
 */
 
+	int free_after;
 /* Alloc 32bit words */
 void *memory_alloc(int alloc_size)
 {
-	int free_after;
 	MemHead *newblock, *block = first_block;
 
 	if(!mem_base)
@@ -115,7 +115,7 @@ void *memory_alloc(int alloc_size)
 		block = block->next;
 	}
 
-	//dprint("Out of memory!\n");
+	dprint("Out of memory!\n");
 	return NULL;
 /*
 	block->next = (MemHead *)&block->data[block->size];

@@ -9,6 +9,7 @@
 
 #define MARKED_STACK_DEPTH 48
 
+extern tbox *DialogBox;
 extern uint16 marked;
 
 //static int dot_hide = 0;
@@ -82,33 +83,28 @@ static int get_dir(char *name, DirList *list)
 	int i;
 	char *p;
 	DIR *dir;
-	struct dirent *de;
+	struct dirent *result;
 	struct stat sbuf;
-	DirList *dl;
 
 	i = 0;
 	dir = opendir(name);
 	if(dir)
 	{
-		for(i=0; ((de = readdir(dir)) && i<MAX_FILE_COUNT); i++)
+		for(i=0; ((i < MAX_FILE_COUNT) &&
+					!(readdir_r(dir, &list[i].entry, &result)) &&
+					(result != NULL)); i++)
 		{
-			dl = &list[i];
-			strcpy(dl->name, de->d_name);
-			p = &name[strlen(name)];
-			*p = '/';
-			strcpy(p+1, de->d_name);
-			stat(name, &sbuf);
-			//dl->size = sbuf.st_size;
-			dl->size = de->d_size;
-			*p = 0;
-			if(settings_get(SF_HIDEDOT) && de->d_name[0] == '.')
+			if(settings_get(SF_HIDEDOT) && list[i].entry.d_name[0] == '.')
 				i--;
-			else
-			{
-				if(sbuf.st_mode & S_IFDIR)
-					dl->type = 1;
-				else
-					dl->type = 0;
+			else {
+				p = &name[strlen(name)];
+				*p = '/';
+				strcpy(p+1, list[i].entry.d_name);
+				stat(name, &sbuf);
+				//fprintf(stderr, "get_dir(%s, %p); // (%s, %d)\n", name, list, list[i].entry.d_name, list[i].entry.d_size);
+				//fprintf(stderr, "stat(%s, ...); // (..., %hd, ...)\n", name, sbuf.st_mode);
+				*p = '\0';
+				list[i].type = (sbuf.st_mode & S_IFDIR) ? 1 : 0;
 			}
 		}
 		closedir(dir);
@@ -131,11 +127,11 @@ int dl_cmp(DirList *a, DirList *b)
 		switch(settings_get(SF_SORTING))
 		{
 		case SORT_SIZE:
-			return a->size - b->size;
+			return a->entry.d_size - b->entry.d_size;
 		case SORT_TYPE:
 			return (filetype_lookup(a) - filetype_lookup(b));
 		default:
-			return (strcmp(a->name, b->name));
+			return (strcmp(a->entry.d_name, b->entry.d_name));
 		}
 	}
 	else
@@ -197,14 +193,14 @@ int filesys_getfiles(DirList *list)
 	if(*current == 0)
 	{
 		fs_state = FSTATE_ROOT;
-		strcpy(list[0].name, "rom");
-		list[0].size = 0;
+		strcpy(list[0].entry.d_name, "rom");
+		list[0].entry.d_size = 0;
 		list[0].type = 2;
-		strcpy(list[1].name, "sram");
-		list[1].size = 0;
+		strcpy(list[1].entry.d_name, "sram");
+		list[1].entry.d_size = 0;
 		list[1].type = 2;
-		strcpy(list[2].name, "cartroms");
-		list[2].size = 0;
+		strcpy(list[2].entry.d_name, "cartroms");
+		list[2].entry.d_size = 0;
 		list[2].type = 2;
 		return 3;
 	}
@@ -218,12 +214,15 @@ int filesys_getfiles(DirList *list)
 		else
 			fs_state = FSTATE_NORMAL;
 
-		msgbox_transient_show(TEXT(LOADING_LIST), TEXT(PLEASE_WAIT));
+		if (DialogBox)
+			msgbox_transient_show(DialogBox, TEXT(LOADING_LIST), TEXT(PLEASE_WAIT));
 		c = get_dir(current, list);
 
 		if(c > 0 && settings_get(SF_SORTING) != SORT_NONE)
 			merge_sort(list, c, sizeof(DirList), (int (*)(void *, void *))dl_cmp);
-		msgbox_transient_hide();
+
+		if (DialogBox)
+			msgbox_transient_hide(DialogBox);
 /*
 		if(c > 0)
 			qsort(list, c, sizeof(DirList), (int (*)(void *, void *))dl_cmp);
@@ -301,7 +300,7 @@ char *filesys_fullname(int i)
 	if(i < 0) return NULL;
 	strcpy(currtemp, current);
 	strcat(currtemp, "/");
-	strcat(currtemp, lastlist[i].name);
+	strcat(currtemp, lastlist[i].entry.d_name);
 	return currtemp;
 }
 

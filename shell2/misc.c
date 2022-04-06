@@ -16,6 +16,9 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned long u32;
 
+static void *pmem_ptr = (void *) (0x02000000);
+static int pmem_free = 256*1024;
+
 void reset_gba(void)
 {
   unsigned int i;
@@ -62,6 +65,35 @@ char *basename(char *str)
 		return p+1;
 	else
 		return str;
+}
+
+void *pmalloc(int size)
+{
+	void *ret;
+	if (size > pmem_free)
+		return NULL;
+
+	ret = pmem_ptr;
+	pmem_ptr += size;
+	pmem_free -= size;
+
+	return ret;
+}
+
+int pmemory_free(void)
+{
+	return pmem_free;
+}
+
+void *pmemory_pointer(void)
+{
+	return pmem_ptr;
+}
+
+void pfree(void)
+{
+	pmem_ptr = (void *) (0x02000000);
+	pmem_free = 256*1024;
 }
 
 int read_line(char *line, int size, FILE *fp)

@@ -228,7 +228,6 @@ void execv(const char *cmdname, const char *const *argv)
 			SETW(REG_IF, 0);
 			SETW(REG_IME, 0);
 
-
 			SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
 			SETW(REG_BG1CNT, 0);
 
@@ -341,6 +340,25 @@ int close(int fd)
 				return 0;
 		}
 	}
+	return -1;
+}
+
+int readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+{
+	Device *dev;
+	int fd = (int) dir;
+	int i;
+
+	//fprintf(stderr, "readdir_r(%p, %p, %p);\n", dir, entry, result);
+
+	if((dev = dev_fromhandle(&fd)))
+		if(dev->readdir_r) {
+			i = dev->readdir_r((DIR *) fd, entry, result);
+			/*if (*result)
+				fprintf(stderr, "readdir_r values (%s, %d)\n", entry->d_name, entry->d_size);
+			fprintf(stderr, "readdir_r return %d\n", i);*/
+			return i;
+		}
 	return -1;
 }
 

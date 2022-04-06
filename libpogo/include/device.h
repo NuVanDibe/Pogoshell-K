@@ -3,6 +3,13 @@
 
 #include "core.h"
 
+typedef void DIR;
+
+struct dirent
+{
+	char d_name[32];
+	uint32 d_size;
+};
 
 typedef struct
 {
@@ -40,7 +47,7 @@ typedef struct {
 	int (*stat)(const char *path, struct stat *buffer);
 	int (*remove)(const char *name);
 	int (*rename)(const char *oldname, const char *newname);
-
+	int (*readdir_r)(DIR *dir, struct dirent *entry, struct dirent **result);
 } Device;
 
 int device_register(Device *dev, char *name, volatile void (*irqfunc)(void), int fd);
@@ -53,6 +60,7 @@ int lseek(int fd, int offset, int origin);
 int tell(int fd);
 int ioctl(int fd, int request, ...);
 int remove(const char *name);
+int readdir_r(DIR *dir, struct dirent *entry, struct dirent **result);
 int stat(const char *name, struct stat *buffer);
 
 void execv(const char *cmdname, const char *const *argv);

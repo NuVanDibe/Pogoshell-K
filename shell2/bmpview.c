@@ -1,7 +1,6 @@
 
 #include <pogo.h>
 #include "misc.h"
-#include "freespace.h"
 
 const
 #include "gammatab25.h"
@@ -188,7 +187,8 @@ void bmp_view_joint(char *fname, int decompression)
 	while(l--)
 		*p++ = 0;
 
-	uchar *bmp = file2mem(fname, (void *)(FREEPTR), 120*1024, decompression);
+	pfree();
+	uchar *bmp = file2mem(fname, pmalloc(120*1024), 120*1024, decompression);
 
 	prepare_bmp(bmp, NULL);
 

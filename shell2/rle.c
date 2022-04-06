@@ -6,7 +6,8 @@
  ****/
 
 #include <pogo.h>
-#include "freespace.h"
+
+extern char *clipboard;
 
 void set_ram_start(int i);
 
@@ -67,7 +68,7 @@ int save_rle(int fd, int bank)
 	int count;
 	uchar *ptr = (uchar *)0x0E00FFFF;
 
-	uchar *buf = (uchar *)(FREEPTR);
+	uchar *buf = clipboard;
 
 	set_ram_start(bank);
 	while((ptr >= (uchar *)0x0E000000) && (ptr[0] == 0)) ptr--;
@@ -89,7 +90,7 @@ int save_rle(int fd, int bank)
 int load_rle(int fd, int bank)
 {
 	int rc;
-	uchar *buf = (uchar *)(FREEPTR);
+	uchar *buf = clipboard;
 	if(fd >= 0)
 	{
 		rc = read(fd, buf, 65536);

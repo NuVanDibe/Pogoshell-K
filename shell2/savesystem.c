@@ -7,6 +7,9 @@
 #include "users.h"
 #include "misc.h"
 #include "msgbox.h"
+
+extern tbox *MessageBox;
+
 void statusbar_set(char *text);
 
 //extern int sram_game_size = 64;
@@ -44,7 +47,7 @@ int savesys_savelastgame()
 			{
 				char q[64];
 				sprintf(q, TEXT(WISH_SAVE), basename(savefile));
-				do_save = msgbox_yesno(q);
+				do_save = msgbox_yesno(MessageBox, q);
 			}
 			
 			if(do_save)
@@ -188,7 +191,7 @@ int savesys_handleexec(char *current)
 		{
 			char q[64];
 			sprintf(q, TEXT(WISH_LOAD), basename(tmp));
-			do_load = msgbox_yesno(q);
+			do_load = msgbox_yesno(MessageBox, q);
 		}
 
 		if(do_load)

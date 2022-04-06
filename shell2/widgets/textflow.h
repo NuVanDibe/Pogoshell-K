@@ -15,6 +15,10 @@ typedef struct
 	char *textline[20];
 	uint16 textlength[20];
 	uint16 numlines;
+	uint16 marginl;
+	uint16 marginr;
+	uint16 marginu;
+	uint16 margind;
 	uint16 align;
 	Font *font;
 	Color textcolor[4];

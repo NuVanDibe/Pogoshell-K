@@ -19,11 +19,11 @@ void jpgviewer_set_font(Font *f)
 	text = f;
 }
 
-void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size);
+void joint_view(uchar *jpg);
 
 #define BG_PALRAM ((uint16*)0x05000000)
 
-int prepare_jpg(unsigned char *ptr, int jpg_ram_usage, int jpg_size)
+int prepare_jpg(unsigned char *ptr)
 {
 	int sfd;
 
@@ -31,7 +31,7 @@ int prepare_jpg(unsigned char *ptr, int jpg_ram_usage, int jpg_size)
 	ioctl(sfd, SC_SETMODE, 2);
 	close(sfd);
 
-    return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h, (jpg_ram_usage+3)&0xfffffffc, jpg_size);
+    return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h);
 }
 
 void generic_image(void)
@@ -74,11 +74,11 @@ void draw_block(int x, int y)
 			dest[(y+h)*240+x+w] = c;
 }
 
-int decrypt_image(char *fname, uchar *jpg, int msize)
+int decrypt_image(char *fname, uchar **jpg)
 {
 	int c, done, jpg_size, x, y, shift_count;
     uint64 key[2], old_enc[2], *lljpg, *out, i;
-	char *enc;
+	uchar *enc;
 	static uint64 old_key[2] = {0, 0};
 	static int shift = 0;
 	aes_context ctx;
@@ -86,7 +86,11 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 	enc = file2mem(fname, NULL, 0, RAW);
 	jpg_size = *(int *)enc;
 
-    if (jpg_size > sizeof(uint64)*2) {
+	pfree();
+	out = pmalloc(jpg_size);
+	*jpg = out;
+
+    if (out && jpg_size > sizeof(uint64)*2) {
 	    lljpg = (uint64 *) &enc[sizeof(int)];
 
     	key[0] = key[1] = 0;
@@ -205,7 +209,6 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 		}
 		aes_set_key(&ctx, (unsigned char *) key, 16, 0);
 		old_enc[0] = old_enc[1] = 0xfedcba9876543210ll;
-		out = (uint64 *) jpg;
 		lljpg += 2;
     	for (i = 0; i < (jpg_size/sizeof(uint64)+1); i+=2)
 	    {
@@ -227,11 +230,10 @@ void jpe_view(char *fname)
 
 	generic_image();
 
-    jpg = (uchar *) PTR;
-	jpg_size = decrypt_image(fname, jpg, 120*1024);
+	jpg_size = decrypt_image(fname, &jpg);
 
-	if (jpg_size > 0)
-		joint_view(jpg, jpg_size, jpg_size);
+	if (jpg && jpg_size > 0)
+		joint_view(jpg);
 	else {
 		quit = 0;
 	    while (!quit)
@@ -261,7 +263,8 @@ void jpg_view(char *fname)
 	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
 	close(fd);
 
-	joint_view(ptr,0,fsize);
+	pfree();
+	joint_view(ptr);
 }
 
 #define MIN(a,b) (a<b ? a : b)
@@ -271,7 +274,7 @@ void jpg_view(char *fname)
 int num[]={1,  3,1, 3,1,3,1,3,1,3,2,3,4,6,8,12,16};
 int den[]={16,32,8,16,4,8,2,4,1,2,1,1,1,1,1,1,1};
 
-void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
+void joint_view(uchar *jpg)
 {
 	int c,fd, quit = 0, r, l;
 	int x=0, y=0, scale=0, corscale, mode=0, rotate=0, toscale=0, toshift=0;
@@ -287,7 +290,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 	u16 *dst;
 	BitMap *bm;
 
-	r = prepare_jpg(jpg, jpg_ram_usage, jpg_size);
+	r = prepare_jpg(jpg);
 
 	if (r == 2) {
 		r = 40;

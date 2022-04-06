@@ -62,56 +62,76 @@ static int gs_open(const char *name, int flags)
 
 static int gs_read(int fd, void *dest, int size)
 {
-	Romfile *rf;
+	uchar *p;
 	OpenFile *f;
-	int rsize, i;
-	char *ptr;
 
 	//fprintf(stderr, "READ %d bytes\n", size);
-
 
 	f = &open_filetab[fd];
 
 	if(f->rom < 0)
 	{
-		rsize = size;
-		while(size >= sizeof(Romfile))
-		{
-			int gn = f->pos / sizeof(Romfile);
+		p = (uchar *) (0x08000000 + f->pos);
+		f->pos += size;
 
-			if(gn >= game_count)
-				return 0;
-
-			rf = (Romfile *)dest;
-
-			ptr = &games[gn][0xa0];
-
-			rf->name[0] = toupper(ptr[0]);
-			for(i=1; i<12; i++)
-				rf->name[i] = tolower(ptr[i]);
-
-			//strcpy(rf->name, &games[gn][0xa0]);
-			rf->name[12] = 0;
-			strcat(rf->name, ".gba");
-			rf->size = games[gn+1] - games[gn];
-			if(rf->size > 32*1024*1024) rf->size = 32*1024*1024;
-			rf->start = (int)games[gn];
-
-			//fprintf(stderr, "Reading root(%d) %s (%d bytes) %d\n", gn, rf->name, rf->size, size);
-
-
-			f->pos += sizeof(Romfile);
-			size -= sizeof(Romfile);
-			dest = rf+1;
+		if (f->pos > 0x09FFFFFF) {
+			size -= (0x09FFFFFF - f->pos);
+			f->pos = 0x09FFFFFF;
 		}
 
-		return rsize-size;
+		memcpy(dest, p, size);
+
+		return size;
 	}
 
-	memcpy(dest,  &games[f->rom][f->pos], size);
+	memcpy(dest, &games[f->rom][f->pos], size);
 	f->pos += size;
 
 	return size;
+}
+
+static int gs_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+{
+	int fd = (int) dir;
+	OpenFile *f;
+	int i, gn;
+	char *ptr;
+
+	f = &open_filetab[fd];
+
+	if(f->rom >= 0) {
+		*result = NULL;
+		return EBADF;
+	}
+
+	if (f->pos % sizeof(Romfile)) {
+		*result = NULL;
+		return ENOENT;
+	}
+
+	gn = f->pos / sizeof(Romfile);
+
+	if (gn >= game_count) {
+		*result = NULL;
+		return 0;
+	}
+
+	ptr = &games[gn][0xa0];
+
+	entry->d_name[0] = toupper(ptr[0]);
+	for(i=1; i<12; i++)
+		entry->d_name[i] = tolower(ptr[i]);
+
+	entry->d_name[12] = 0;
+	strcat(entry->d_name, ".gba");
+	entry->d_size = games[gn+1] - games[gn];
+	if (entry->d_size > 32*1024*1024)
+		entry->d_size = 32*1024*1024;
+
+	f->pos += sizeof(Romfile);
+
+	*result = entry;
+	return 0;
 }
 
 static int gs_close(int fd)
@@ -254,5 +274,6 @@ void gamesys_init(void)
 	gsdev.read = gs_read;
 	gsdev.lseek = gs_lseek;
 	gsdev.stat = gs_stat;
+	gsdev.readdir_r = gs_readdir_r;
 	device_register(&gsdev, "/cartroms", NULL, -1);
 }

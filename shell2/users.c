@@ -3,6 +3,8 @@
 #include "users.h"
 #include "misc.h"
 #include "msgbox.h"
+
+extern tbox *MessageBox;
 int CurrentUser;
 char *UserName;
 
@@ -80,7 +82,7 @@ int switch_user(void)
 	for(i=0; i<ucount; i++)
 		names[i] = users[i]->name;
 
-	rc = msgbox_list("Switch User", names, ucount);
+	rc = msgbox_list(MessageBox, "Switch User", names, ucount);
 
 	if(rc >= 0)
 	{

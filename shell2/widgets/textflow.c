@@ -22,7 +22,7 @@ int textflow_render(TextFlow *tb, Rect *org_r, BitMap *bm)
 		else
 			bitmap_fillbox(bm, r, 0x6318);
 
- 		dst = (uint16 *)bm->pixels + (r->x+2) + (r->y+4) * bm->width;
+ 		dst = (uint16 *)bm->pixels + (r->x+tb->marginl) + (r->y+tb->marginu) * bm->width;
 		font_setcolor(TO_RGB16(tb->textcolor[0]), 0x0000);
 
 		for(i=0; i<tb->numlines; i++)
@@ -60,7 +60,16 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 	switch(attr & 0xFF0)
 	{
 	case WATR_BACKDROP:
+		if (tb->backdrop)
+			free(tb->backdrop);
+
 		tb->backdrop = (BackDrop *)val;
+		if(tb->font) {
+			tb->w.height = tb->font->height * tb->numlines + tb->marginu + tb->margind;
+			tb->w.width = calc_lengths(tb) + tb->marginl + tb->marginr;
+			tb->w.height += tb->backdrop->border*2;
+			tb->w.width += tb->backdrop->border*2;
+		}
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLOR:
@@ -73,6 +82,39 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 		tb->textcolor[n].r = (l>>16) & 0xff;
 		tb->textcolor[n].g = (l>>8) & 0xff;
 		tb->textcolor[n].b = l & 0xff;
+		tb->w.flags |= WFLG_REDRAW;
+		break;
+	case WATR_MARGIN:
+		switch ((n>>1) & 7)
+		{
+			case 1:
+				tb->marginu = tb->margind = (int) val;
+				break;
+			case 2:
+				tb->marginl = (int) val;
+				break;
+			case 3:
+				tb->marginr = (int) val;
+				break;
+			case 4:
+				tb->marginu = (int) val;
+				break;
+			case 5:
+				tb->margind = (int) val;
+				break;
+			case 0:
+			default:
+				tb->marginl = tb->marginr = (int) val;
+				break;
+		}
+		if(tb->font) {
+			tb->w.height = tb->font->height * tb->numlines + tb->marginu + tb->margind;
+			tb->w.width = calc_lengths(tb) + tb->marginl + tb->marginr;
+			if (tb->backdrop) {
+				tb->w.height += tb->backdrop->border*2;
+				tb->w.width += tb->backdrop->border*2;
+			}
+		}
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_TEXT:
@@ -96,9 +138,14 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 
 			//fprintf(stderr, "%d LINES\n", tb->numlines);
 
-			if(tb->font)
-				tb->w.height = tb->font->height * tb->numlines;
-			tb->w.width = calc_lengths(tb);
+			if(tb->font) {
+				tb->w.height = tb->font->height * tb->numlines + tb->marginu + tb->margind;
+				tb->w.width = calc_lengths(tb) + tb->marginl + tb->marginr;
+				if (tb->backdrop) {
+					tb->w.height += tb->backdrop->border*2;
+					tb->w.width += tb->backdrop->border*2;
+				}
+			}
 
 			tb->w.flags |= WFLG_REDRAW;
 		}
@@ -106,10 +153,17 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 	case WATR_FONT:
 		if(tb->font != (Font *)val)
 		{
+			if (tb->font)
+				free(tb->font);
+
 			tb->font = (Font *)val;
+			tb->w.height = tb->font->height * tb->numlines + tb->marginu + tb->margind;
+			tb->w.width = calc_lengths(tb) + tb->marginl + tb->marginr;
+			if (tb->backdrop) {
+				tb->w.height += tb->backdrop->border*2;
+				tb->w.width += tb->backdrop->border*2;
+			}
 			tb->w.flags |= WFLG_REDRAW;
-			tb->w.height = tb->font->height * tb->numlines;
-			tb->w.width = calc_lengths(tb);
 		}
 		break;
 	case WATR_ALIGN:
@@ -130,13 +184,16 @@ TextFlow *textflow_new(Font *font, int texlen)
 	render_functions[WIDGET_TEXTFLOW & 0xFFF] = (WidgetRenderFunc)textflow_render;
 
 	tb->w.type = WIDGET_TEXTFLOW;
-	tb->w.height = font->height+2;
-	tb->w.width = 0;
 	tb->textcolor[0] = Black_Color;
 	tb->textcolor[3] = Blue_Color;
 	tb->w.flags = WFLG_REDRAW;
 	tb->backdrop = NULL;
 	tb->text = malloc(texlen);
+	tb->marginl = tb->marginr = 2;
+	tb->marginu = tb->margind = 4;
+	tb->w.height = (font) ? font->height : 0;
+	tb->w.height += tb->marginu + tb->margind;
+	tb->w.width = tb->marginl + tb->marginr;
 	strcpy(tb->text, "");
 	tb->font = font;
 	tb->numlines = 0;

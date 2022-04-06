@@ -1,5 +1,6 @@
 
 #include <pogo.h>
+#include "misc.h"
 #include "iwram.h"
 #include "viewer.h"
 
@@ -69,22 +70,25 @@ int bytes_left;
 unsigned char *rewind_point;
 
 #define decoder_value (0x02040000-sizeof(JPEG_Decoder))
-JPEG_Decoder * const decoder = (JPEG_Decoder * const) (decoder_value); // sizeof(JPEG_Decoder)
+JPEG_Decoder * decoder;
+// = (JPEG_Decoder * const) (decoder_value); // sizeof(JPEG_Decoder)
 
 /* The decompressed AC Huffman tables.  JPEG Baseline allows only two AC Huffman tables in a scan. */
 #define acTableList_value (decoder_value-sizeof(JPEG_HuffmanTable)*2)
-JPEG_HuffmanTable * const acTableList = (JPEG_HuffmanTable * const) (acTableList_value); // sizeof(JPEG_HuffmanTable)*2
+JPEG_HuffmanTable * acTableList;
+// = (JPEG_HuffmanTable * const) (acTableList_value); // sizeof(JPEG_HuffmanTable)*2
 
 /* The decompressed DC Huffman tables.  JPEG Baseline allows only two DC Huffman tables in a scan. */
 #define dcTableList_value (acTableList_value-sizeof(JPEG_HuffmanTable)*2)
-JPEG_HuffmanTable * const dcTableList = (JPEG_HuffmanTable * const) (dcTableList_value); // sizeof(JPEG_HuffmanTable)*2
+JPEG_HuffmanTable * dcTableList;
+// = (JPEG_HuffmanTable * const) (dcTableList_value); // sizeof(JPEG_HuffmanTable)*2
 
 #define jpegHeap (dcTableList_value)
 
 /* Takes information discovered in JPEG_Decoder_ReadHeaders and loads the
  * image.  This is a public function; see gba-jpeg.h for more information on it.
  */
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight, int jpg_size)
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight)
 {
     JPEG_FrameHeader *frame = &decoder->frame; /* Pointer to the image's frame. */
     JPEG_ScanHeader *scan = &decoder->scan; /* Pointer to the image's scan. */
@@ -285,9 +289,6 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
                     {
                         int start = cx + cy * stride;
                         JPEG_FIXED_TYPE zz [JPEG_DCTSIZE2];
-
-						//if (data > *dataBase + jpg_size)
-						//	goto finish;
 
                         /* Decode coefficients. */
                         DecodeCoefficients (&dcLast [c], zz, quant, dcTable, acTable, &data, &bits_left, &bits_data, ToZigZag);
@@ -701,9 +702,15 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
 /* Perform the two steps necessary to decompress a JPEG image.
  * Nothing fancy about it.
  */
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage, int jpg_size)
+int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight)
 {
-#define SPACE_LEFT (jpegHeap - 0x02000000)
+	int space_left;
+
+	decoder = pmalloc(sizeof(JPEG_Decoder));
+	acTableList = pmalloc(sizeof(JPEG_HuffmanTable)*2);
+	dcTableList = pmalloc(sizeof(JPEG_HuffmanTable)*2);
+
+	space_left = pmemory_free();
 
     // Clear memory.
     /*for (i = 0; i < 64*1024; i++)
@@ -714,25 +721,25 @@ int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int
     if (!JPEG_Decoder_ReadHeaders (decoder, &data))
         return 0;
 
-    if (jpegWidth * jpegHeight * 2 > SPACE_LEFT - jpg_ram_usage)
+    if (jpegWidth * jpegHeight * 2 > space_left)
     {
 	    if (jpegWidth < jpegHeight) {
 		    *outWidth = jpegWidth;
-		    *outHeight = MIN(jpegHeight,(jpg_ram_usage+SPACE_LEFT)/2/jpegWidth);
+		    *outHeight = MIN(jpegHeight,space_left/2/jpegWidth);
 	    } else {
 		    *outHeight = jpegHeight;
-		    *outWidth = MIN(jpegWidth,(jpg_ram_usage+SPACE_LEFT)/2/jpegHeight);
+		    *outWidth = MIN(jpegWidth,space_left/2/jpegHeight);
 	    }
     } else {
 	    *outHeight = jpegHeight;
 	    *outWidth = jpegWidth;
     }
 
-    *out = (JPEG_OUTPUT_TYPE *) (PTR + jpg_ram_usage);
-    if ((*outWidth * *outHeight) * 2 > SPACE_LEFT - jpg_ram_usage)
+    *out = pmalloc(*outWidth * *outHeight * 2);
+    if (!*out)
 	    return 2;
     
-    if (!JPEG_Decoder_ReadImage (decoder, &data, *out, *outWidth, *outHeight, jpg_size))
+    if (!JPEG_Decoder_ReadImage (decoder, &data, *out, *outWidth, *outHeight))
         return 0;
 
     return 1;

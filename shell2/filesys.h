@@ -3,8 +3,7 @@
 
 typedef struct
 {
-	char name[32];
-	unsigned int size;
+	struct dirent entry;
 	unsigned int type;
 }  __attribute__ ((packed)) DirList;
 

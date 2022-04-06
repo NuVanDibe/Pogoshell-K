@@ -238,18 +238,16 @@ DIR *opendir(const char *name)
 
 
 static struct dirent de;
-static Romfile rf;
-static char name[34];
 
 struct dirent *readdir(DIR *dir)
 {
-	int rc;
-	if((rc = fread(&rf, 1, sizeof(rf), dir)) == sizeof(rf))
+	struct dirent *result;
+
+	if(!(readdir_r(dir, &de, &result)))
 	{
-		strncpy(name, rf.name, 32);
-		de.d_name = name;
-		de.d_size = rf.size;
-		return &de;
+		if (result)
+			return &de;
+		return NULL;
 	}
 	return NULL;
 }

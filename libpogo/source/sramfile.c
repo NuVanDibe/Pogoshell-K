@@ -445,42 +445,22 @@ static int sram_write(int fd, const void *src, int size)
 static int sram_read(int fd, void *dest, int size)
 {
 	uchar *p;
-	int l;
-	unsigned char fuser = 0;
+	uint32 l;
 	OpenFile *of = &openFiles[fd];
 	SRamFile *f = of->file;
 
-	if(!f)
-	{
-		/* File is filelist */
-		uchar *d = (uchar *)dest;
-		while(of->pos && size >= 40)
-		{
-			f = (SRamFile *)of->pos;
-	
-			if(user)
-				sram_memcpy(&fuser, &f->user, 1);
-
-			if(!fuser || (user == fuser))
-			{
-				sram_memcpy(d, f->name, 32);
-				sram_memcpy(&d[32], (const uchar *)&f->length, 4);
-				sram_memset(&d[36], 0, 4);
-				d+=40;
-				size-=40;
-			}
-
-			SET32(f, f->next);
-			of->pos = (int32)f;
-		}
-		return d - (uchar*)dest;
+	if (f) {
+		//fprintf(stderr, "sram_read(%d, %p, %d);\n", fd, dest, size);
+		p = ((uchar *)&f[1]) + of->pos;
+		SET32(l, f->length);
+	} else {
+		//fprintf(stderr, "sram_read(%d, %p, %d); //raw\n", fd, dest, size);
+		p = (uchar *) of->pos;
+		l = (unsigned int) sramfile_mem + sram_size;
 	}
 
-	p = ((uchar *)&f[1]) + of->pos;
 
-	SET32(l, f->length);
-
-	if(of->pos == -1) {
+	if (of->pos == 0xFFFFFFFF) {
 		/* Reading from closed file */
 		return -1;
 	}
@@ -495,7 +475,43 @@ static int sram_read(int fd, void *dest, int size)
 	sram_memcpy(dest, p, size);
 
 	return size;
+}
 
+static int sram_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+{
+	int fd = (int) dir;
+	unsigned char fuser = 0;
+	OpenFile *of = &openFiles[fd];
+	SRamFile *f = of->file;
+
+	if(f) {
+		*result = NULL;
+		return EBADF;
+	}
+
+	while (of->pos)
+	{
+		f = (SRamFile *)of->pos;
+
+		if(user)
+			sram_memcpy(&fuser, &f->user, 1);
+
+		if(!fuser || (user == fuser))
+		{
+			sram_memcpy(entry->d_name, f->name, 32);
+			sram_memcpy(&entry->d_size, &f->length, 4);
+			SET32(f, f->next);
+			of->pos = (int32)f;
+			*result = entry;
+			return 0;
+		}
+
+		SET32(f, f->next);
+		of->pos = (int32)f;
+	}
+
+	*result = NULL;
+	return 0;
 }
 
 static int sram_lseek(int fd, int offset, int orgin)
@@ -665,6 +681,7 @@ void sram_init_old(void)
 		sramdev.ioctl = sram_ioctl;
 		sramdev.lseek = sram_lseek;
 		sramdev.stat = sram_stat;
+		sramdev.readdir_r = sram_readdir_r;
 		device_register(&sramdev, "/sram", NULL, -1);
 	}
 

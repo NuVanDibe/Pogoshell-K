@@ -5,6 +5,10 @@ enum { LZ77 = 1, APACK = 2, RAW = 0 };
 
 void reset_gba (void);
 char *basename(char *str);
+void *pmalloc(int size);
+int pmemory_free(void);
+void *pmemory_pointer(void);
+void pfree(void);
 int read_line(char *line, int size, FILE *fp);
 int find_section(FILE *fp, char *name);
 //int file2ram(char *fname, void *mem, int msize);

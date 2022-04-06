@@ -188,9 +188,10 @@ void sram_memmove(uchar *dest, uchar *src, int len)
 	}
 }
 
-void sram_memcpy(unsigned char *dest, const unsigned char *src, int len)
+void sram_memcpy(void *d, void *s, int len)
 {
 	int l;
+	unsigned char *dest = d, *src = s;
 
 	/*dprint("MEMCPY\n");
 	{

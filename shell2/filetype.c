@@ -6,13 +6,13 @@
 #include "filesys.h"
 #include "filetype.h"
 #include "savesystem.h"
-#include "freespace.h"
 #include "window.h"
 #include "widgets/listview.h"
 #include "widgets/textbar.h"
 #include "settings.h"
 #include "misc.h" 
 
+extern int clipsize;
 extern uint16 marked;
 
 int execute_mb_joined(char *fname, int decompression, int keys);
@@ -52,7 +52,7 @@ static int check_dev(char *data, DirList *entry)
 
 static int check_extention(char *data, DirList *entry)
 {
-	char *p = strrchr(entry->name, '.');
+	char *p = strrchr(entry->entry.d_name, '.');
 	if(p)
 	{
 		p++;
@@ -247,6 +247,7 @@ int show_text(char *cmd, char *fname, int keys)
 int showbmp(char *cmd, char *fname, int keys)
 {
 	bmp_view(fname);
+	clipsize = 0;
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }
@@ -254,6 +255,7 @@ int showbmp(char *cmd, char *fname, int keys)
 int showbmz(char *cmd, char *fname, int keys)
 {
 	bmz_view(fname);
+	clipsize = 0;
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }
@@ -261,6 +263,7 @@ int showbmz(char *cmd, char *fname, int keys)
 int showbmap(char *cmd, char *fname, int keys)
 {
 	bmap_view(fname);
+	clipsize = 0;
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }
@@ -268,6 +271,7 @@ int showbmap(char *cmd, char *fname, int keys)
 int showjpe(char *cmd, char *fname, int keys)
 {
 	jpe_view(fname);
+	clipsize = 0;
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }
@@ -275,6 +279,7 @@ int showjpe(char *cmd, char *fname, int keys)
 int showjpg(char *cmd, char *fname, int keys)
 {
 	jpg_view(fname);
+	clipsize = 0;
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }

@@ -46,16 +46,8 @@ time_t time(time_t *t);
 void exit(int rc);
 int atexit(void *func);
 void abort(void);
-int getseed(void);
+unsigned int getseed(void);
 void srand(unsigned int s);
-
-typedef void DIR;
-
-struct dirent
-{
-	char *d_name;
-	uint32 d_size;
-};
 
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dir);

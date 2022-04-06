@@ -1,40 +1,42 @@
+
 #include <pogo.h>
 #include "gba_defs.h"
 #include "bitmap.h"
 #include "window.h"
 #include "text.h"
-#include "widgets/widgets.h"
-#include "guiparser.h"
 #include "misc.h"
+#include "msgbox.h"
 
-extern Window *MessageWin;
-extern TextFlow *MessageTxt;
 extern Screen *MainScreen;
-extern ListView *MessageList;
 
-#define MSGBOX_TITLE "mtitle"
-#define MSGBOX_TEXT "mflow"
-
-
-int msgbox_yesno(char *text)
+int msgbox_yesno(tbox *box, char *text)
 {
-	Widget *w;
-	int c, rc = -1;
+	TextBar *tb;
+	int i, c, rc = -1;
 	char *p = malloc(strlen(text) + 24);
+
 	//fprintf(stderr, "malloc = %p\n", p);
 	sprintf(p, "%s\n(A) = %s  (B) = %s", text, TEXT(YES), TEXT(NO));
-	textflow_set_attribute(MessageTxt, WATR_TEXT, p);
+	textflow_set_attribute(box->txt, WATR_TEXT, p);
 
-	if((w = guiparser_findwidget(MSGBOX_TITLE)))
-		textbar_set_attribute((TextBar *)w, WATR_TEXT, TEXT(QUESTION));
+	tb = box->title;
+	if (tb)
+		textbar_set_attribute(tb, WATR_TEXT, TEXT(QUESTION));
 
-	MessageWin->width = MessageTxt->w.width + 8;
-	MessageWin->height = MessageTxt->w.height + 8 + 12;
+	i = box->txt->w.width;
+	if (tb && tb->w.width > i)
+		i = tb->w.width;
+	box->win->width = box->txt->w.width;
 
-	MessageWin->x = (240 - MessageWin->width) / 2;
-	MessageWin->y = (160 - MessageWin->height) / 2;
+	i = box->txt->w.height;
+	if (tb)
+		i += tb->w.height;
+	box->win->height = i;
 
-	window_show(MessageWin);
+	box->win->x = (240 - box->win->width) / 2;
+	box->win->y = (160 - box->win->height) / 2;
+
+	window_show(box->win);
 	screen_redraw(MainScreen);
 
 	while(rc == -1)
@@ -53,56 +55,60 @@ int msgbox_yesno(char *text)
 		}
 	}
 
-	//textflow_set_attribute(MessageTxt, WATR_TEXT, "");
+	//textflow_set_attribute(box->txt, WATR_TEXT, "");
 	free(p);
 
-	window_hide(MessageWin);
+	window_hide(box->win);
 	screen_redraw(MainScreen);
 	return rc;
 
 }
 
-int msgbox_list(char *title, char **lines, int num)
+int msgbox_list(tbox *box, char *title, char **lines, int num)
 {
 	int i, c;
 	int rc = -2;
 	int marked = 0;
-	Widget *w;
-	tricontainer_set_attribute((TriContainer *)MessageWin->widget, WATR_CHILD + 1, (void *)MessageList);
+	TextBar *tb;
 
-	
-	if((w = guiparser_findwidget(MSGBOX_TITLE)))
-		textbar_set_attribute((TextBar *)w, WATR_TEXT, title);
+	if (!box->list)
+		return -1;
 
-	listview_clear(MessageList);
+	tricontainer_set_attribute((TriContainer *)box->win->widget, WATR_CHILD + 1, (void *)box->list);
+
+
+	tb = box->title;	
+	if (tb)
+		textbar_set_attribute(tb, WATR_TEXT, title);
+
+	listview_clear(box->list);
 	for(i=0; i<num; i++)
-		listview_addline(MessageList, NULL, lines[i]);
+		listview_addline(box->list, NULL, lines[i]);
 
-	listview_set_marked(MessageList, marked);
+	listview_set_marked(box->list, marked);
 
-	listview_set_attribute(MessageList, WATR_COLOR, &MessageTxt->textcolor);
+	listview_set_attribute(box->list, WATR_COLOR, &box->txt->textcolor);
 
-	//MessageWin->height = MessageList->w.height + 8;
-	i = MessageList->w.height;
-	if (w)
-		i += w->height;
-	// i += 4;
-	MessageWin->height = i;
-	i = MessageList->w.width;
-	if(w && w->width > i) {
-		i = w->width;
-		MessageWin->width = i;
+	i = box->list->w.height;
+	if (tb)
+		i += tb->w.height;
+	box->win->height = i;
+
+	i = box->list->w.width;
+	if(tb && tb->w.width > i) {
+		i = tb->w.width;
+		box->win->width = i;
 	} else {
-		MessageWin->width = i;
-		if (MessageList->backdrop)
-			i -= MessageList->backdrop->border*2;
+		box->win->width = i;
+		if (box->list->backdrop)
+			i -= box->list->backdrop->border*2;
 	}
-	//i += 4;
-	listview_set_attribute(MessageList, WATR_COLWIDTH, i);
-	MessageWin->x = (240 - MessageWin->width) / 2;
-	MessageWin->y = (160 - MessageWin->height) / 2;
+	listview_set_attribute(box->list, WATR_COLWIDTH, i);
 
-	window_show(MessageWin);
+	box->win->x = (240 - box->win->width) / 2;
+	box->win->y = (160 - box->win->height) / 2;
+
+	window_show(box->win);
 	screen_redraw(MainScreen);
 
 	while(rc == -2)
@@ -123,7 +129,7 @@ int msgbox_list(char *title, char **lines, int num)
 				if(marked)
 				{
 					marked--;
-					listview_set_marked(MessageList, marked);
+					listview_set_marked(box->list, marked);
 					screen_redraw(MainScreen);
 				}
 				break;
@@ -132,26 +138,32 @@ int msgbox_list(char *title, char **lines, int num)
 				if(marked < (num-1))
 				{
 					marked++;
-					listview_set_marked(MessageList, marked);
+					listview_set_marked(box->list, marked);
 					screen_redraw(MainScreen);
 				}
 				break;
 		}
 	}
 
-	window_hide(MessageWin);
-	tricontainer_set_attribute((TriContainer *)MessageWin->widget, WATR_CHILD + 1, (void *)MessageTxt);
+	window_hide(box->win);
+	tricontainer_set_attribute((TriContainer *)box->win->widget, WATR_CHILD + 1, (void *)box->txt);
 	screen_redraw(MainScreen);
 
 	return rc;
 }
 
-int msgbox_list2(char *title, char *str, int num)
+int msgbox_list2(tbox *box, char *title, char *str, int num)
 {
 	int rc, i;
 	char *ptr, *start;
-	char **lines = malloc(num *4);
-	char *tmp = strdup(str);
+	char **lines;
+	char *tmp;
+
+	if (!box->list)
+		return -1;
+
+	lines = malloc(num *4);
+	tmp = strdup(str);
 
 	ptr = tmp;
 
@@ -163,44 +175,58 @@ int msgbox_list2(char *title, char *str, int num)
 			*ptr++ = 0;
 		lines[i] = start;
 	}
-	rc = msgbox_list(title, lines, num);
+	rc = msgbox_list(box, title, lines, num);
 
 	free(tmp);
 	free(lines);
 	return rc;
 }
 
-void msgbox_transient_show(char *title, char *text)
+void msgbox_transient_show(tbox *box, char *title, char *text)
 {
-	Widget *w;
+	TextBar *tb;
+	int i;
 
-	if((w = guiparser_findwidget(MSGBOX_TITLE)))
-		textbar_set_attribute((TextBar *)w, WATR_TEXT, title);
+	tb = box->title;
+	if (tb)
+		textbar_set_attribute(tb, WATR_TEXT, title);
 
-	if((w = guiparser_findwidget(MSGBOX_TEXT)))
-		textflow_set_attribute((TextFlow *)w, WATR_TEXT, text);
+	if (box->txt)
+		textflow_set_attribute(box->txt, WATR_TEXT, text);
 
-	MessageWin->width = MessageTxt->w.width + 8;
-	MessageWin->height = MessageTxt->w.height + 8 + 12;
+	i = 0;
+	if (box->txt)
+		i = box->txt->w.height;
+	if (tb)
+		i += tb->w.height;
+	box->win->height = i;
 
-	MessageWin->x = (240 - MessageWin->width) / 2;
-	MessageWin->y = (160 - MessageWin->height) / 2;
+	i = 0;
+	if (box->txt)
+		i = box->txt->w.width;
+	if (tb && tb->w.width > i)
+		i = tb->w.width;
+	box->win->width = i;
 
-	window_show(MessageWin);
+	box->win->x = (240 - box->win->width) / 2;
+	box->win->y = (160 - box->win->height) / 2;
+
+
+	window_show(box->win);
 	screen_redraw(MainScreen);
 }
 
-void msgbox_transient_hide(void)
+void msgbox_transient_hide(tbox *box)
 {
-	window_hide(MessageWin);
+	window_hide(box->win);
 	screen_redraw(MainScreen);
 }
 
-void msgbox_info(char *title, char *text)
+void msgbox_info(tbox *box, char *title, char *text)
 {
 	int c = 0;
 
-	msgbox_transient_show(title, text);
+	msgbox_transient_show(box, title, text);
 
 	while(c < RAWKEY_START || c > 0x80)
 	{
@@ -208,5 +234,5 @@ void msgbox_info(char *title, char *text)
 			Halt();
 	}
 
-	msgbox_transient_hide();
+	msgbox_transient_hide(box);
 }

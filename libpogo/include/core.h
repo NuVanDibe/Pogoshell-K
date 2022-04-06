@@ -20,6 +20,14 @@ typedef unsigned char uchar;
 #define EOF (-1)
 #endif
 
+#ifndef EBADF
+#define EBADF 1
+#endif
+
+#ifndef ENOENT
+#define ENOENT 2
+#endif
+
 // Map stdargs to gcclibs implementation - should be in its own file
 typedef __builtin_va_list va_list; 
 #define va_start(v,l) __builtin_stdarg_start((v),l)

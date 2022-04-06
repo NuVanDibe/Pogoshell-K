@@ -36,6 +36,7 @@ align_mask = 32767
 xrom = 0
 exclude_ext = []
 binary_ext = []
+binary_plugins = {}
 
 def hex2chr(string):
 	ret = ""
@@ -222,6 +223,12 @@ class pogocompilation:
 					sys.exit(11)
 				if columns[2] == "EXE":
 					binary_ext.append("." + columns[0].lower())
+				elif len(columns) > 3:
+					ext = columns[2].rfind(".")
+					if ext != -1:
+						ext = columns[2][ext+1:]
+						if len(ext) >= 2 and ext[:2] != "mb":
+							binary_plugins[columns[0]] = columns[2]
 			settings = cfg['settings']
 			plugins_dir = ""
 			for f in settings:
@@ -291,6 +298,9 @@ class pogocompilation:
 			for f in unmovable:
 				if IS_BINARY(f.flags):
 					offset = (offset+align_mask) & ~align_mask
+					for j in binary_plugins.items():
+						if f.name == j[1]:
+							del binary_plugins[j[0]]
 				else:
 					offset = (offset+3) & ~3
 				f.start = offset
@@ -304,7 +314,12 @@ class pogocompilation:
 					i = 0
 					while gap != 0 and i < l:
 						current = nonbinary[i]
-						if current.size <= gap:
+						ext = current.name.rfind(".")
+						if ext != -1:
+							ext = current.name[ext+1:]
+						else:
+							ext = ""
+						if ext not in binary_plugins and current.size <= gap:
 							current.start = offset
 							offset += current.size
 							offset = (offset+3) & ~3
@@ -315,6 +330,9 @@ class pogocompilation:
 						else:
 							i += 1
 					offset += gap
+					for j in binary_plugins.items():
+						if f.name == j[1]:
+							del binary_plugins[j[0]]
 				f.start = offset
 				offset += f.size
 				neworder.append(f)
@@ -340,7 +358,12 @@ class pogocompilation:
 					i = 0
 					while gap != 0 and i < l:
 						current = self.objects[i]
-						if not IS_BINARY(current.flags) and current.size <= gap:
+						ext = current.name.rfind(".")
+						if ext != -1:
+							ext = current.name[ext+1:]
+						else:
+							ext = ""
+						if ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
 							current.start = offset
 							offset += current.size
 							offset = (offset+3) & ~3
@@ -351,6 +374,9 @@ class pogocompilation:
 						else:
 							i += 1
 					offset += gap
+					for j in binary_plugins.items():
+						if f.name == j[1]:
+							del binary_plugins[j[0]]
 				offset = (offset+3) & ~3
 				f.start = offset
 				offset += f.size

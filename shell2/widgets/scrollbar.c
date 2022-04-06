@@ -64,15 +64,15 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 			if (!scr->alignside)
 				r->x += sbar.w;
 		} else if (space_for_bar) {
-			r->w -= (sbar.w - scr->marginx[0] * 2);
+			r->w -= (sbar.w - scr->marginl[0] - scr->marginr[0]);
 			if (!scr->alignside)
-				r->x += (sbar.w - scr->marginx[0] * 2);
+				r->x += (sbar.w - scr->marginl[0] - scr->marginr[0]);
 		}
 
-		sbar.x += scr->marginx[0];
-		sbar.w -= scr->marginx[0] * 2;
-		sbar.y = r->y + scr->marginy[0];
-		sbar.h = r->h - scr->marginy[0] * 2;
+		sbar.x += scr->marginl[0];
+		sbar.w -= (scr->marginl[0] + scr->marginr[0]);
+		sbar.y = r->y + scr->marginu[0];
+		sbar.h = r->h - scr->marginu[0] - scr->margind[0];
 
 		if (draw_trough)
 		{
@@ -97,10 +97,10 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 			if(i < scr->showing)
 				i = scr->showing;
 
-			sbar.x += scr->marginx[1];
-			sbar.w -= scr->marginx[1] * 2;
-			sbar.y += scr->marginy[1];
-			sbar.h -= scr->marginy[1] * 2;
+			sbar.x += scr->marginl[1];
+			sbar.w -= (scr->marginl[1] + scr->marginr[1]);
+			sbar.y += scr->marginu[1];
+			sbar.h -= (scr->marginu[1] + scr->margind[1]);
 
 			sbar.y = sbar.y + scr->start * sbar.h / i;
 			sbar.h = sbar.h * scr->showing / i;
@@ -129,10 +129,8 @@ Scrollbar *scrollbar_new()
 	sc->w.flags = WFLG_REDRAW;
 
 	sc->alignside = ALIGN_RIGHT;
-	sc->marginx[0] = 1;
-	sc->marginx[1] = 1;
-	sc->marginy[0] = 1;
-	sc->marginy[1] = 1;
+	sc->marginl[0] = sc->marginr[0] = sc->marginl[1] = sc->marginr[1] = 1;
+	sc->marginu[0] = sc->margind[0] = sc->marginu[1] = sc->margind[1] = 1;
 	sc->style = TROUGH_ALWAYS | BAR_ALWAYS;
 
 	p = (uint32 *)&sc->troughcolor;
@@ -180,7 +178,7 @@ void scrollbar_set_lines(Scrollbar *sc, unsigned int lines)
 void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 {
 	Color c;
-	int n = attr & 0xf;
+	int i, n = attr & 0xf;
 	uint32 l;
 
 	switch(attr & 0xFF0)
@@ -216,10 +214,29 @@ void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 		sc->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_MARGIN:
-		if (n & 1)
-			sc->marginy[(n & 2)>>1] = (int) val;
-		else
-			sc->marginx[(n & 2)>>1] = (int) val;
+		i = n & 1;
+		switch ((n>>1) & 7)
+		{
+			case 1:
+				sc->marginu[i] = sc->margind[i] = (int) val;
+				break;
+			case 2:
+				sc->marginl[i] = (int) val;
+				break;
+			case 3:
+				sc->marginr[i] = (int) val;
+				break;
+			case 4:
+				sc->marginu[i] = (int) val;
+				break;
+			case 5:
+				sc->margind[i] = (int) val;
+				break;
+			case 0:
+			default:
+				sc->marginl[i] = sc->marginr[i] = (int) val;
+				break;
+		}
 		sc->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_ALIGN:

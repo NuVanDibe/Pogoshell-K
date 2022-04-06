@@ -12,6 +12,8 @@ const
 const
 #include "gammatab75.h"
 
+void bmp_view_joint(char *fname, int decompression);
+
 //static unsigned short bmp_colors[256];
 static unsigned char *bmp_ptr;
 static int bmp_h;
@@ -160,10 +162,21 @@ void render_bmp(int x, int y, int scalex, int scaley)
 	}
 }
 
-
-
-
 void bmp_view(char *fname)
+{
+	bmp_view_joint(fname, RAW);
+}
+
+void bmz_view(char *fname)
+{
+	bmp_view_joint(fname, LZ77);
+}
+void bmap_view(char *fname)
+{
+	bmp_view_joint(fname, APACK);
+}
+
+void bmp_view_joint(char *fname, int decompression)
 {
 	int glevel = 0;
 	int c,fd, quit = 0;
@@ -175,7 +188,7 @@ void bmp_view(char *fname)
 	while(l--)
 		*p++ = 0;
 
-	uchar *bmp = file2mem(fname, (void *)(FREEPTR), 120*1024);
+	uchar *bmp = file2mem(fname, (void *)(FREEPTR), 120*1024, decompression);
 
 	prepare_bmp(bmp, NULL);
 

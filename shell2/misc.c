@@ -114,7 +114,7 @@ int file2ram(char *fname, void *mem, int msize)
 }
 #endif
 
-uchar *file2mem(char *fname, void *mem, int msize)
+uchar *file2mem(char *fname, void *mem, int msize, int decompress)
 {
 	char *s;
 	int fsize;
@@ -129,25 +129,28 @@ uchar *file2mem(char *fname, void *mem, int msize)
 	lseek(fd, 0, SEEK_SET);
 
 	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
-	if(mem && !ptr)
-	{
-		// Read file to top of buffer
-		if(s[2] == 'z' || (s[2] == 'a' && s[3] == 'p'))
-			ptr = mem + msize - fsize;
-		else {
-			ptr = mem;
-			read(fd, ptr, fsize);
-		}
-	}
 	close(fd);
 
-	//fprintf(stderr, "FILE %s\n", s);
+	if ((!mem && decompress) || !ptr)
+		return NULL;
 
-	if(mem && s[2] == 'z') {
-		LZ77UnCompWram(ptr, mem);
-		ptr = mem;
-	} else if (mem && s[2] == 'a' && s[3] == 'p') {
-		depack(ptr, mem);
+	if (mem)
+	{
+		switch (decompress)
+		{
+			case LZ77:
+				LZ77UnCompWram(ptr, mem);
+				break;
+			case APACK:
+				depack(ptr, mem);
+				break;
+			case RAW:
+			default:
+				if (fsize > msize)
+					return NULL;
+				memcpy(mem, ptr, fsize);
+				break;
+		}
 		ptr = mem;
 	}
 

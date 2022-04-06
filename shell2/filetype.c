@@ -15,7 +15,10 @@
 
 extern uint16 marked;
 
+int execute_mb_joined(char *fname, int decompression, int keys);
 void bmp_view(char *fname);
+void bmz_view(char *fname);
+void bmap_view(char *fname);
 void jpg_view(char *fname);
 void jpe_view(char *fname);
 
@@ -70,29 +73,33 @@ static int check_extention(char *data, DirList *entry)
 
 int execute_mb(char *cmd, char *fname, int keys)
 {
+	return execute_mb_joined(fname, RAW, keys);
+}
+
+int execute_mbz(char *cmd, char *fname, int keys)
+{
+	return execute_mb_joined(fname, LZ77, keys);
+}
+
+int execute_mbap(char *cmd, char *fname, int keys)
+{
+	return execute_mb_joined(fname, APACK, keys);
+}
+
+int execute_mb_joined(char *fname, int decompression, int keys)
+{
 	uchar *ptr;
 	uint16 *p2;
 	int i;
-	//int fd = open(fname, 0);
-	//void *p = (void *)lseek(fd, 0, SEEK_MEM);
-	//close(fd);
 
 	save_state();
-	//clear_vram();
-	
-	//set_ram_start(0);
 
 	memset((void *)(0x02000000), 0, 256*1024);
-	ptr = file2mem(fname, (void *)0x02000000, 256*1024);
-	if(ptr != (void *)0x02000000)
-		memcpy((void *)0x02000000, ptr, 256*1024);
+	ptr = file2mem(fname, (void *)0x02000000, 256*1024, decompression);
+	if (ptr != (void *)0x02000000)
+		return 2;
 
 	set_ram_start(0);
-
-	//if(fname[strlen(fname)-1] == 'z')
-	//	LZ77UnCompWram(p, (void *)0x02000000);
-	//else
-
 
 	SETW(REG_IE, 0);
 	SETW(REG_IF, 0);
@@ -108,7 +115,7 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//SoftReset(0xfe);
 	((void(*)(void))0x02000000)();
 
-	return 1;
+	return 2;
 
 }
 
@@ -172,9 +179,10 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		int i;
 
 		memset((void *)(0x02000000), 0, 256*1024);
-		ptr = file2mem(tmp, (void *)0x02000000, 256*1024);
+		ptr = file2mem(tmp, (void *)0x02000000, 256*1024,
+			(s[3] == 'z') ? LZ77 : ((s[3] == 'a' && s[4] == 'p') ? APACK : RAW));
 		if(ptr != (uchar *) 0x02000000)
-			memcpy((void *) 0x02000000, ptr, 256*1024);
+			return 1;
 		make_arguments(tmp, args);
 
 		//fprintf(stderr, "Copied from %p\n", ptr);
@@ -222,6 +230,20 @@ int show_text(char *cmd, char *fname, int keys)
 int showbmp(char *cmd, char *fname, int keys)
 {
 	bmp_view(fname);
+	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
+	return 2;
+}
+
+int showbmz(char *cmd, char *fname, int keys)
+{
+	bmz_view(fname);
+	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
+	return 2;
+}
+
+int showbmap(char *cmd, char *fname, int keys)
+{
+	bmap_view(fname);
 	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
 	return 2;
 }
@@ -371,11 +393,23 @@ void filetype_readtypes(FILE *fp)
 				if(strcmp(p, "MB") == 0)
 					f->handle_func = execute_mb;
 				else
+				if(strcmp(p, "MBZ") == 0)
+					f->handle_func = execute_mbz;
+				else
+				if(strcmp(p, "MBAP") == 0)
+					f->handle_func = execute_mbap;
+				else
 				if(strcmp(p, "FNT") == 0)
 					f->handle_func = set_font;
 				else
 				if(strcmp(p, "BMP") == 0)
 					f->handle_func = showbmp;
+				else
+				if(strcmp(p, "BMZ") == 0)
+					f->handle_func = showbmz;
+				else
+				if(strcmp(p, "BMAP") == 0)
+					f->handle_func = showbmap;
 				else
 				if(strcmp(p, "JPE") == 0)
 					f->handle_func = showjpe;

@@ -27,8 +27,10 @@ typedef struct
 	uint16 style;
 	BackDrop *bar;
 	BackDrop *trough;
-	uint16 marginx[2];
-	uint16 marginy[2];
+	uint16 marginl[2];
+	uint16 marginr[2];
+	uint16 marginu[2];
+	uint16 margind[2];
 	uint16 alignside;
 
 	Color troughcolor;

@@ -87,7 +87,7 @@ int decrypt_image(char *fname, uchar **jpg)
 	jpg_size = *(int *)enc;
 
 	pfree();
-	out = pmalloc(jpg_size);
+	out = pmalloc((jpg_size+16)&~15);
 	*jpg = out;
 
     if (out && jpg_size > sizeof(uint64)*2) {
@@ -210,7 +210,7 @@ int decrypt_image(char *fname, uchar **jpg)
 		aes_set_key(&ctx, (unsigned char *) key, 16, 0);
 		old_enc[0] = old_enc[1] = 0xfedcba9876543210ll;
 		lljpg += 2;
-    	for (i = 0; i < (jpg_size/sizeof(uint64)+1); i+=2)
+    	for (i = 0; i < (jpg_size/sizeof(uint64)); i+=2)
 	    {
     		aes_decrypt(&ctx, (unsigned char *) &lljpg[i], (unsigned char *) &out[i]);
 			out[i] ^= old_enc[0];
@@ -218,7 +218,7 @@ int decrypt_image(char *fname, uchar **jpg)
 			old_enc[0] = lljpg[i];
 			old_enc[1] = lljpg[i+1];
 	    }
-		return (jpg_size+3)&~3;
+		return jpg_size;
 	} else
 		return -1;
 }
@@ -253,15 +253,9 @@ void jpe_view(char *fname)
 
 void jpg_view(char *fname)
 {
-	int fd, fsize;
 	uchar *ptr;
 
-	fd = open(fname, 0);
-	fsize = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-
-	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
-	close(fd);
+	ptr = file2mem(fname, NULL, 0, RAW);
 
 	pfree();
 	joint_view(ptr);

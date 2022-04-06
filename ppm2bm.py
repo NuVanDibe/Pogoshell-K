@@ -42,6 +42,8 @@ if __name__ == "__main__":
 				i += 1
 				continue
 			break
+		while contents[i] in " \t\r\n":
+			i += 1
 		i1 = i
 		while contents[i] not in " \t\r\n":
 			i += 1
@@ -55,6 +57,8 @@ if __name__ == "__main__":
 				i += 1
 				continue
 			break
+		while contents[i] in " \t\r\n":
+			i += 1
 		i1 = i
 		while contents[i] not in " \t\r\n":
 			i += 1
@@ -68,6 +72,8 @@ if __name__ == "__main__":
 				i += 1
 				continue
 			break
+		while contents[i] in " \t\r\n":
+			i += 1
 		i1 =i
 		while contents[i] not in " \t\r\n":
 			i += 1

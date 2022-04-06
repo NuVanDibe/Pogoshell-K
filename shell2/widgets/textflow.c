@@ -26,7 +26,7 @@ int textflow_render(TextFlow *tb, Rect *org_r, BitMap *bm)
 
  		dst = (uint16 *)bm->pixels + (r->x+tb->marginl) + (r->y+tb->marginu) * bm->width;
 		font_setcolor(TO_RGB16(tb->textcolor[0]), 0x0000);
-		font_setshadowoutline(0x0000, 0x7fff);
+		font_setshadowoutline(TO_RGB16(tb->typeface->shadow),TO_RGB16(tb->typeface->outline));
 
 		for(i=0; i<tb->numlines; i++)
 		{

@@ -4,4 +4,4 @@
    from writing outside the allocated area
    Note: This is becase (sizeof(Romfile)*MAX_HIDDEN_DIR)
    must be evenly divisible by 128-bits */
-#define MAX_HIDDEN_DIR 64
+#define MAX_HIDDEN_DIR 100

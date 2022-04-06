@@ -148,8 +148,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	if(lv->dirty == 0xFF)
 	{
 		if (lv->scrollbar) {
-			scrollbar_set_start(lv->scrollbar, lv->start);
 			scrollbar_set_lines(lv->scrollbar, lv->lines);
+			scrollbar_set_start(lv->scrollbar, lv->start);
 			scrollbar_set_showing(lv->scrollbar, lv->showing);
 			scrollbar_set_dirty(lv->scrollbar);
 		}
@@ -267,9 +267,9 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 					if (c.a == 0x80 || c.a > 0x85)
 						bitmap_avgbox(bm, &r2, TO_RGB16(c));
 					else if (c.a < 0x80)
-						bitmap_colorbox(bm, &r2, TO_RGB16(c), 0x80 - c.a);
+						bitmap_addshiftbox(bm, &r2, TO_RGB16(c), 0x80 - c.a);
 					else
-						bitmap_backbox(bm, &r2, TO_RGB16(c), c.a - 0x80);
+						bitmap_avgshiftbox(bm, &r2, TO_RGB16(c), c.a - 0x80);
 				} else
 					bitmap_fillbox(bm, &r2, TO_RGB16(c));
 				c = (cp && (lv->associatestyle & COLORHIGHLIGHT)) ? *cp : lv->textcolor[2];

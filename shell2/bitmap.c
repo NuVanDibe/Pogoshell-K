@@ -192,71 +192,68 @@ void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col)
 	}
 }
 
-void bitmap_backbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
+void bitmap_avgshiftbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
 {
 	int w;
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
-	uint16 mask16;
-	uint32 high, low, mask;
+	uint16 colh, coll, mask;
+	uint32 high, low;
 
-	mask16 = (0x1f >> shift);
-	mask16 |= (mask16 << 5) | (mask16 << 10);
-	col = (col>>shift) & mask16;
-	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
+	colh = col & 0x739c;
+	coll = col & 0x0c63;
+
+	mask = 0x1f>>shift;
+	mask = mask | (mask<<5) | (mask<<10);
+
+	while(dh--)
+	{
+		w = r->w;
+		while(w--)
+		{
+			low = (*d>>shift) & mask;
+			high = low & 0x739c;
+			low = low & 0x0c63;
+			high += colh;
+			low += coll;
+			*d = (high+(low&0x18c6))>>1;
+			d++;
+		}
+		d += dmod;
+	}
+}
+
+void bitmap_addshiftbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
+{
+	int w;
+	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
+	int dmod = (dst->width - r->w);
+	int dh = r->h;
+	int high;
+	int or, og, ob;
+	int cr, cg, cb;
+
+	or = (col&0x1f);
+	og = ((col>>5)&0x1f);
+	ob = ((col>>10)&0x1f);
+
 	while(dh--)
 	{
 		w = r->w;
 		while(w--)
 		{
 			high = *d;
-			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
-			high += low;
-			mask = high & ((1<<5) | (1<<11) | (1<<17));
-			mask >>= 1;
-			mask |= (mask>>1);
-			mask |= (mask>>2);
-			mask |= (mask>>1);
-			high |= mask;
-			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
+			cr = ((high&0x1f)>>shift) + or;
+			cg = (((high>>5)&0x1f)>>shift) + og;
+			cb = (((high>>10)&0x1f)>>shift) + ob;
+			cr = (cr > 0x1f) ? 0x1f : cr;
+			cg = (cg > 0x1f) ? 0x1f : cg;
+			cb = (cb > 0x1f) ? 0x1f : cb;
+
+			*d = (cr) | (cg<<5) | (cb << 10);
 			d++;
 		}
-
-		d += dmod;
-	}
-}
-
-void bitmap_colorbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
-{
-	int w;
-	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
-	int dmod = (dst->width - r->w);
-	int dh = r->h;
-	uint16 mask16;
-	uint32 high, low, mask;
-
-	mask16 = (0x1f >> shift);
-	mask16 |= (mask16 << 5) | (mask16 << 10);
-	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
-	while(dh--)
-	{
-		w = r->w;
-		while(w--)
-		{
-			high = (*d >> shift) & mask16;
-			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
-			high += low;
-			mask = high & ((1<<5) | (1<<11) | (1<<17));
-			mask >>= 1;
-			mask |= (mask>>1);
-			mask |= (mask>>2);
-			mask |= (mask>>1);
-			high |= mask;
-			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
-			d++;
-		}
-
 		d += dmod;
 	}
 }
@@ -267,28 +264,30 @@ void bitmap_negbox(BitMap *dst, Rect *r, uint16 col)
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
-	uint32 high, low, mask;
+	int high;
+	int or, og, ob;
+	int cr, cg, cb;
 
-	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
+	or = (col&0x1f);
+	og = ((col>>5)&0x1f);
+	ob = ((col>>10)&0x1f);
+
 	while(dh--)
 	{
 		w = r->w;
 		while(w--)
 		{
 			high = *d;
-			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
-			high |= (1<<5) | (1<<11) | (1<<17);
-			high -= low;
-			mask = high & ((1<<5) | (1<<11) | (1<<17));
-			mask >>= 1;
-			mask |= (mask>>1);
-			mask |= (mask>>2);
-			mask |= (mask>>1);
-			high &= mask;
-			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
+			cr = (high&0x1f) - or;
+			cg = ((high>>5)&0x1f) - og;
+			cb = ((high>>10)&0x1f) - ob;
+			cr = (cr < 0) ? 0 : cr;
+			cg = (cg < 0) ? 0 : cg;
+			cb = (cb < 0) ? 0 : cb;
+
+			*d = (cr) | (cg<<5) | (cb << 10);
 			d++;
 		}
-
 		d += dmod;
 	}
 }
@@ -299,24 +298,28 @@ void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
-	uint32 high, low, mask;
+	int high;
+	int or, og, ob;
+	int cr, cg, cb;
 
-	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
+	or = (col&0x1f);
+	og = ((col>>5)&0x1f);
+	ob = ((col>>10)&0x1f);
+
 	while(dh--)
 	{
 		w = r->w;
 		while(w--)
 		{
 			high = *d;
-			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
-			high += low;
-			mask = high & ((1<<5) | (1<<11) | (1<<17));
-			mask >>= 1;
-			mask |= (mask>>1);
-			mask |= (mask>>2);
-			mask |= (mask>>1);
-			high |= mask;
-			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
+			cr = (high&0x1f) + or;
+			cg = ((high>>5)&0x1f) + og;
+			cb = ((high>>10)&0x1f) + ob;
+			cr = (cr > 0x1f) ? 0x1f : cr;
+			cg = (cg > 0x1f) ? 0x1f : cg;
+			cb = (cb > 0x1f) ? 0x1f : cb;
+
+			*d = (cr) | (cg<<5) | (cb << 10);
 			d++;
 		}
 		d += dmod;

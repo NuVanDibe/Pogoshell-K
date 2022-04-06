@@ -110,10 +110,16 @@ void guiparser_readsymbols(FILE *fp)
 					while(*p != '=') p++;
 					*p++ = 0;
 					val = p;
-					while(isdigit(*p)) p++;
-					*p = 0;
-
-					i = atoi(val);
+					if (*p == '$') {
+						p++;
+						while(ishexdigit(*p)) p++;
+						*p = 0;
+						i = gethex(++val);
+					} else {
+						while(isdigit(*p)) p++;
+						*p = 0;
+						i = atoi(val);
+					}
 					symbol_add(sym, i);
 				}
 			}
@@ -312,6 +318,9 @@ Widget *guiparser_create(char *spec, char *rootitem)
 						{
 							symbol_get(tmp, &valtmp);
 						}
+					} else if (*p == '$') {
+						val = gethex(++p);
+						while(isalnum(*p)) p++;
 					} else {
 						valtmp = atoi(p);
 						while(isalnum(*p)) p++;

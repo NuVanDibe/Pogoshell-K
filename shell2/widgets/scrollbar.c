@@ -172,9 +172,9 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 				if (c.a == 0x80 || c.a > 0x85)
 					bitmap_avgbox(bm, &sbar, TO_RGB16(c));
 				else if (c.a < 0x80)
-					bitmap_colorbox(bm, &sbar, TO_RGB16(c), 0x80 - c.a);
+					bitmap_addshiftbox(bm, &sbar, TO_RGB16(c), 0x80 - c.a);
 				else
-					bitmap_backbox(bm, &sbar, TO_RGB16(c), c.a - 0x80);
+					bitmap_avgshiftbox(bm, &sbar, TO_RGB16(c), c.a - 0x80);
 			} else
 				bitmap_fillbox(bm, &sbar, TO_RGB16(c));
 		}

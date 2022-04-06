@@ -20,6 +20,7 @@ int strnicmp(const char *s1, const char *s2, int n);
 int atoi(const char *str);
 
 int isdigit(int c);
+int ishexdigit(int c);
 int isprint(int c);
 int islower(int c);
 int isalnum(char c);

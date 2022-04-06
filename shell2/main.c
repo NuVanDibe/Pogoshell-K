@@ -381,12 +381,13 @@ void init_devices(void)
 	gamesys_init();
 }
 
-BitMap BackgroundBM;
+//BitMap BackgroundBM;
 
 void update_list(void)
 {
 	char tmp[80];
-	int i, t, filecount;
+	int i, t;
+	int filecount;
 
 	listview_clear(MainList);
 	if (!DialogBox)
@@ -395,6 +396,7 @@ void update_list(void)
 	filecount = filesys_getfiles(dirlist);
 	if (!DialogBox)
 		listview_clear(MainList);
+	i = 0;
 	for(i=0; i<filecount; i++)
 	{
 		if(dirlist[i].type || settings_get(SF_HIDESIZE) || (filesys_getstate() == FSTATE_GAMES))
@@ -404,18 +406,15 @@ void update_list(void)
 
 		t = filetype_lookup(&dirlist[i]);
 /*
-		//fprintf(stderr, "%s\n", dirlist[i].name);
-		if(strcmp(dirlist[i].name, ".background.bm") == 0)
+		//fprintf(stderr, "%s\n", dirlist[i].entry.d_name);
+		if(strcmp(dirlist[i].entry.d_name, ".background.bm") == 0)
 		{
 			FILE *fp = fopen(filesys_fullname(i), "rb");
 			BitMap *bmap = bitmap_readbm(fp);
-			fprintf(stderr, "BG %s %p %p\n", dirlist[i].name, fp, bmap);
-			memcpy(&BackgroundBM, bmap, sizeof(BitMap));
-			free(bmap);
 			fclose(fp);
-			backdrop_set_attribute(MainList->backdrop, WATR_BITMAP, &BackgroundBM);
+			backdrop_set_attribute(MainList->backdrop, WATR_BITMAP, bmap);
 		}
-*/		
+*/
 		strcpy(&dirname[i*32], dirlist[i].entry.d_name);
 		if((t > 1) && settings_get(SF_HIDEEXT))
 		{
@@ -428,17 +427,17 @@ void update_list(void)
 	}
 
 	if (new_marked != -1) {
-		listview_set_marked(MainList, 0);
 		marked = new_marked;
 		new_marked = -1;
 	}
-	if (marked == -1 && filecount)
-		marked = 0;
 
-	if (marked != -1 && filecount) {
+	if (filecount) {
+		MainList->marked = -1;
 		listview_set_marked(MainList, marked);
-		if (listview_get_marked(MainList) == -1)
+		if (listview_get_marked(MainList) == -1) {
 			listview_set_marked(MainList, 0);
+			marked = 0;
+		}
 	}
 
 	if(filesys_getstate() == FSTATE_SRAM)
@@ -696,8 +695,7 @@ void cmd_switchuser(char *name)
 	if (old_user != CurrentUser) {
 		save_user();
 		load_state();
-		if (settings_get(SF_THEME) != old_theme)
-			setup_screen();
+		setup_screen();
 		sprintf(tmp, TEXT(SWITCHED_USER), UserName);
 		statusbar_set(tmp);
 	}
@@ -918,6 +916,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!DialogBox)
+		listview_addline(MainList, NULL, NULL, TEXT(PLEASE_WAIT), "");
+	screen_redraw(MainScreen);
+
 	time2(&clockdata);
 	if(converted)
 		statusbar_set("SRAM converted!");
@@ -934,6 +936,11 @@ int main(int argc, char **argv)
 	}
 
 	savesys_savelastgame();
+
+	if (!DialogBox)
+		listview_clear(MainList);
+
+	screen_redraw(MainScreen);
 
 	while(1)
 	{

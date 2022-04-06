@@ -47,7 +47,7 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 		}
 
 		font_setcolor(TO_RGB16(tb->textcolor), 0x0000);
-		font_setshadowoutline(0x0000, 0x7fff);
+		font_setshadowoutline(TO_RGB16(tb->typeface->shadow),TO_RGB16(tb->typeface->outline));
 		//dst += (bm->width + 1);
 		font_text(f, left, dst, bm->width);
 		if((tb->align == ALIGN_LEFT) && right)

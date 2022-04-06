@@ -55,8 +55,8 @@ BitMap *bitmap_readbm(FILE *fp);
 BitMap *bitmap_loadbm(char *name);
 
 void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col);
-void bitmap_backbox(BitMap *dst, Rect *r, uint16 col, uint16 shift);
-void bitmap_colorbox(BitMap *dst, Rect *r, uint16 col, uint16 shift);
+void bitmap_avgshiftbox(BitMap *dst, Rect *r, uint16 col, uint16 shift);
+void bitmap_addshiftbox(BitMap *dst, Rect *r, uint16 col, uint16 shift);
 void bitmap_addbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_negbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_fillbox(BitMap *dst, Rect *r, uint16 col);

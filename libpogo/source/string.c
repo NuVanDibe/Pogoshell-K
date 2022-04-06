@@ -15,6 +15,11 @@ int isdigit(char c)
 	return (c >= '0' && c <= '9');
 }
 
+int ishexdigit(char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
+
 int isalpha(char c)
 {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -22,7 +27,7 @@ int isalpha(char c)
 
 int isalnum(char c)
 {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
 int toupper(int c)

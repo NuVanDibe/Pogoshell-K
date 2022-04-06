@@ -168,13 +168,18 @@ void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
+	int high, low;
 
 	while(dh--)
 	{
 		w = r->w;
 		while(w--)
 		{
-			*d += col;
+			high = *d & 0x739c;
+			low = *d & 0x0c63;
+			high += (col & 0x739c);
+			low += (col & 0x0c63);
+			*d = (high+(low&0x318c))>>1;
 			d++;
 		}
 

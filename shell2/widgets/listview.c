@@ -32,7 +32,7 @@ void fix_positions(ListView *lv, Rect *r)
 
 }
 
-int listview_render(ListView *lv, Rect *r, BitMap *bm)
+int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 {
 	//const char col[3] = { 0xFF, 0x00, 0x00};
 	//const char bcol[3] = { 0xC0, 0xC0, 0xC0};
@@ -45,18 +45,25 @@ int listview_render(ListView *lv, Rect *r, BitMap *bm)
 
 	uint16 *d, *dst;
 
-	Rect sbar = *r;
+	Rect tr = *org_r, cr = *org_r, sbar = *org_r;
+	Rect *r = &cr;
 
 	BitMap *sbm = NULL;
 	
 	if(lv->backdrop)
 	{
+		backdrop_render(lv->backdrop, &tr, NULL); // to fix tr, if necessary
 		sbm = lv->backdrop->bitmap;
 		bdcol = TO_RGB16(lv->backdrop->color[2]);
 	}
 	else
 		bdcol = 0x6318; //COL16(bcol);
 
+	//r->x += 4;
+
+	lv->showing = (tr.h - lv->marginy) / lv->lineh;
+
+	fix_positions(lv, &tr);
 
 
 	if(lv->w.flags & WFLG_REDRAW)
@@ -71,25 +78,20 @@ int listview_render(ListView *lv, Rect *r, BitMap *bm)
 
 	if(lv->dirty == 0xFF)
 	{
-		if(sbm)
-			bitmap_blit(bm, r->x, r->y, sbm, 0, 0, r->w, r->h);
+		if(lv->backdrop)
+			backdrop_render(lv->backdrop, r, bm);
+		/*if(sbm)
+			bitmap_blit(bm, r->x, r->y, sbm, 0, 0, r->w, r->h);*/
 		else
 			bitmap_fillbox(bm, r, bdcol);
 		//fprintf(stderr, "FULL!\n");
-	}
+	} else if (lv->backdrop)
+		backdrop_render(lv->backdrop, r, NULL); // to fix r, if necessary
 
+	r->y += lv->marginy;
 
 	if(!lv->lines)
 		return 1;
-
-
-	//r->x += 4;
-	r->y += lv->marginy;	
-
-	lv->showing = (r->h - lv->marginy) / lv->lineh;
-
-	fix_positions(lv, r);
-
 
 	dst = (uint16 *)bm->pixels + (r->x + lv->iconw + lv->marginx) + (r->y + fonty) * bm->width ;
 
@@ -125,29 +127,26 @@ int listview_render(ListView *lv, Rect *r, BitMap *bm)
 
 			d = dst;
 
+			if(i == lv->marked)
+			{
+				if(lv->textcolor[3].a > 0x7F)
+					bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+				else
+					bitmap_fillbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+				font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
+			}
 			for(j=0; j<lv->columns; j++)
 			{
-				if(j == 0 && i == lv->marked)
-				{
-					if(lv->textcolor[3].a > 0x7F)
-						bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
-					else
-						bitmap_fillbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
-					font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
+				if (lv->colwidth[j])
 					l = font_text(lv->font, lv->texts[j][i], d, bm->width);
-
-					if(lv->textcolor[0].a != 0x01)
-						font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
-					else
-						font_setcolor(0, 0);
-				}
-				else {
-					if (lv->colwidth[j])
-						l = font_text(lv->font, lv->texts[j][i], d, bm->width);
-				}
 				d += lv->colwidth[j]; 
 			}
-
+			if (i == lv->marked) {
+				if(lv->textcolor[0].a != 0x01)
+					font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
+				else
+					font_setcolor(0, 0);
+			}
 			if(lv->icons[i])
 				bitmap_blit(bm, r->x + lv->marginx, r->y + y, lv->icons[i], 0, 0, lv->icons[i]->width, lv->icons[i]->height);
 		}
@@ -187,7 +186,6 @@ int listview_render(ListView *lv, Rect *r, BitMap *bm)
 void listview_set_attribute(ListView *lv, int attr, void *val)
 {
 	Color c;
-	int i;
 	int n = attr & 0xf;
 	uint32 l;
 

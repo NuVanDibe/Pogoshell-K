@@ -5,10 +5,13 @@
 #include "../window.h"
 #include "textflow.h"
 
-int textflow_render(TextFlow *tb, Rect *r, BitMap *bm)
+int textflow_render(TextFlow *tb, Rect *org_r, BitMap *bm)
 {
+	Rect cr = *org_r;
+	Rect *r = &cr;
+
 	int i;
-	uint16 *dst = (uint16 *)bm->pixels + (r->x+2) + (r->y+4) * bm->width;
+	uint16 *dst;
 	if(tb->w.flags & WFLG_REDRAW)
 	{
 
@@ -19,6 +22,7 @@ int textflow_render(TextFlow *tb, Rect *r, BitMap *bm)
 		else
 			bitmap_fillbox(bm, r, 0x6318);
 
+ 		dst = (uint16 *)bm->pixels + (r->x+2) + (r->y+4) * bm->width;
 		font_setcolor(TO_RGB16(tb->textcolor[0]), 0x0000);
 
 		for(i=0; i<tb->numlines; i++)

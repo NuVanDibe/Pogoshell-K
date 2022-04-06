@@ -71,66 +71,68 @@ void backdrop_set_border(BackDrop *bd, int border)
 
 void backdrop_render(BackDrop *bd, Rect *r, BitMap *bm)
 {
-	Rect inner = *r;
+	Rect org = *r, *orgr = &org;
 
-	inner.x += bd->border;
-	inner.y += bd->border;
-	inner.w -= (bd->border * 2);
-	inner.h -= (bd->border * 2);
+	r->x += bd->border;
+	r->y += bd->border;
+	r->w -= (bd->border * 2);
+	r->h -= (bd->border * 2);
 
 	// Draw inner
 
-	if(bd->style & STYLE_BITMAP)
-	{
-		bitmap_blit(bm, r->x, r->y, bd->bitmap, 0, 0, r->w, r->h);
-	}
-	else
-	{
-		if(bd->style & STYLE_HVRANGE)
-		{
-			bitmap_fillrange(bm, &inner, &bd->color[2], &bd->color[3], bd->style);
-		}
-		else
-		{
-			bitmap_fillbox(bm, &inner, TO_RGB16(bd->color[2]));
-		}
-	}
-
-	if(bd->border)
-	{
-		int  y, w;
-		int boffs, roffs;
-		uint16 *d;
-		uint16 col0 = TO_RGB16(bd->color[0]);
-		uint16 col1 = TO_RGB16(bd->color[1]);
-
-		boffs = (r->h - bd->border) * bm->width;
-		roffs = (r->w - bd->border);
-
-		d = (uint16 *)bm->pixels + r->x + r->y * bm->width;
-
-		// Top/bottom part
-		for(y=0; y<bd->border; y++)
-		{
-			w = r->w;
-			while(w--)
+	if (bm) {
+			if(bd->style & STYLE_BITMAP)
 			{
-				d[boffs] = col1;
-				*d++ = col0;
+				bitmap_blit(bm, r->x, r->y, bd->bitmap, 0, 0, r->w, r->h);
 			}
-			d += (bm->width - r->w);
+			else
+		{
+			if(bd->style & STYLE_HVRANGE)
+			{
+				bitmap_fillrange(bm, r, &bd->color[2], &bd->color[3], bd->style);
+			}
+			else
+			{
+				bitmap_fillbox(bm, r, TO_RGB16(bd->color[2]));
+			}
 		}
 
-		// Middle part
-		for(; y<(r->h - bd->border); y++)
+		if(bd->border)
 		{
-			w = bd->border;
-			while(w--)
+			int  y, w;
+			int boffs, roffs;
+			uint16 *d;
+			uint16 col0 = TO_RGB16(bd->color[0]);
+			uint16 col1 = TO_RGB16(bd->color[1]);
+
+			boffs = (orgr->h - bd->border) * bm->width;
+			roffs = (orgr->w - bd->border);
+
+			d = (uint16 *)bm->pixels + orgr->x + orgr->y * bm->width;
+
+			// Top/bottom part
+			for(y=0; y<bd->border; y++)
 			{
-				d[roffs] = col1;
-				*d++ = col0;
+				w = orgr->w;
+				while(w--)
+				{
+					d[boffs] = col1;
+					*d++ = col0;
+				}
+				d += (bm->width - orgr->w);
 			}
-			d += (bm->width - bd->border);
+
+			// Middle part
+			for(; y<(orgr->h - bd->border); y++)
+			{
+				w = bd->border;
+				while(w--)
+				{
+					d[roffs] = col1;
+					*d++ = col0;
+				}
+				d += (bm->width - bd->border);
+			}
 		}
 	}
 }

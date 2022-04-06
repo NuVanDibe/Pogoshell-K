@@ -5,12 +5,15 @@
 #include "../window.h"
 #include "textbar.h"
 
-int textbar_render(TextBar *tb, Rect *r, BitMap *bm)
+int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 {
+	Rect cr = *org_r;
+	Rect *r = &cr;
+
 	int l;
 	char left[256];
 	char *right;
-	uint16 *dst = (uint16 *)bm->pixels + (r->x+tb->margin) + (r->y+tb->margin) * bm->width;
+	uint16 *dst;
 	strcpy(left, tb->text);
 	right = left;
 	while(*right && *right != '|') right++;
@@ -21,6 +24,13 @@ int textbar_render(TextBar *tb, Rect *r, BitMap *bm)
 
 	if(tb->w.flags & WFLG_REDRAW)
 	{
+		if(tb->backdrop)
+		{
+			backdrop_render(tb->backdrop, r, bm);
+		}
+		else
+			bitmap_fillbox(bm, r, 0x6318);
+
 		if(tb->align == ALIGN_CENTER)
 		{
 			l = font_text(tb->font, left, NULL, bm->width);
@@ -33,12 +43,7 @@ int textbar_render(TextBar *tb, Rect *r, BitMap *bm)
 			dst += (r->w - l - tb->margin);
 		}
 
-		if(tb->backdrop)
-		{
-			backdrop_render(tb->backdrop, r, bm);
-		}
-		else
-			bitmap_fillbox(bm, r, 0x6318);
+ 		dst = (uint16 *)bm->pixels + (r->x+tb->margin) + (r->y+tb->margin) * bm->width;
 
 		font_setcolor(TO_RGB16(tb->textcolor), 0x0000);
 		//dst += (bm->width + 1);

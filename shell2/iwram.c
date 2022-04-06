@@ -373,13 +373,15 @@ extern int jpg_h;
 
 CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift)
 {
-	unsigned int high[240];
-	unsigned int low[240];
+	unsigned int high, low;
 
-	unsigned short *src, *dst, *s, *d;
+	unsigned short *src, *src2, *src3, *src4;
+	unsigned short *s, *s2, *s3, *s4;
+	unsigned short *dst, *d;
 
 	int w, h;
 	int dh, dw;
+	int dh2, dw2, dw2i;
 	int dx, dy;
 	int mw, mh;
 	int shift, l, m;
@@ -414,18 +416,33 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 	mw = (((rotate&1) ? 160 : 240)-w0)>>1;
 	mh = (((rotate&1) ? 240 : 160)-h0)>>1;
 
-	l = w0;
-	while (--l > -1)
-		high[l] = low[l] = 0;
-
 	if (mode)
 		src = jpg_ptr;
 	else
 		src = &jpg_ptr[x + y * jpg_w];
-	hi <<= shift;
-	wi <<= shift;
-	h = h0<<shift;
-	dh = 0;
+
+	s = src;
+	if (shift) {
+		dh2 = dw2 = 0;
+		s2 = s3 = s4 = s;
+		dw2 += jpg_w;
+		while (dw2 >= (wi << 1))
+		{
+			dw2 -= (wi << 1);
+			s2++;
+			s4++;
+		}
+		dh2 += jpg_h;
+		while (dh2 >= (hi << 1))
+		{
+			dh2 -= (hi << 1);
+			s3 += jpg_w;
+			s4 += jpg_w;
+		}
+		dh2 >>= 1;
+		dw2 >>= 1;
+		dw2i = dw2;
+	}
 	if (mh) {
 		l = mh;
 		while (l--) {
@@ -438,62 +455,65 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 			dst += dy;
 		}
 	}
+	dh = 0;
+	h = h0;//<<shift;
+	d = dst;
 	while (h--)
 	{
-		s = src;
-		d = dst;
 		dw = 0;
-		w = w0<<shift;
+		w = w0;//<<shift;
 		l = mw;
 		while(l--) {
 			*dst = 0x0;
 			dst += dx;
 		}
+		src = s;
 		if (shift) {
-			x = 0;
-			if (h&1) {
-				while (w--)
+			dw2 = dw2i;
+			src2 = s2;
+			src3 = s3;
+			src4 = s4;
+			while (w--)
+			{
+				high =  (*src & 0x739c);
+				low  =  (*src & 0x0c63);
+				high += (*src2 & 0x739c);
+				low  += (*src2 & 0x0c63);
+				high += (*src3 & 0x739c);
+				low  += (*src3 & 0x0c63);
+				high += (*src4 & 0x739c);
+				low  += (*src4 & 0x0c63);
+				*dst = (high+(low&0x318c))>>2;
+				dst += dx;
+
+				dw += jpg_w;
+				while (dw >= wi)
 				{
-					high[x] += (*src & 0x739c);
-					low[x] += (*src & 0x0c63);
-
-					x += (w&1)^1;
-
-					dw += jpg_w;
-					while (dw >= wi)
-					{
-						dw -= wi;
-						src++;
-					}
+					dw -= wi;
+					src++;
+					src3++;
 				}
-				dst = d;
-			} else {
-				while (w--)
+				dw2 += jpg_w;
+				while (dw2 >= wi)
 				{
-					high[x] += (*src & 0x739c);
-					low[x] += (*src & 0x0c63);
-
-					if (!(w&1)) {
-						*dst = (high[x]+(low[x]&0x318c))>>2;
-						dst += dx;
-						high[x] = low[x] = 0;
-						x++;
-					}
-
-					dw += jpg_w;
-					while (dw >= wi)
-					{
-						dw -= wi;
-						src++;
-					}
+					dw2 -= wi;
+					src2++;
+					src4++;
 				}
-				l = ((rotate&1) ? 160 : 240)-w0-mw;
-				while(l--) {
-					*dst = 0x0;
-					dst += dx;
-				}
-				dst = d;
-				dst += dy;
+			}
+			dh += jpg_h;
+			while (dh >= hi)
+			{
+				dh -= hi;
+				s += jpg_w;
+				s2 += jpg_w;
+			}
+			dh2 += jpg_h;
+			while (dh2 >= hi)
+			{
+				dh2 -= hi;
+				s3 += jpg_w;
+				s4 += jpg_w;
 			}
 		} else {
 			while (w--)
@@ -508,20 +528,20 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 					src++;
 				}
 			}
-			l = ((rotate&1) ? 160 : 240)-w0-mw;
-			while(l--) {
-				*dst = 0x0;
-				dst += dx;
+			dh += jpg_h;
+			while (dh >= hi)
+			{
+				dh -= hi;
+				s += jpg_w;
 			}
-			dst = d + dy;
 		}
-		src = s;
-		dh += jpg_h;
-		while (dh >= hi)
-		{
-			dh -= hi;
-			src += jpg_w;
+		l = ((rotate&1) ? 160 : 240)-w0-mw;
+		while(l--) {
+			*dst = 0x0;
+			dst += dx;
 		}
+		d += dy;
+		dst = d;
 	}
 	if (mh) {
 		l = ((rotate&1) ? 240 : 160)-h0-mh;

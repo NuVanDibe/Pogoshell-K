@@ -8,11 +8,11 @@ JPEG_OUTPUT_TYPE *jpg_ptr;
 int jpg_w;
 int jpg_h;
 
-void joint_view(uchar *jpg, int jpg_ram_usage);
+void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size);
 
 #define BG_PALRAM ((uint16*)0x05000000)
 
-int prepare_jpg(unsigned char *ptr, int jpg_ram_usage)
+int prepare_jpg(unsigned char *ptr, int jpg_ram_usage, int jpg_size)
 {
 	int sfd;
 
@@ -20,7 +20,7 @@ int prepare_jpg(unsigned char *ptr, int jpg_ram_usage)
 	ioctl(sfd, SC_SETMODE, 2);
 	close(sfd);
 
-    return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h, (jpg_ram_usage+3)&0xfffffffc);
+    return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h, (jpg_ram_usage+3)&0xfffffffc, jpg_size);
 }
 
 void generic_image(void)
@@ -63,17 +63,21 @@ void draw_block(int x, int y)
 
 int decrypt_image(char *fname, uchar *jpg, int msize)
 {
-	int c, done, jpg_size, x, y;
-    uint64 key[2], old_enc[2], *lljpg, *lljpg2, i;
+	int c, done, jpg_size, x, y, shift_count;
+    uint64 key[2], old_enc[2], *lljpg, *out, i;
+	char *enc;
+	static uint64 old_key[2] = {0, 0};
+	static int shift = 0;
 	aes_context ctx;
     
-	jpg_size = file2ram(fname, jpg, msize);
+	enc = file2mem(fname, NULL, 0);
+	jpg_size = *(int *)enc;
 
     if (jpg_size > sizeof(uint64)*2) {
-	    lljpg = (uint64 *) &jpg[sizeof(int)];
+	    lljpg = (uint64 *) &enc[sizeof(int)];
 
-    	key[0] = lljpg[0];
-    	key[1] = lljpg[1];
+    	key[0] = key[1] = 0;
+		shift_count = 0;
 
 		x = y = 0;
 		done = 0;
@@ -87,6 +91,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					x += 8;
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
+					shift_count += 3;
 					break;
 				case RAWKEY_DOWN:
 					draw_block(x, y);
@@ -94,6 +99,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 1;
+					shift_count += 3;
 					break;
 				case RAWKEY_LEFT:
 					draw_block(x, y);
@@ -101,6 +107,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 2;
+					shift_count += 3;
 					break;
 				case RAWKEY_RIGHT:
 					draw_block(x, y);
@@ -108,6 +115,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 3;
+					shift_count += 3;
 					break;
 				case RAWKEY_L:
 					draw_block(x, y);
@@ -115,6 +123,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 4;
+					shift_count += 3;
 					break;
 				case RAWKEY_R:
 					draw_block(x, y);
@@ -122,6 +131,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 5;
+					shift_count += 3;
 					break;
 				case RAWKEY_A:
 					draw_block(x, y);
@@ -129,6 +139,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 6;
+					shift_count += 3;
 					break;
 				case RAWKEY_B:
 					draw_block(x, y);
@@ -136,8 +147,25 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 					key[1] = (key[1]<<3) | (key[0]>>61);
 					key[0] <<= 3;
 					key[0] |= 7;
+					shift_count += 3;
 					break;
 				case RAWKEY_SELECT:
+					shift_count = shift;
+					key[0] = old_key[0];
+					key[1] = old_key[1];
+					for (i = 0; i < /*128/3*/43; i++)
+					{
+						draw_block(x, y);
+						x += 8;
+						if (x == 240) {
+							x = 0;
+							y += 8;
+						}
+						if (y == 160) {
+							y = 0;
+						}
+					}
+					break;
 				case RAWKEY_START:
 					done = 1;
 					break;
@@ -150,19 +178,31 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 				y = 0;
 			}
 		}
+		shift = (shift_count > 128) ? 128 : shift_count;
+		old_key[0] = key[0];
+		old_key[1] = key[1];
+		if (shift < 128) {
+			if (shift < 64) {
+				key[1] |= (lljpg[1]<<shift);
+				key[1] |= (lljpg[0]>>(64-shift));
+				key[0] |= (lljpg[0]<<shift);
+			} else {
+				key[1] |= (lljpg[0]<<(shift-64));
+			}
+		}
 		aes_set_key(&ctx, (unsigned char *) key, 16, 0);
 		old_enc[0] = old_enc[1] = 0xfedcba9876543210ll;
-		lljpg2 = (uint64 *) (((unsigned char *) &lljpg[-2]) - sizeof(int));
-    	for (i = 2; i < (jpg_size-sizeof(int))/sizeof(uint64); i+=2)
+		out = (uint64 *) jpg;
+		lljpg += 2;
+    	for (i = 0; i < jpg_size/sizeof(uint64); i+=2)
 	    {
-    		aes_decrypt(&ctx, (unsigned char *) &lljpg[i], (unsigned char *) &lljpg2[i]);
-			lljpg2[i] ^= old_enc[0];
-			lljpg2[i+1] ^= old_enc[1];
+    		aes_decrypt(&ctx, (unsigned char *) &lljpg[i], (unsigned char *) &out[i]);
+			out[i] ^= old_enc[0];
+			out[i+1] ^= old_enc[1];
 			old_enc[0] = lljpg[i];
 			old_enc[1] = lljpg[i+1];
 	    }
-		jpg_size -= sizeof(uint64)*2+sizeof(int);
-		return jpg_size;
+		return (jpg_size+3)&~3;
 	} else
 		return -1;
 }
@@ -178,7 +218,7 @@ void jpe_view(char *fname)
 	jpg_size = decrypt_image(fname, jpg, 120*1024);
 
 	if (jpg_size > 0)
-		joint_view(jpg, jpg_size);
+		joint_view(jpg, jpg_size, jpg_size);
 	else {
 		quit = 0;
 	    while (!quit)
@@ -198,13 +238,23 @@ void jpe_view(char *fname)
 
 void jpg_view(char *fname)
 {
-	joint_view(file2mem(fname, NULL, 0),0);
+	int fd, fsize;
+	uchar *ptr;
+
+	fd = open(fname, 0);
+	fsize = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+
+	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
+	close(fd);
+
+	joint_view(ptr,0,fsize);
 }
 
 #define MIN(a,b) (a<b ? a : b)
 #define MAX(a,b) (a>b ? a : b)
 
-void joint_view(uchar *jpg, int jpg_ram_usage)
+void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 {
 	int c,fd, quit = 0, r, l;
 	int x=0, y=0, scale=0, mode=0, rotate=0, toscale=0, toshift=0;
@@ -215,7 +265,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage)
 	int wi, hi;
 	int edgew, edgeh;
 
-	r = prepare_jpg(jpg, jpg_ram_usage);
+	r = prepare_jpg(jpg, jpg_ram_usage, jpg_size);
 
 	if (r == 2) {
 		r = 40;

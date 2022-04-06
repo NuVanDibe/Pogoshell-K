@@ -65,24 +65,10 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride)
     } while (0)
 #endif
 
-#define huffcode_value (0x02040000-1024)
-int * const huffcode = (int * const) (huffcode_value); //1024 (256*4)
-#define huffsize_value (huffcode_value-256)
-unsigned char * const huffsize = (unsigned char * const) (huffsize_value); //256 (256*1)
+int bytes_left;
+const unsigned char *rewind_point;
 
-/* Pointers translating scan header components to frame header components. */
-#define frameComponents_value (huffsize_value-JPEG_MAXIMUM_COMPONENTS*4)
-JPEG_FrameHeader_Component ** const frameComponents = (JPEG_FrameHeader_Component ** const) (frameComponents_value); // JPEG_MAXIMUM_COMPONENTS*4
-
-/* The last DC coefficient computed.  This is initialized to zeroes at the start and after a restart interval. */
-#define dcLast_value (frameComponents_value-sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS)
-JPEG_FIXED_TYPE * const dcLast = (JPEG_FIXED_TYPE * const) (dcLast_value); // sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS
-
-/* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */
-#define blockBase_value (dcLast_value-JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS)
-signed char * const blockBase = (signed char * const) (blockBase_value); // JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS
-
-#define decoder_value (blockBase_value-sizeof(JPEG_Decoder))
+#define decoder_value (0x02040000-sizeof(JPEG_Decoder))
 JPEG_Decoder * const decoder = (JPEG_Decoder * const) (decoder_value); // sizeof(JPEG_Decoder)
 
 /* The decompressed AC Huffman tables.  JPEG Baseline allows only two AC Huffman tables in a scan. */
@@ -98,7 +84,7 @@ JPEG_HuffmanTable * const dcTableList = (JPEG_HuffmanTable * const) (dcTableList
 /* Takes information discovered in JPEG_Decoder_ReadHeaders and loads the
  * image.  This is a public function; see gba-jpeg.h for more information on it.
  */
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight)
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight, int jpg_size)
 {
     JPEG_FrameHeader *frame = &decoder->frame; /* Pointer to the image's frame. */
     JPEG_ScanHeader *scan = &decoder->scan; /* Pointer to the image's scan. */
@@ -106,13 +92,16 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
     int CbHorzFactor = 1, CbVertFactor = 1; /* Scaling factors for the Cb component.  The default is important because it is used for greyscale images. */
     int CrHorzFactor = 1, CrVertFactor = 1; /* Scaling factors for the Cr component.  The default is important because it is used for greyscale images. */
     int horzMax = 0, vertMax = 0; /* The maximum horizontal and vertical scaling factors for the components. */
+	JPEG_FrameHeader_Component *frameComponents [JPEG_MAXIMUM_COMPONENTS]; /* Pointers translating scan header components to frame header components. */
     JPEG_FrameHeader_Component *item, *itemEnd = frame->componentList + frame->componentCount; /* The frame header's components for loops. */
+	JPEG_FIXED_TYPE dcLast [JPEG_MAXIMUM_COMPONENTS]; /* The last DC coefficient computed.  This is initialized to zeroes at the start and after a restart interval. */
     int c, bx, by, cx, cy; /* Various loop parameters. */
     int horzShift = 0; /* The right shift to use after multiplying by nHorzFactor to get the actual sample. */
     int vertShift = 0; /* The right shift to use after multiplying by nVertFactor to get the actual sample. */
     char M211 = 0; /* Whether this scan satisfies the 2:1:1 relationship, which leads to faster code. */
     const unsigned char *data = *dataBase; /* The input data pointer; this must be right at the start of scan data. */
-    
+   
+	signed char blockBase [JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS]; /* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */ 
     signed char *YBlock; /* Y component temporary block that holds samples for the MCU currently being decompressed. */
     signed char *CbBlock; /* Cb component temporary block that holds samples for the MCU currently being decompressed. */
     signed char *CrBlock; /* Cr component temporary block that holds samples for the MCU currently being decompressed. */
@@ -128,6 +117,8 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
     
     /* The sum of all factors in the scan; this cannot be greater than 10 in JPEG Baseline. */
     int factorSum = 0;
+	bytes_left = 1;
+	rewind_point = NULL;
 
     /* Find the maximum factors and the factors for each component. */    
     for (item = frame->componentList; item < itemEnd; item ++)
@@ -242,8 +233,8 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
     }
 
 /* Compute whether this satisfies the sped up 2:1:1 relationship. */
-    if (YHorzFactor == 256 && YVertFactor == 256 && CbHorzFactor == 128 && CbVertFactor == 128 && CrHorzFactor == 128 && CrVertFactor == 128)
-        M211 = 1;
+//    if (YHorzFactor == 256 && YVertFactor == 256 && CbHorzFactor == 128 && CbVertFactor == 128 && CrHorzFactor == 128 && CrVertFactor == 128)
+//        M211 = 1;
         
     /* Clear the DC parameters. */
     for (c = 0; c < JPEG_MAXIMUM_COMPONENTS; c ++)
@@ -253,18 +244,18 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
     /* Now run over each MCU horizontally, then vertically. */
     for (by = 0; by < frame->height; by += vertMax * JPEG_DCTSIZE)
     {
-	// Progress bar
-	line = by * 160 / frame->height;
-	if (line != oldline) {
-		for (; oldline < line; oldline++)
-		{
-		    color = (oldline>>3);
-		    color |= (color<<5) | (color<<10);
-		    color |= (color<<16);
-		    for (i = 0; i < 120; i++)
-			((unsigned int *) (0x06000000))[oldline*120+i] = color; //0x7fff7fff
+		// Progress bar
+		line = by * 160 / frame->height;
+		if (line != oldline) {
+			for (; oldline < line; oldline++)
+			{
+			    color = (oldline>>3);
+			    color |= (color<<5) | (color<<10);
+			    color |= (color<<16);
+		    	for (i = 0; i < 120; i++)
+				((unsigned int *) (0x06000000))[oldline*120+i] = color; //0x7fff7fff
+			}
 		}
-	}
         for (bx = 0; bx < frame->width; bx += horzMax * JPEG_DCTSIZE)
         {
             /* Read the components for the MCU. */
@@ -295,6 +286,9 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
                         int start = cx + cy * stride;
                         JPEG_FIXED_TYPE zz [JPEG_DCTSIZE2];
 
+						if (data > *dataBase + jpg_size)
+							goto finish;
+
                         /* Decode coefficients. */
                         DecodeCoefficients (&dcLast [c], zz, quant, dcTable, acTable, &data, &bits_left, &bits_data, ToZigZag);
 
@@ -307,7 +301,6 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
                     }
                 }
             }
-            
 	    if (bx >= outWidth || by >= outHeight)
 		    continue;
             /* Check that our block will be in-range; this should actually use clamping. */
@@ -383,8 +376,12 @@ int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const unsigned char **dataBa
         
         c->selector = *data ++;
         pair = *data ++;
-        c->horzFactor = pair >> 4;
-        c->vertFactor = pair & 15;
+		if (frame->componentCount == 1) {
+			c->horzFactor = c->vertFactor = 1;
+		} else {
+	        c->horzFactor = pair >> 4;
+    	    c->vertFactor = pair & 15;
+		}
         c->quantTable = *data ++;
         
         JPEG_Assert (c->horzFactor == 1 || c->horzFactor == 2 || c->horzFactor == 4);
@@ -605,6 +602,8 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
 {
     const unsigned char *data = *dataBase;
     const unsigned char *bits;
+    int huffcode [256];
+    unsigned char huffsize [256];
     int total = 0;
     int c;
     
@@ -647,6 +646,8 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
         }
     }
     
+	// Ensure the huffman decoder terminates
+	huffmanTable->maxcode[16] = 0xfffff;
     /*void DecoderTables ()*/
     {
         int i = 0, j = 0;
@@ -700,7 +701,7 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
 /* Perform the two steps necessary to decompress a JPEG image.
  * Nothing fancy about it.
  */
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage)
+int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage, int jpg_size)
 {
 #define SPACE_LEFT (jpegHeap - 0x02000000)
 
@@ -731,7 +732,7 @@ int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int
     if ((*outWidth * *outHeight) * 2 > SPACE_LEFT - jpg_ram_usage)
 	    return 2;
     
-    if (!JPEG_Decoder_ReadImage (decoder, &data, *out, *outWidth, *outHeight))
+    if (!JPEG_Decoder_ReadImage (decoder, &data, *out, *outWidth, *outHeight, jpg_size))
         return 0;
 
     return 1;

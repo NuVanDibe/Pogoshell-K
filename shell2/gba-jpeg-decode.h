@@ -66,7 +66,7 @@ typedef struct JPEG_ScanHeader_Component JPEG_ScanHeader_Component;
 struct JPEG_HuffmanTable
 {
     const unsigned char *huffval; /**< Pointer to values in the table (256 entries). */
-    int maxcode [16]; /**< The maximum code for each length - 1. */
+    int maxcode [17]; /**< The maximum code for each length - 1. */
     const unsigned char *valptr [16]; /**< Items are subtracted by mincode and then indexed into huffval. */
     
     unsigned char look_nbits [256]; /**< The lookahead buffer lengths. */
@@ -134,29 +134,52 @@ struct JPEG_Decoder
 /** Rewind any bytes that have not been read from and reset the state. */
 #define JPEG_BITS_REWIND() \
     do { \
-        int count = bits_left >> 3; \
-        \
-        while (count --) \
-        { \
-            data --; \
-            if (data [-1] == 0xFF) \
-                data --; \
-        } \
-        \
-        bits_left = 0; \
-        bits_data = 0; \
+		if (bytes_left) { \
+	        int count = bits_left >> 3; \
+    	    \
+	        while (count --) \
+    	    { \
+        	    while (data [-1] == 0xFF) \
+	                 data --; \
+    	        data --; \
+	        } \
+    	    \
+        	bits_left = 0; \
+	        bits_data = 0; \
+		} else \
+			data = rewind_point; \
     } while (0)
     
 /** Fill the buffer. */
 #define JPEG_BITS_CHECK() \
     do { \
-        while (bits_left < 32 - 7) \
-        { \
-            bits_data = (bits_data << 8) | (*data ++); \
-            if (data [-1] == 0xFF) \
-                data ++; \
-            bits_left += 8; \
-        } \
+		__label__ no_more_bytes; \
+		if (bytes_left) { \
+	        while (bits_left < 32 - 7) \
+    	    { \
+				if (data[0] == 0xff) { \
+					do data ++; \
+					while(data[0] == 0xff); \
+					data ++; \
+					if (data[-1] == 0x0) \
+	        	    	bits_data = (bits_data << 8) | 0xff; \
+		            else { \
+						bytes_left = 0; \
+						rewind_point = &data[-2]; \
+						goto no_more_bytes; \
+					} \
+				} else \
+	            	bits_data = (bits_data << 8) | (*data ++); \
+	            bits_left += 8; \
+    	    } \
+		} else { \
+no_more_bytes: \
+	        while (bits_left < 32 - 7) \
+    	    { \
+	         	bits_data = (bits_data << 8); \
+				bits_left += 8; \
+			} \
+		} \
     } while (0)
    
 /** Return and consume a number of bits. */
@@ -189,9 +212,12 @@ struct JPEG_Decoder
             \
             JPEG_BITS_DROP (8); \
             do result = (result << 1) | JPEG_BITS_GET (1); \
-            while (result > (TABLE)->maxcode [++ i]); \
+			while (result > (TABLE)->maxcode [++ i]); \
             \
-            result = (TABLE)->valptr [i] [result]; \
+			if (i == 16) \
+				result = 0; \
+			else \
+	            result = (TABLE)->valptr [i] [result]; \
         } \
         \
         (OUT) = result; \
@@ -247,7 +273,7 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **data)
   * Returns true on success and false on failure (failure isn't possible).
   */
   
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight, int jpg_size);
 
 /** Perform a 2D inverse DCT computation on the input.
   *
@@ -265,7 +291,7 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride);
   * failure (failure isn't possible).
   */
   
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage);
+int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage, int jpg_size);
 
 #define PTR (0x02000000)
 

@@ -6,15 +6,10 @@
 
 // module contains functions which execute in iwram for extra speed
 
-#define ROM_BANKSWITCH (volatile u16*)(0x96B592E)
-#define WRITE_LOC_1 (volatile u16*)(0x987654*2+0x8000000)
-#define WRITE_LOC_2 (volatile u16*)(0x012345*2+0x8000000)
-#define WRITE_LOC_3 (volatile u16*)(0x007654*2+0x8000000)
-#define WRITE_LOC_4 (volatile u16*)(0x765400*2+0x8000000)
-#define WRITE_LOC_5 (volatile u16*)(0x013450*2+0x8000000)
-
 // JPEG functions
 
+extern int bytes_left;
+extern const unsigned char *rewind_point;
 
 /* Converts left-to-right coefficient indices into zig-zagged indices. */
 const unsigned char ToZigZag [JPEG_DCTSIZE2] =
@@ -275,7 +270,7 @@ CODE_IN_IWRAM void DecodeCoefficients (
 {
     unsigned bits_left = *bitsLeftBase, bits_data = *bitsDataBase; /* Input stream state. */
     const unsigned char *data = *dataBase; /* Input stream state. */
-    int r, s, diff; /* Various temporary data variables. */
+    int r, s; /* Various temporary data variables. */
     int index = 1; /* The current zig-zagged index. */
     
     /* Clear all coefficients to zero. */
@@ -288,10 +283,13 @@ CODE_IN_IWRAM void DecodeCoefficients (
     /* Read the DC coefficient. */
     JPEG_BITS_CHECK ();
     JPEG_HuffmanTable_Decode (dcTable, s);
-    JPEG_Value (s, diff);
+	if (s) {
+    	JPEG_BITS_CHECK ();
+	    JPEG_Value (s, s);
+	}
     
     /* Store the DC coefficient. */
-    *dcLast += diff;
+    *dcLast += s;
     zz [toZigZag [0]] = *dcLast * quant [0];
 
     while (1)
@@ -307,6 +305,8 @@ CODE_IN_IWRAM void DecodeCoefficients (
         {
             index += r;
             JPEG_Value (s, r);
+			//if (index < 0 || index > JPEG_DCTSIZE2 - 1)
+			//	break;
             zz [toZigZag [index]] = r * quant [index];
             if (index == JPEG_DCTSIZE2 - 1)
                 break;

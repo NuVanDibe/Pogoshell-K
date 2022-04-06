@@ -14,7 +14,7 @@ endif
 LIBFCLASHCART = ../libfc_$(CART)/libflashcart.a
 
 
-LIBFILE = libpogod.a
+LIBFILE = libpogo.a
 LIBS = -L$(POGO)/lib -lpogo -lgcc
 
 #ifeq (mb, $(EXT))

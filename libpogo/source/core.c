@@ -24,6 +24,7 @@ volatile int frame_counter;
 /* Assembly functions */
 extern void executeCart(uint32 a, uint32 b, uint32 c) IN_IWRAM;
 extern void setRamStart(uint32 a) IN_IWRAM;
+extern void suspendGBA(void) IN_IWRAM;
 extern void haltCpu(void) IN_IWRAM;
 
 void Reset(void)
@@ -83,6 +84,29 @@ volatile void InterruptProcess(void)
 		frame_counter++;
 	device_doirq();
 	SETW(REG_IF, 0xFFFF);
+}
+
+/* Suspend GBA */
+void suspend(void)
+{
+	int keys = GETW(REG_KEYCNT);
+	int display = GETW(REG_DISPCNT);
+	int sound = GETW(REG_SOUNDCNT_X);
+	int interrupt = GETW(REG_IE);
+
+	/* Let any keypress in the clam (ie, up/down/left/right/a/b/select/start)
+	   cause a wakeup */
+	SETW(REG_IE, 0x1000);
+	SETW(REG_KEYCNT, 0xC00C);
+	SETW(REG_DISPCNT, DISP_LCDC_OFF);
+	SETW(REG_SOUNDCNT_X, 0);
+
+	__FarProcedure(suspendGBA);
+
+	SETW(REG_KEYCNT, keys);
+	SETW(REG_DISPCNT, display);
+	SETW(REG_SOUNDCNT_X, sound);
+	SETW(REG_IE, interrupt);
 }
 
 /* Halt CPU */

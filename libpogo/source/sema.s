@@ -9,6 +9,11 @@
 	.GLOBAL		trySema
 	.GLOBAL		relSema
 	.GLOBAL		haltCpu
+	.GLOBAL		suspendGBA
+
+suspendGBA:
+	swi		#0x30000
+	bx		lr
 
 haltCpu:
 	swi		#0x20000

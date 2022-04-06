@@ -578,6 +578,7 @@ typedef void (*CmdFunc)(char *);
 CmdFunc commands[] = { cmd_settings, cmd_about, cmd_switchuser, cmd_help, cmd_sramcopy, cmd_srampaste, cmd_sramdel };
 
 
+void suspend(void);
 void Halt(void);
 
 static int qualifiers = 0;
@@ -596,6 +597,7 @@ int main(int argc, char **argv)
 	int converted = 0;
 	int have_state;
 	int count = 0;
+	int sleepcount = 0;
 	int srsize = -1;
 	//uint32 *mem = (uint32 *)0x02000000;
 
@@ -740,11 +742,19 @@ int main(int argc, char **argv)
 	{
 		int h;
 		marked = listview_get_marked(MainList);
-		count = 0;
+		sleepcount = count = 0;
 		while((c = getchar()) == EOF)
 		{
 			count++;
+			sleepcount++;
 			Halt();
+
+			if (sleepcount >= (3*60*60)) {
+				suspend();
+				getchar(); //dump char used for wakeup
+				sleepcount = 0;
+				count = 50;
+			}
 
 			if(count == 50)
 			{

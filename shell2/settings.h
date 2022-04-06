@@ -8,6 +8,7 @@
 int settings_edit(void);
 void settings_icon(BitMap *bm);
 void settings_init(void);
+void settings_default(void);
 void get_theme_name(char line, char *dest);
 int set_theme_setting(char *src);
 

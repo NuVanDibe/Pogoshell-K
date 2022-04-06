@@ -16,6 +16,7 @@ extern int clipsize;
 extern uint16 marked;
 
 int execute_mb_joined(char *fname, int decompression, int keys);
+void bm_view(char *fname);
 void bmp_view(char *fname);
 void bmz_view(char *fname);
 void bmap_view(char *fname);
@@ -24,9 +25,11 @@ void jpe_view(char *fname);
 extern void reset(void);
 
 static BitMap **icon_set;
+static BitMap *settings_icn = NULL;
+static int settings_iconidx = -1;
 
 static int ftcount = 1;
-static FileType *filetypes[50];
+static FileType *filetypes[100];
 
 extern ListView *MainList;
 //extern TextBar *StatusBar;
@@ -244,6 +247,13 @@ int show_text(char *cmd, char *fname, int keys)
 	return 1;
 }
 
+int showbm(char *cmd, char *fname, int keys)
+{
+	bm_view(fname);
+	MainScreen->firstWindow->widget->flags |= WFLG_REDRAW;
+	return 2;
+}
+
 int showbmp(char *cmd, char *fname, int keys)
 {
 	bmp_view(fname);
@@ -326,6 +336,7 @@ void filetype_readtypes(FILE *fp)
 				f->command = NULL;
 				f->compare_func = check_extention;
 				f->handle_func = NULL;
+				f->textcolor = NULL;
 				f->saver = 0;
 
 				ptr[-1] = 0;
@@ -340,10 +351,8 @@ void filetype_readtypes(FILE *fp)
 					i = atoi(ptr);
 					//fprintf(stderr, "ICON:%d\n", i);
 
-					if (icon_set)
-						f->icon = icon_set[i];
-					else
-						f->icon = NULL;
+					f->iconidx = i;
+					f->icon = NULL;
 					while(isdigit(*ptr++));
 				}
 				else
@@ -355,6 +364,7 @@ void filetype_readtypes(FILE *fp)
 					//fp2 = fopen(p, "rb");
 					//f->icon = bitmap_readbm(fp2);
 					//fclose(fp2);
+					f->iconidx = -1;
 					f->icon = bitmap_loadbm(p);
 				}
 
@@ -372,15 +382,31 @@ void filetype_readtypes(FILE *fp)
 						//fprintf(stderr, "SAVER:%d\n", f->saver);
 						while(isdigit(*q++));
 						*ptr = 0;
-						ptr = q-1;
+						ptr = q - 1;
 					}
 
-					/* The rest of the line is the description, if it exists */
-					while((*q != 10) && (*q != 13)) q++;
-					*q = 0;
-					f->desc = malloc(strlen(ptr+1)+1);
-					strcpy(f->desc, ptr+1);
-					//fprintf(stderr, "DESC:%s\n", ptr+1);
+					if(*ptr == ' ' && *(ptr+1) == '$')
+					{
+						*ptr = 0;
+						ptr += 2;
+						i = gethex(ptr);
+						while (isalnum(*ptr++));
+						q = ptr--;
+						f->textcolor = malloc(sizeof(Color));
+						f->textcolor->r = (i>>16) & 0xff;
+						f->textcolor->g = (i>>8) & 0xff;
+						f->textcolor->b = i & 0xff;
+						f->textcolor->a = 0;
+					}
+
+					if (*q && *q != 10 && *q != 13) {
+						/* The rest of the line is the description, if it exists */
+						while ((*q != 10) && (*q != 13)) q++;
+						*q = 0;
+						f->desc = malloc(strlen(ptr+1)+1);
+						strcpy(f->desc, ptr+1);
+						//fprintf(stderr, "DESC:%s\n", ptr+1);
+					}
 				}
 				*ptr = 0;
 				/* Set correct internal handler for filetype */
@@ -401,8 +427,9 @@ void filetype_readtypes(FILE *fp)
 				}
 				else
 				if(strcmp(p, "SET") == 0)
-				{	
-					settings_icon(f->icon);		
+				{
+					settings_icn = f->icon;
+					settings_iconidx = f->iconidx;
 					ftcount--;
 				}
 				else
@@ -429,6 +456,9 @@ void filetype_readtypes(FILE *fp)
 				else
 				if(strcmp(p, "FNT") == 0)
 					f->handle_func = set_font;
+				else
+				if(strcmp(p, "BM") == 0)
+					f->handle_func = showbm;
 				else
 				if(strcmp(p, "BMP") == 0)
 					f->handle_func = showbmp;
@@ -464,6 +494,37 @@ void filetype_set_iconset(BitMap **icons)
 	icon_set = icons;
 }
 
+void filetype_set_icons(void)
+{
+	FileType *f;
+	int i;
+	for (i=1; i<ftcount; i++)
+	{
+		f = filetypes[i];
+		if (f->iconidx >= 0 && icon_set)
+			f->icon = icon_set[f->iconidx];
+	}
+	if (settings_iconidx >= 0 && icon_set) {
+		settings_icn = icon_set[settings_iconidx];
+	}
+	settings_icon(settings_icn);		
+}
+
+int filetype_font(DirList *entry)
+{
+	return (filetypes[filetype_lookup(entry)]->handle_func == set_font);
+}
+
+int filetype_bm(DirList *entry)
+{
+	return (filetypes[filetype_lookup(entry)]->handle_func == showbm);
+}
+
+int filetype_theme(DirList *entry)
+{
+	return (filetypes[filetype_lookup(entry)]->handle_func == set_theme);
+}
+
 int filetype_lookup(DirList *entry)
 {
 	int i;
@@ -495,4 +556,9 @@ int filetype_handle(char *fname, int type, int keys)
 BitMap *filetype_icon(int type)
 {
 	return filetypes[type]->icon;
+}
+
+Color *filetype_textcolor(int type)
+{
+	return filetypes[type]->textcolor;
 }

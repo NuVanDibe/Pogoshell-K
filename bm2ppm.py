@@ -13,9 +13,9 @@ def readfile(name):
 
 def toRGB(pixel):
 	color = unpack("<h", pixel)[0]
-	red = ((color>>10)&31)<<3
+	red = ((color>>0)&31)<<3
 	green = ((color>>5)&31)<<3
-	blue = ((color>>0)&31)<<3
+	blue = ((color>>10)&31)<<3
 	return chr(red) + chr(green) + chr(blue)
 
 if __name__ == "__main__":

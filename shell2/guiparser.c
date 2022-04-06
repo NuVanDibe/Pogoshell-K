@@ -4,6 +4,8 @@
 #include "window.h"
 #include "widgets/widgets.h"
 #include "misc.h"
+#include "filesys.h"
+#include "filetype.h"
 
 typedef void *(*WidgetAttrFunc)(Widget *, int, void *);
 
@@ -111,26 +113,6 @@ void guiparser_readsymbols(FILE *fp)
 	}
 }
 
-int gethex(char *p)
-{
-	int l = 0;
-
-	while((*p >= '0' && *p <= '9') ||
-		  (*p >= 'A' && *p <= 'F') ||
-		  (*p >= 'a' && *p <= 'f'))
-	{
-		if(*p <= '9')
-			l = (l << 4) | ((*p++) - '0');
-		else if (*p <= 'F')
-			l = (l << 4) | ((*p++) - 'A' + 10);
-		else
-			l = (l << 4) | ((*p++) - 'a' + 10);
-	}
-		
-	return l;
-}
-
-
 void icons_set_attr(Widget *w, int attr, void *val)
 {
 	switch(attr & 0xFF0)
@@ -162,7 +144,9 @@ Widget *guiparser_create(char *spec, char *rootitem)
 	char tmp[32];
 	char *d, *startp, *endp;
 	char *p = spec;
+	DirList dl;
 
+	dl.entry.d_name[31] = '\0';
 
 	while(p && *p)
 	{
@@ -254,22 +238,15 @@ Widget *guiparser_create(char *spec, char *rootitem)
 				while(*p != '>')
 					*d++ = *p++;
 				*d = 0;
-
-				d--;
-				while(d > tmp && *d && *d != '.') d--;
-
-				if(*d == '.')
-					d++;
-				else
-					d = tmp;
-
 				p++;
+
+				strncpy(dl.entry.d_name, tmp, 31);
 
 				//fprintf(stderr, "Opening file %s %s\n", tmp, d);
 
 				//if(())
 				{
-					if(*d == 'b')
+					if(filetype_bm(&dl))
 					{
 						//fp = fopen(tmp, "rb");
 						//bm = bitmap_readbm(fp);
@@ -277,8 +254,7 @@ Widget *guiparser_create(char *spec, char *rootitem)
 						bm = bitmap_loadbm(tmp);
 						attr_func(lastw, attr, bm);
 					}
-					else
-					if(*d == 'f')
+					else if(filetype_font(&dl))
 					{
 						font = font_load_path(tmp);
 						font->flags |= FFLG_TRANSP;

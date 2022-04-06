@@ -33,7 +33,11 @@ typedef struct
 	uint16 colwidth[8];
 	uint16 colalign[8];
 
+	uint16 gradientwidth;
+	uint16 gradientalign;
+
 	BitMap **icons;
+	Color **associatecolors;
 
 	char **texts[8];
 
@@ -46,8 +50,8 @@ typedef struct
 #define listview_get_marked(l) (l->marked)
 
 ListView *listview_new(int columns, int maxlines, Font *font);
-void listview_addline(ListView *lv, BitMap *icon, ...);
-void listview_setline(ListView *lv, int index, BitMap *bm, ...);
+void listview_addline(ListView *lv, Color *c, BitMap *icon, ...);
+void listview_setline(ListView *lv, int index, Color *c, BitMap *bm, ...);
 void listview_set_attribute(ListView *tb, int attr, void *val);
 void listview_set_marked(ListView *lv, int i);
 void listview_set_dirty(ListView *lv);

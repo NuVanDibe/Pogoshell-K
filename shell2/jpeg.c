@@ -711,6 +711,7 @@ int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int
 	dcTableList = pmalloc(sizeof(JPEG_HuffmanTable)*2);
 
 	space_left = pmemory_free();
+	fprintf(stderr, "space left: %d\n", space_left);
 
     // Clear memory.
     /*for (i = 0; i < 64*1024; i++)

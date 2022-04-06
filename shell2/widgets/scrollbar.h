@@ -31,6 +31,8 @@ typedef struct
 	uint16 style;
 	BackDrop *bar;
 	BackDrop *trough;
+	BackDrop *troughtopbutton;
+	BackDrop *troughbottombutton;
 	uint16 marginl[2];
 	uint16 marginr[2];
 	uint16 marginu[2];
@@ -43,6 +45,9 @@ typedef struct
 
 } Scrollbar;
 
+enum { BARBACKDROP = 0, TROUGHBACKDROP = 1, TROUGHTOPBUTTONBACKDROP = 2, TROUGHBOTTOMBUTTONBACKDROP = 3};
+
+int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm);
 Scrollbar *scrollbar_new();
 void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val);
 void scrollbar_set_start(Scrollbar *sc, int start);

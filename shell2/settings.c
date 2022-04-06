@@ -5,8 +5,12 @@
 #include "widgets/listview.h"
 #include "text.h"
 #include "misc.h"
+#include "filesys.h"
+#include "filetype.h"
 
 #include "settings.h"
+
+#define DEFAULTTHEME "default.theme"
 
 extern ListView *MainList;
 extern Screen *MainScreen;
@@ -50,7 +54,7 @@ int settings_write(void)
 	return 0;
 }
 */
-static BitMap *icon;
+static BitMap *icon = NULL;
 
 void update_line(int i)
 {
@@ -72,7 +76,7 @@ void update_line(int i)
 		p = temp_theme_name;
 	}
 
-	listview_setline(MainList, i, icon, TEXT(SETTINGS_START + i), p);
+	listview_setline(MainList, i, NULL, icon, TEXT(SETTINGS_START + i), p);
 }
 
 void settings_icon(BitMap *bm)
@@ -84,21 +88,18 @@ void settings_init(void)
 {
 	int i;
 	DIR *dir;
-	struct dirent *de;
-	struct stat sbuf;
-	char *tmp;
+	DirList dl;
+	struct dirent *result;
 
-	memcpy(settings, defsettings, NO_SETTINGS);
+	settings_default();
 
 	dir = opendir(GET_PATH(THEMES));
 	if (dir)
 	{
-		for (i = 0; ((de = readdir(dir)) && (i < MAX_FILE_COUNT)); i++)
+		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			tmp = strrchr(de->d_name, '.');
-			stat(de->d_name, &sbuf);
-			if (!(sbuf.st_mode & S_IFDIR) && strcmp(tmp, ".theme") == 0) {
-				if (strcmp(de->d_name, "default.theme") != 0)
+			if (filetype_theme(&dl)) {
+				if (strcmp(dl.entry.d_name, DEFAULTTHEME) != 0)
 					theme_count++;
 			}
 		}
@@ -106,29 +107,31 @@ void settings_init(void)
 	}
 }
 
+void settings_default(void)
+{
+	memcpy(settings, defsettings, NO_SETTINGS);
+}
+
 int set_theme_setting(char *src)
 {
 	int i;
 	char count, current;
 	DIR *dir;
-	struct dirent *de;
-	struct stat sbuf;
-	char *tmp;
+	DirList dl;
+	struct dirent *result;
 
 	dir = opendir(GET_PATH(THEMES));
 	count = 1;
 	if (dir)
 	{
-		for (i = 0; (de = readdir(dir)) && (i < MAX_FILE_COUNT); i++)
+		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			tmp = strrchr(de->d_name, '.');
-			stat(de->d_name, &sbuf);
-			if (!(sbuf.st_mode & S_IFDIR) && strcmp(tmp, ".theme") == 0) {
-				if (strcmp(de->d_name, "default.theme") == 0)
+			if (filetype_theme(&dl)) {
+				if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
 					current = 0;
 				else
 					current = count++;
-				if (!strcmp(de->d_name, src)) {
+				if (!strcmp(dl.entry.d_name, src)) {
 					settings_set(SF_THEME, current);
 					closedir(dir);
 					return 0;
@@ -137,6 +140,7 @@ int set_theme_setting(char *src)
 		}
 		closedir(dir);
 	}
+
 	return 1;
 }
 
@@ -145,25 +149,23 @@ void get_theme_name(char line, char *dest)
 	int i;
 	char count, current;
 	DIR *dir;
-	struct dirent *de;
-	struct stat sbuf;
-	char *tmp;
+	DirList dl;
+	struct dirent *result;
 
 	dir = opendir(GET_PATH(THEMES));
 	count = 1;
 	if (dir)
 	{
-		for (i = 0; (de = readdir(dir)) && (i < MAX_FILE_COUNT); i++)
+		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			tmp = strrchr(de->d_name, '.');
-			stat(de->d_name, &sbuf);
-			if (!(sbuf.st_mode & S_IFDIR) && strcmp(tmp, ".theme") == 0) {
-				if (strcmp(de->d_name, "default.theme") == 0)
+			if (filetype_theme(&dl)) {
+				if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
 					current = 0;
 				else
 					current = count++;
 				if (line == current) {
-					memcpy(dest, de->d_name, 32);
+					memcpy(dest, dl.entry.d_name, 32);
+					settings_set(SF_THEME, current);
 					closedir(dir);
 					return;
 				}
@@ -184,7 +186,7 @@ int settings_edit(void)
 
 	for(i=0; i<NO_SETTINGS; i++)
 	{
-		listview_addline(MainList, icon, "", "");
+		listview_addline(MainList, NULL, icon, "", "");
 		update_line(i);
 	}
 

@@ -7,7 +7,8 @@
 int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 {
 	int dirty, draw_trough, draw_bar, space_for_trough, space_for_bar;
-	Rect sbar;
+	Rect sbar, buttonbox;
+	BackDrop *bd;
 
 	dirty = draw_trough = draw_bar = space_for_trough = space_for_bar = 0;
 
@@ -61,7 +62,7 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 		if (scr->alignside)
 			sbar.x = r->x + r->w - sbar.w;
 		else
-			sbar.x = 0;
+			sbar.x = r->x;
 
 		if (space_for_trough) {
 			r->w -= sbar.w;
@@ -127,6 +128,39 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 		{
 			Color c;
 
+			if (scr->troughtopbutton) {
+				bd = scr->troughtopbutton;
+				buttonbox.x = sbar.x;
+				buttonbox.y = sbar.y;
+				if (bd->bitmap) {
+					buttonbox.w = bd->bitmap->width;
+					buttonbox.w = (sbar.w < buttonbox.w) ? sbar.w : buttonbox.w;
+					buttonbox.h = bd->bitmap->height;
+					buttonbox.h = (sbar.h < buttonbox.h) ? sbar.h : buttonbox.h;
+				} else {
+					buttonbox.w = sbar.w;
+					buttonbox.h = sbar.w;
+				}
+				sbar.h -= buttonbox.h;
+				sbar.y += buttonbox.h;
+				backdrop_render(bd, &buttonbox, bm);
+			}
+			if (scr->troughbottombutton) {
+				bd = scr->troughbottombutton;
+				buttonbox.x = sbar.x;
+				if (bd->bitmap) {
+					buttonbox.w = bd->bitmap->width;
+					buttonbox.w = (sbar.w < buttonbox.w) ? sbar.w : buttonbox.w;
+					buttonbox.h = bd->bitmap->height;
+					buttonbox.h = (sbar.h < buttonbox.h) ? sbar.h : buttonbox.h;
+				} else {
+					buttonbox.w = sbar.w;
+					buttonbox.h = sbar.w;
+				}
+				sbar.h -= buttonbox.h;
+				buttonbox.y = sbar.y + sbar.h;
+				backdrop_render(bd, &buttonbox, bm);
+			}
 			c = scr->troughcolor;
 			if (scr->trough)
 				backdrop_render(scr->trough, &sbar, bm);
@@ -193,6 +227,8 @@ Scrollbar *scrollbar_new()
 	p[0] = 0xff181818;
 	sc->bar = NULL;
 	sc->trough = NULL;
+	sc->troughtopbutton = NULL;
+	sc->troughbottombutton = NULL;
 
 	return sc;
 
@@ -239,14 +275,29 @@ void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 	switch(attr & 0xFF0)
 	{
 	case WATR_BACKDROP:
-		if (n) {
-			if (sc->trough)
-				free(sc->trough);
-			sc->trough = (BackDrop *)val;
-		} else {
-			if (sc->bar)
-				free(sc->bar);
-			sc->bar = (BackDrop *)val;
+		switch (n)
+		{
+			case TROUGHTOPBUTTONBACKDROP:
+				if (sc->troughtopbutton)
+					free(sc->troughtopbutton);
+				sc->troughtopbutton = (BackDrop *)val;
+				break;
+			case TROUGHBOTTOMBUTTONBACKDROP:
+				if (sc->troughbottombutton)
+					free(sc->troughbottombutton);
+				sc->troughbottombutton = (BackDrop *)val;
+				break;
+			case TROUGHBACKDROP:
+				if (sc->trough)
+					free(sc->trough);
+				sc->trough = (BackDrop *)val;
+				break;
+			case BARBACKDROP:
+			default:
+				if (sc->bar)
+					free(sc->bar);
+				sc->bar = (BackDrop *)val;
+				break;
 		}
 		sc->w.flags |= WFLG_REDRAW;
 		break;

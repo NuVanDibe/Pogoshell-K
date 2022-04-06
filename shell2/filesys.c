@@ -81,10 +81,9 @@ void qsort(void *array, int count, int size, int cf(void *a, void *b))
 static int get_dir(char *name, DirList *list)
 {
 	int i;
-	char *p;
 	DIR *dir;
 	struct dirent *result;
-	struct stat sbuf;
+	//struct stat sbuf;
 
 	i = 0;
 	dir = opendir(name);
@@ -97,14 +96,10 @@ static int get_dir(char *name, DirList *list)
 			if(settings_get(SF_HIDEDOT) && list[i].entry.d_name[0] == '.')
 				i--;
 			else {
-				p = &name[strlen(name)];
-				*p = '/';
-				strcpy(p+1, list[i].entry.d_name);
-				stat(name, &sbuf);
 				//fprintf(stderr, "get_dir(%s, %p); // (%s, %d)\n", name, list, list[i].entry.d_name, list[i].entry.d_size);
 				//fprintf(stderr, "stat(%s, ...); // (..., %hd, ...)\n", name, sbuf.st_mode);
-				*p = '\0';
-				list[i].type = (sbuf.st_mode & S_IFDIR) ? 1 : 0;
+				//*p = '\0';
+				list[i].type = (list[i].entry.d_size & 0x80000000) ? 1 : 0;
 			}
 		}
 		closedir(dir);

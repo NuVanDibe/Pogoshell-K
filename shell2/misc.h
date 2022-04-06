@@ -4,6 +4,7 @@
 enum { LZ77 = 1, APACK = 2, RAW = 0 };
 
 void reset_gba (void);
+int gethex(char *p);
 char *basename(char *str);
 void *pmalloc(int size);
 int pmemory_free(void);

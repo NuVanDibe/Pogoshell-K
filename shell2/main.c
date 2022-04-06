@@ -68,7 +68,7 @@ char *path[5] = { NULL, NULL, NULL, NULL, NULL };
 int sram_game_size = 64;
 
 int new_marked = -1;
-uint16 marked;
+int16 marked;
 
 const char *PogoVersion = "2.0b3mod5";
 
@@ -86,7 +86,7 @@ char *dirname;
 /* State, saved to  /sram/.state */
 struct {
 	unsigned /*short*/ char settings[NO_SETTINGS];
-	uint16 marked;
+	int16 marked;
 	uint32 seed;
 }  __attribute__ ((packed)) state;
 
@@ -94,7 +94,6 @@ struct {
 void save_state(void)
 {
 	int fd;
-	uchar usr;
 	char *name = filesys_get_current();
 
 	memcpy(state.settings, settings, NO_SETTINGS);
@@ -128,11 +127,15 @@ int load_state(void)
 		srand(state.seed);
 		memcpy(settings, state.settings, NO_SETTINGS);
 		
+		sleep_time = sleep_array[settings_get(SF_SLEEP)];
 		if (settings_get(SF_THEME) >= theme_count)
 			settings_set(SF_THEME, 0);
 		get_theme_name(settings_get(SF_THEME), theme_name);
 		return 1;
 	}
+
+	settings_default();
+	sleep_time = sleep_array[settings_get(SF_SLEEP)];
 	get_theme_name(settings_get(SF_THEME), theme_name);
 
 	return 0;
@@ -271,30 +274,29 @@ int sram_paste(char *name)
 }
 
 struct tm clockdata;
-char *oldtext = NULL;
+char statusbar_buffer[50];
+char statusbar_postrtc[60];
+
 void statusbar_set(char *text)
 {
-	char tmp[80];
 	if(StatusBar)
 	{
-		oldtext = text;
+		if (text)
+			strcpy(statusbar_buffer, text);
+		strcpy(statusbar_postrtc, statusbar_buffer);
 
 		if(rtc_check())
 		{
-			//memcpy(&dst, localtime(time(NULL)), sizeof(struct tm));
-			strcpy(tmp, text);
-			sprintf(&tmp[strlen(tmp)], "| %02d:%02d", clockdata.tm_hour, clockdata.tm_min);
-			text = tmp;
+			sprintf(&statusbar_postrtc[strlen(statusbar_postrtc)], "| %02d:%02d", clockdata.tm_hour, clockdata.tm_min);
 		}
-		textbar_set_attribute(StatusBar, WATR_TEXT, text);
+		textbar_set_attribute(StatusBar, WATR_TEXT, statusbar_postrtc);
 	}
 }
 
 
 void statusbar_refresh(void)
 {
-	if(oldtext)
-		statusbar_set(oldtext);
+	statusbar_set(NULL);
 }
 
 void pprintf(char *tmp, char *fmt)
@@ -369,7 +371,7 @@ void update_list(void)
 
 	listview_clear(MainList);
 	if (!DialogBox)
-		listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
+		listview_addline(MainList, NULL, NULL, TEXT(PLEASE_WAIT), "");
 	screen_redraw(MainScreen);
 	filecount = filesys_getfiles(dirlist);
 	if (!DialogBox)
@@ -403,7 +405,7 @@ void update_list(void)
 				*p = 0;
 		}
 
-		listview_addline(MainList, filetype_icon(t), &dirname[i*32], &dirsize[i*10]);
+		listview_addline(MainList, filetype_textcolor(t), filetype_icon(t), &dirname[i*32], &dirsize[i*10]);
 	}
 
 	if (new_marked != -1) {
@@ -411,12 +413,12 @@ void update_list(void)
 		marked = new_marked;
 		new_marked = -1;
 	}
-	if (marked == 0xFFFF && filecount)
+	if (marked == -1 && filecount)
 		marked = 0;
 
-	if (marked != 0xFFFF && filecount) {
+	if (marked != -1 && filecount) {
 		listview_set_marked(MainList, marked);
-		if (listview_get_marked(MainList) == 0xFFFF)
+		if (listview_get_marked(MainList) == -1)
 			listview_set_marked(MainList, 0);
 	}
 
@@ -446,7 +448,8 @@ void setup_screen(void)
 	FILE *fp;
 	Widget *dbox;
 	Widget *mbox;
-	Window *win; 
+	Window *win;
+	Scrollbar *sb;
 	//BitMap *screen = bitmap_getscreen();
 	//bitmap_clear(screen, 0xFF00);
 
@@ -516,6 +519,14 @@ void setup_screen(void)
 		MessageBox->list = MessageList;
 	}
 
+	if (MainList->scrollbar) {
+		sb = MainList->scrollbar;
+		if (sb->troughtopbutton && sb->troughtopbutton->bitmap)
+			sb->troughtopbutton->bitmap->format |= TRANSPARENT;
+		if (sb->troughbottombutton && sb->troughbottombutton->bitmap)
+			sb->troughbottombutton->bitmap->format |= TRANSPARENT;
+	}
+
 	if (IconSet) {
 		count = IconSet->height / IconHeight;
 
@@ -530,7 +541,7 @@ void setup_screen(void)
 		icon_list = NULL;
 
 	filetype_set_iconset(icon_list);
-	filetype_readtypes(config_fp);
+	filetype_set_icons();
 
 	font = font_load_path("cnokia.font");
 	//font->flags |= FFLG_TRANSP;
@@ -689,6 +700,14 @@ int main(int argc, char **argv)
 	//uint32 *mem = (uint32 *)0x02000000;
 
 	SoftReset(0xfc); //Reset sound, sio, and other registers
+	SETW(REG_BG0HOFS, 0x0);
+	SETW(REG_BG0VOFS, 0x0);
+	SETW(REG_BG1HOFS, 0x0);
+	SETW(REG_BG1VOFS, 0x0);
+	SETW(REG_BG2HOFS, 0x0);
+	SETW(REG_BG2VOFS, 0x0);
+	SETW(REG_BG3HOFS, 0x0);
+	SETW(REG_BG3VOFS, 0x0);
 
 	dirlist = pmalloc(sizeof(DirList) * MAX_FILE_COUNT);
 	dirsize = pmalloc(10 * MAX_FILE_COUNT);
@@ -771,18 +790,11 @@ int main(int argc, char **argv)
 		DIR *dir;
 		struct dirent *de;
 		struct stat sbuf;
-		char filename[128], *p;
 
 		dir = opendir(GET_PATH(SCREENSAVERS));
 		if (dir) {
-			strcpy(filename, GET_PATH(SCREENSAVERS));
-			p = &filename[strlen(filename)];
-			*p = '/';
-			p++;
 			while ((de = readdir(dir))) {
-				strcpy(p, de->d_name);
-				stat(filename, &sbuf);
-				if (!(sbuf.st_mode & S_IFDIR))
+				if (!(de->d_size & 0x80000000))
 					screensaver_count++;
 			}
 			closedir(dir);
@@ -793,6 +805,8 @@ int main(int argc, char **argv)
 
 	read_texts(config_fp);
 	read_users(config_fp);
+
+	filetype_readtypes(config_fp);
 
 	settings_init();
 	//strcpy(theme_name, "default.theme");
@@ -865,7 +879,7 @@ int main(int argc, char **argv)
 			if (sleep_time && sleepcount >= sleep_time) {
 				if (settings_get(SF_SCREENSAVER) && screensaver_count) {
 					DIR *dir;
-					struct dirent *de;
+					struct dirent *result;
 					int i;
 					DirList dl;
 					char filename[128];
@@ -873,26 +887,23 @@ int main(int argc, char **argv)
 					i = abs(rand()) % screensaver_count;
 					dir = opendir(GET_PATH(SCREENSAVERS));
 					do {
-						de = readdir(dir);
-						if (!(de->d_size & 0x80000000))
+						if (readdir_r(dir, &dl.entry, &result) || !result) {
+							i = -2;
+							break;
+						}
+						if (!(dl.entry.d_size & 0x80000000))
 							i--;
-					} while (i > 0);
+					} while (i >= 0);
 					closedir(dir);
-					//strcpy(filename, "/rom/");
-					strcpy(filename, GET_PATH(SCREENSAVERS));
-					strcat(filename, de->d_name);
-					strcpy(dl.entry.d_name, de->d_name);
-					dl.entry.d_size = de->d_size;
-					dl.type = 0;
-					i = filetype_lookup(&dl);
-					if (filetype_handle(filename, i, 0) == 2)
-						update_list();
-					/*filesys_cd_marked(GET_PATH(SCREENSAVERS));
-					update_list();
-					marked = 2;
-					i = filetype_lookup(&dirlist[marked]);
-					if (filetype_handle(filesys_fullname(marked), i, qualifiers) == 2)
-						update_list();*/
+					if (i != -2) {
+						//strcpy(filename, "/rom/");
+						strcpy(filename, GET_PATH(SCREENSAVERS));
+						strcat(filename, dl.entry.d_name);
+						dl.type = 0;
+						i = filetype_lookup(&dl);
+						if (filetype_handle(filename, i, 0) == 2)
+							update_list();
+					}
 				} else { 
 					suspend();
 					getchar(); //dump char used for wakeup
@@ -942,8 +953,12 @@ int main(int argc, char **argv)
 			if(qualifiers == 1)
 				listview_set_marked(MainList, 0);
 			else
-			if(qualifiers == 2)
+			if(qualifiers == 2) {
+				h = listview_get_marked(MainList);
 				listview_set_marked(MainList, marked - MainList->showing);
+				if (h == listview_get_marked(MainList))
+					listview_set_marked(MainList, 0);
+			}
 			else
 				listview_set_marked(MainList, marked-1);
 			break;
@@ -953,39 +968,44 @@ int main(int argc, char **argv)
 			if(qualifiers == 1)
 				listview_set_marked(MainList, MainList->lines-1);
 			else
-			if(qualifiers == 2)
+			if(qualifiers == 2) {
+				h = listview_get_marked(MainList);
 				listview_set_marked(MainList, marked + MainList->showing);
-			else
+				if (h == listview_get_marked(MainList))
+					listview_set_marked(MainList, MainList->lines-1);
+			} else
 				listview_set_marked(MainList, marked+1);
 			break;
 
 		case RAWKEY_A:
-			if(filesys_getstate() == FSTATE_SRAM)
 			{
 				char *name = filesys_fullname(marked);
-				switch(qualifiers)
+				if(filesys_getstate() == FSTATE_SRAM)
 				{
-				case 0:
-					i = filetype_lookup(&dirlist[marked]);
-					if(filetype_handle(filesys_fullname(marked), i, 0) == 2)
-						update_list();
-					break;
-				case 2:
-					cmd_sramcopy(name);
-					break;
-				case 1:
-					cmd_srampaste(name);
-					break;
-				case 3:
-					cmd_sramdel(name);
-					break;
+					switch(qualifiers)
+					{
+					case 0:
+						i = filetype_lookup(&dirlist[marked]);
+						if(filetype_handle(name, i, 0) == 2)
+							update_list();
+						break;
+					case 2:
+						cmd_sramcopy(name);
+						break;
+					case 1:
+						cmd_srampaste(name);
+						break;
+					case 3:
+						cmd_sramdel(name);
+						break;
+					}
 				}
-			}
-			else
-			{
-				i = filetype_lookup(&dirlist[marked]);
-				if (filetype_handle(filesys_fullname(marked), i, qualifiers) == 2)
-					update_list();
+				else
+				{
+					i = filetype_lookup(&dirlist[marked]);
+					if (filetype_handle(name, i, qualifiers) == 2)
+						update_list();
+				}
 			}
 			break;
 			

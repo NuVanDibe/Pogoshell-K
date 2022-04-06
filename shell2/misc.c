@@ -51,6 +51,25 @@ void reset_gba(void)
     ::: "r0", "r1", "r2", "r3");
 }
 
+int gethex(char *p)
+{
+	int l = 0;
+
+	while((*p >= '0' && *p <= '9') ||
+		  (*p >= 'A' && *p <= 'F') ||
+		  (*p >= 'a' && *p <= 'f'))
+	{
+		if(*p <= '9')
+			l = (l << 4) | ((*p++) - '0');
+		else if (*p <= 'F')
+			l = (l << 4) | ((*p++) - 'A' + 10);
+		else
+			l = (l << 4) | ((*p++) - 'a' + 10);
+	}
+		
+	return l;
+}
+
 char *strdup(char *str)
 {
 	char *p = malloc(strlen(str)+1);

@@ -83,7 +83,7 @@ int msgbox_list(tbox *box, char *title, char **lines, int num)
 
 	listview_clear(box->list);
 	for(i=0; i<num; i++)
-		listview_addline(box->list, NULL, lines[i]);
+		listview_addline(box->list, NULL, NULL, lines[i]);
 
 	listview_set_marked(box->list, marked);
 

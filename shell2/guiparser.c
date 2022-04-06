@@ -189,7 +189,7 @@ Widget *guiparser_create(char *spec, char *rootitem)
 			else
 			if(strncmp(startp, "TEXTB", 5) == 0)
 			{
-				lastw = (Widget *)textbar_new(NULL, 80);
+				lastw = (Widget *)textbar_new(NULL, 256);
 				attr_func = (WidgetAttrFunc)textbar_set_attribute;
 				
 			}

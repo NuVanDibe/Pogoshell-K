@@ -50,7 +50,8 @@ static char *strchr2(const char *str, int c)
 
 static Romfile *findfile(Romfile *rf, char *name, int size)
 {
-	uint64 *hidden, *start, old_enc[2], temp_salt[2];
+	uint64 *hidden, *start;
+	static uint64 old_enc[2], temp_salt[2];
 	int i, tmpsize;
 	aes_context ctx;
 
@@ -252,7 +253,8 @@ static int rf_lseek(int fd, int offset, int origin)
          stitch it back together again */
 static int rf_ioctl(int fd, int req, va_list vl)
 {
-	uint64 **getkeyptr, *keyptr, key_holder[2];
+	uint64 **getkeyptr, *keyptr;
+	static uint64 key_holder[2];
 	char *dir;
 	int ofd;
 

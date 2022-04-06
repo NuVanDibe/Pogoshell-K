@@ -267,7 +267,6 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride);
   
 int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage);
 
-#define PTR (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4+sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS+JPEG_DCTSIZE2*JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS+sizeof(JPEG_Decoder)+sizeof(JPEG_HuffmanTable)*4)
-
+#define PTR (0x02000000)
 
 #endif /* GBA_IMAGE_JPEG_H */

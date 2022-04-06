@@ -8,7 +8,7 @@
 int textbar_render(TextBar *tb, Rect *r, BitMap *bm)
 {
 	int l;
-	char left[64];
+	char left[256];
 	char *right;
 	uint16 *dst = (uint16 *)bm->pixels + (r->x+tb->margin) + (r->y+tb->margin) * bm->width;
 	strcpy(left, tb->text);

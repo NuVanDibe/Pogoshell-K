@@ -1,12 +1,12 @@
 
 #include <pogo.h>
 #include "misc.h"
-#include "gba-jpeg-decode.h"
+#include "iwram.h"
 #include "aes.h"
 
-static JPEG_OUTPUT_TYPE *jpg_ptr;
-static int jpg_w;
-static int jpg_h;
+JPEG_OUTPUT_TYPE *jpg_ptr;
+int jpg_w;
+int jpg_h;
 
 void joint_view(uchar *jpg, int jpg_ram_usage);
 
@@ -19,165 +19,8 @@ int prepare_jpg(unsigned char *ptr, int jpg_ram_usage)
 	sfd = open("/dev/screen", 0);
 	ioctl(sfd, SC_SETMODE, 2);
 	close(sfd);
-	
+
     return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h, (jpg_ram_usage+3)&0xfffffffc);
-}
-
-#define MIN(a,b) (a<b ? a : b)
-#define MAX(a,b) (a>b ? a : b)
-
-/* By this point, JPEG_DecompressImage isn't ever called again, so
- * it's safe to use at least some of this space.*/
-unsigned short *red = (unsigned short *)(0x02000000);
-unsigned short *green = (unsigned short *)(0x02000000+(240*sizeof(short)));
-unsigned short *blue = (unsigned short *)(0x02000000+((240+240)*sizeof(short)));
-
-#define R(x) (x&31)
-#define G(x) ((x>>5)&31)
-#define B(x) ((x>>10)&31)
-
-void render_jpg(int x, int y, int scale)
-{
-	int wi, hi;
-	unsigned short *src, *dst;
-
-	int w, h;
-	int dh, dw;
-
-	dst = (unsigned short *)0x06000000; //vram
-
-	switch (scale)
-	{
-		// Aspect
-		case 1:
-			w = 240;
-			h = 240 * jpg_h / jpg_w;
-			if (h > 160) {
-				h = 160;
-				w = 160 * jpg_w / jpg_h;
-			}
-			dh = 0;
-			dst += (160-h)/2*240;
-			src = jpg_ptr;
-			hi = h*2;
-			while (hi--)
-			{
-				dw = 0;
-				wi = w*2;
-				if (!(hi&1))
-					dst += (240 - w)/2;
-				x = 0;
-				while (wi--)
-				{
-					if (!(wi&1) || !(hi&1)) {
-						red[x] += R(*src);
-						green[x] += G(*src);
-						blue[x] += B(*src);
-					} else {
-						red[x] = R(*src);
-						green[x] = G(*src);
-						blue[x] = B(*src);
-					}
-					
-					if (!(wi&1) && !(hi&1)) {
-						*dst++ = ((red[x]>>2)&31) |
-						          (((green[x]>>2)&31)<<5) |
-						          (((blue[x]>>2)&31)<<10);
-					}
-
-					if (!(wi&1))
-						x++;
-
-					dw += jpg_w;
-					while (dw >= w*2)
-					{
-						dw -= w*2;
-						src++;
-					}
-				}
-				if (!(hi&1))
-					dst += 240-w-(240 - w)/2;
-				src -= jpg_w;
-				dh += jpg_h;
-				while (dh >= h*2)
-				{
-					dh -= h*2;
-					src += jpg_w;
-				}
-			}
-			break;
-		// Stretch
-		case 2:
-			h = 320;
-			dh = 0;
-			src = jpg_ptr;
-			while (h--)
-			{
-				dw = 0;
-				w = 480;
-				x = 0;
-				while (w--)
-				{
-					if (!(w&1) || !(h&1)) {
-						red[x] += R(*src);
-						green[x] += G(*src);
-						blue[x] += B(*src);
-					} else {
-						red[x] = R(*src);
-						green[x] = G(*src);
-						blue[x] = B(*src);
-					}
-					
-					if (!(w&1) && !(h&1)) {
-						*dst++ = ((red[x]>>2)&31) |
-						          (((green[x]>>2)&31)<<5) |
-						          (((blue[x]>>2)&31)<<10);
-					}
-
-					if (!(w&1))
-						x++;
-
-					dw += jpg_w;
-					while (dw >= 480)
-					{
-						dw -= 480;
-						src++;
-					}
-				}
-				src -= jpg_w;
-				dh += jpg_h;
-				while (dh >= 320)
-				{
-					dh -= 320;
-					src += jpg_w;
-				}
-			}
-			break;
-		default:
-			w = MIN(jpg_w, 240);
-			h = MIN(jpg_h, 160);
-
-			if((x+240) > jpg_w)
-				x = (jpg_w-240);
-			if((y+160) > jpg_h)
-				y = (jpg_h-160);
-			if(x < 0) x = 0;
-			if(y < 0) y = 0;
-
-			src = &jpg_ptr[x + y * jpg_w];
-			if (h < 160)
-				dst += (160 - h)/2*240;
-			while(h--)
-			{
-				wi = w;
-				dst += (240 - w)/2;
-				while(wi--)
-					*dst++ = *src++;
-				dst += 240-w-(240 - w)/2;
-				src += (jpg_w - w);
-			}
-			break;
-	}
 }
 
 void generic_image(void)
@@ -381,11 +224,12 @@ void joint_view(uchar *jpg, int jpg_ram_usage)
 		while(l--)
 			*p++ = 0;
 	
-		render_jpg(x, y, scale);
+		render_jpg(x, y, scale, 240 * jpg_h / jpg_w, 160 * jpg_w / jpg_h);
 		while(!quit)
 		{
-			if ((dx || dy) && !scale)
-				render_jpg(x, y, scale);
+			if ((dx || dy) && !scale) {
+				render_jpg(x, y, scale, 240 * jpg_h / jpg_w, 160 * jpg_w / jpg_h);
+			}
 
 			c = getchar();
 
@@ -413,7 +257,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage)
 					while(l--)
 						*p++ = 0x0;
 					scale=(scale+1)%3;
-					render_jpg(x, y, scale);
+					render_jpg(x, y, scale, 240 * jpg_h / jpg_w, 160 * jpg_w / jpg_h);
 				}
 				break;
 			case RAWKEY_A:

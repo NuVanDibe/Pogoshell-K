@@ -2,8 +2,6 @@
 //	I W R A M . C							//
 //////////////////////////////////////////////////
 
-#include "gba.h"
-#include "gba-jpeg-decode.h"
 #include "iwram.h"
 
 // module contains functions which execute in iwram for extra speed
@@ -327,5 +325,209 @@ CODE_IN_IWRAM void DecodeCoefficients (
     *bitsDataBase = bits_data;
     *bitsLeftBase = bits_left;
     *dataBase = data;
+}
+
+CODE_IN_IWRAM void merge_sort(void *array, int count, int size, int cf(void *a, void *b))
+{
+	int i, join, actualsize;
+	int left, middle;
+	char *a = (char *)array;
+	char tmp_item[size];
+
+	for (i = 0; i < count; i += 2)
+	{
+		if (i < count - 1)
+		{
+			if (cf(&a[i * size], &a[(i + 1) * size]) > 0) {
+				memcpy(tmp_item, &a[i * size], size);
+				memcpy(&a[i * size], &a[(i+1) * size], size);
+				memcpy(&a[(i+1) * size], tmp_item, size);
+			}
+		}
+	}
+	for (i = 4; i < count*2; i *= 2)
+	{
+		for (join = 0; join < count; join += i)
+		{
+			actualsize = count - join;
+			if (actualsize > i)
+				actualsize = i;
+			left = join;
+			middle = join + i/2;
+			while (left < middle && middle < join+actualsize) {
+				if (cf(&a[left * size], &a[middle * size]) > 0) {
+					memcpy(tmp_item, &a[middle * size], size);
+					memmove(&a[(left+1) * size], &a[left * size], size*(middle-left));
+					memcpy(&a[left * size], tmp_item, size);
+					middle++;
+				}
+				left++;
+			}
+		}
+	}
+}
+
+extern JPEG_OUTPUT_TYPE *jpg_ptr;
+extern int jpg_w;
+extern int jpg_h;
+
+#define MIN(a,b) (a<b ? a : b)
+#define MAX(a,b) (a>b ? a : b)
+
+#define R(x) (x&31)
+#define G(x) ((x>>5)&31)
+#define B(x) ((x>>10)&31)
+
+CODE_IN_IWRAM void render_jpg(int x, int y, int scale, int hdbw, int wdbh)
+{
+	static unsigned short red[240];
+	static unsigned short green[240];
+	static unsigned short blue[240];
+
+	int wi, hi;
+	unsigned short *src, *dst;
+
+	int w, h;
+	int dh, dw;
+
+	dst = (unsigned short *)0x06000000; //vram
+
+	switch (scale)
+	{
+		// Aspect
+		case 1:
+			w = 240;
+			//h = 240 * jpg_h / jpg_w;
+			h = hdbw;
+			if (h > 160) {
+				h = 160;
+				//w = 160 * jpg_w / jpg_h;
+				w = wdbh;
+			}
+			/**(int *)(0x02000000) = w;
+			*(int *)(0x02000004) = h;
+			while(1);*/
+			dh = 0;
+			dst += (160-h)/2*240;
+			src = jpg_ptr;
+			hi = h*2;
+			while (hi--)
+			{
+				dw = 0;
+				wi = w*2;
+				if (!(hi&1))
+					dst += (240 - w)/2;
+				x = 0;
+				while (wi--)
+				{
+					if (!(wi&1) || !(hi&1)) {
+						red[x] += R(*src);
+						green[x] += G(*src);
+						blue[x] += B(*src);
+					} else {
+						red[x] = R(*src);
+						green[x] = G(*src);
+						blue[x] = B(*src);
+					}
+					
+					if (!(wi&1) && !(hi&1)) {
+						*dst++ = ((red[x]>>2)&31) |
+						          (((green[x]>>2)&31)<<5) |
+						          (((blue[x]>>2)&31)<<10);
+					}
+
+					if (!(wi&1))
+						x++;
+
+					dw += jpg_w;
+					while (dw >= w*2)
+					{
+						dw -= w*2;
+						src++;
+					}
+				}
+				if (!(hi&1))
+					dst += 240-w-(240 - w)/2;
+				src -= jpg_w;
+				dh += jpg_h;
+				while (dh >= h*2)
+				{
+					dh -= h*2;
+					src += jpg_w;
+				}
+			}
+			break;
+		// Stretch
+		case 2:
+			h = 320;
+			dh = 0;
+			src = jpg_ptr;
+			while (h--)
+			{
+				dw = 0;
+				w = 480;
+				x = 0;
+				while (w--)
+				{
+					if (!(w&1) || !(h&1)) {
+						red[x] += R(*src);
+						green[x] += G(*src);
+						blue[x] += B(*src);
+					} else {
+						red[x] = R(*src);
+						green[x] = G(*src);
+						blue[x] = B(*src);
+					}
+					
+					if (!(w&1) && !(h&1)) {
+						*dst++ = ((red[x]>>2)&31) |
+						          (((green[x]>>2)&31)<<5) |
+						          (((blue[x]>>2)&31)<<10);
+					}
+
+					if (!(w&1))
+						x++;
+
+					dw += jpg_w;
+					while (dw >= 480)
+					{
+						dw -= 480;
+						src++;
+					}
+				}
+				src -= jpg_w;
+				dh += jpg_h;
+				while (dh >= 320)
+				{
+					dh -= 320;
+					src += jpg_w;
+				}
+			}
+			break;
+		default:
+			w = MIN(jpg_w, 240);
+			h = MIN(jpg_h, 160);
+
+			if((x+240) > jpg_w)
+				x = (jpg_w-240);
+			if((y+160) > jpg_h)
+				y = (jpg_h-160);
+			if(x < 0) x = 0;
+			if(y < 0) y = 0;
+
+			src = &jpg_ptr[x + y * jpg_w];
+			if (h < 160)
+				dst += (160 - h)/2*240;
+			while(h--)
+			{
+				wi = w;
+				dst += (240 - w)/2;
+				while(wi--)
+					*dst++ = *src++;
+				dst += 240-w-(240 - w)/2;
+				src += (jpg_w - w);
+			}
+			break;
+	}
 }
 

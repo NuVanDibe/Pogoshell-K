@@ -56,7 +56,10 @@ int fwrite(void *dest, int size, int count, FILE *fp)
 
 int fclose(FILE *fp)
 {
-	return close((int)fp);
+	if (fp)
+		return close((int)fp);
+	else
+		return EOF;
 }
 
 int fflush(FILE *fp)
@@ -218,17 +221,17 @@ char *gets(char *buffer)
 DIR *opendir(const char *name)
 {
 	struct stat s;
-/*	char tmp_name[256];
+	char tmp_name[256];
 	int i;
 
 	i = strlen(name);
 
 	strcpy(tmp_name, name);
 	if (tmp_name[i-1] == '/')
-		tmp_name[i-1] = '\0'; */
-	if((stat(/*tmp_name*/name, &s) >= 0) && (s.st_mode & S_IFDIR))
+		tmp_name[i-1] = '\0';
+	if((stat(tmp_name, &s) >= 0) && (s.st_mode & S_IFDIR))
 	{
-		return fopen(/*tmp_name*/name, "rb");
+		return fopen(tmp_name, "rb");
 	}
 	return NULL;
 }

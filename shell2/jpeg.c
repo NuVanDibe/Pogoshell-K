@@ -1,7 +1,5 @@
 
 #include <pogo.h>
-#include "gba.h"
-#include "gba-jpeg-decode.h"
 #include "iwram.h"
 #include "viewer.h"
 
@@ -67,24 +65,35 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride)
     } while (0)
 #endif
 
-int *huffcode = (int *) 0x02000000; //1024 (256*4)
-unsigned char *huffsize = (unsigned char *) (0x02000000+1024); //256 (256*1)
+#define huffcode_value (0x02040000-1024)
+int * const huffcode = (int * const) (huffcode_value); //1024 (256*4)
+#define huffsize_value (huffcode_value-256)
+unsigned char * const huffsize = (unsigned char * const) (huffsize_value); //256 (256*1)
 
 /* Pointers translating scan header components to frame header components. */
-JPEG_FrameHeader_Component **frameComponents = (JPEG_FrameHeader_Component **) (0x02000000+1024+256); // JPEG_MAXIMUM_COMPONENTS*4
+#define frameComponents_value (huffsize_value-JPEG_MAXIMUM_COMPONENTS*4)
+JPEG_FrameHeader_Component ** const frameComponents = (JPEG_FrameHeader_Component ** const) (frameComponents_value); // JPEG_MAXIMUM_COMPONENTS*4
 
 /* The last DC coefficient computed.  This is initialized to zeroes at the start and after a restart interval. */
-JPEG_FIXED_TYPE *dcLast = (JPEG_FIXED_TYPE *) (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4); // sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS
-/* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */
-signed char *blockBase = (signed char *) (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4+sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS); // JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS
+#define dcLast_value (frameComponents_value-sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS)
+JPEG_FIXED_TYPE * const dcLast = (JPEG_FIXED_TYPE * const) (dcLast_value); // sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS
 
-JPEG_Decoder *decoder = (JPEG_Decoder *) (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4+sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS+JPEG_DCTSIZE2*JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS); // sizeof(JPEG_Decoder)
+/* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */
+#define blockBase_value (dcLast_value-JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS)
+signed char * const blockBase = (signed char * const) (blockBase_value); // JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS
+
+#define decoder_value (blockBase_value-sizeof(JPEG_Decoder))
+JPEG_Decoder * const decoder = (JPEG_Decoder * const) (decoder_value); // sizeof(JPEG_Decoder)
 
 /* The decompressed AC Huffman tables.  JPEG Baseline allows only two AC Huffman tables in a scan. */
-JPEG_HuffmanTable *acTableList = (JPEG_HuffmanTable *) (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4+sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS+JPEG_DCTSIZE2*JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS+sizeof(JPEG_Decoder)); // sizeof(JPEG_HuffmanTable)*2
+#define acTableList_value (decoder_value-sizeof(JPEG_HuffmanTable)*2)
+JPEG_HuffmanTable * const acTableList = (JPEG_HuffmanTable * const) (acTableList_value); // sizeof(JPEG_HuffmanTable)*2
 
 /* The decompressed DC Huffman tables.  JPEG Baseline allows only two DC Huffman tables in a scan. */
-JPEG_HuffmanTable *dcTableList = (JPEG_HuffmanTable *) (0x02000000+1024+256+JPEG_MAXIMUM_COMPONENTS*4+sizeof(JPEG_FIXED_TYPE)*JPEG_MAXIMUM_COMPONENTS+JPEG_DCTSIZE2*JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS+sizeof(JPEG_Decoder)+sizeof(JPEG_HuffmanTable)*2); // sizeof(JPEG_HuffmanTable)*2
+#define dcTableList_value (acTableList_value-sizeof(JPEG_HuffmanTable)*2)
+JPEG_HuffmanTable * const dcTableList = (JPEG_HuffmanTable * const) (dcTableList_value); // sizeof(JPEG_HuffmanTable)*2
+
+#define jpegHeap (dcTableList_value)
 
 /* Takes information discovered in JPEG_Decoder_ReadHeaders and loads the
  * image.  This is a public function; see gba-jpeg.h for more information on it.
@@ -693,7 +702,7 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
  */
 int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight, int jpg_ram_usage)
 {
-#define SPACE_LEFT (0x02040000 - PTR)
+#define SPACE_LEFT (jpegHeap - 0x02000000)
 
     // Clear memory.
     /*for (i = 0; i < 64*1024; i++)

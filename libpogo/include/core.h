@@ -2,6 +2,7 @@
 #define CORE_H
 
 //#define MALLOC_DEBUG
+#include "iwram.h"
 
 typedef unsigned long long uint64;
 typedef long long int64;
@@ -26,17 +27,17 @@ typedef __builtin_va_list va_list;
 #define va_arg __builtin_va_arg
 
 
-void *memset(void *dest, int v, int l);
-void *memmove(void *dst, const void *src, int l);
-void *memmove8(void *dst, const void *src, int l);
-void *memcpy(void *dst, const void *src, int l);
-void *memcpy8(void *dst, const void *src, int l);
-int strcmp(const char *s1, const char *s2);
-int strncmp(const char *s1, const char *s2, int n);
-int strlen(const char *s);
-char *strcpy(char *dst, const char *src);
-char *strncpy(char *dst, const char *src, int n);
-int memcmp(const char *s1, const char *s2, int n);
+void *memset(void *dest, int v, int l) CODE_IN_IWRAM;
+void *memmove(void *dst, const void *src, int l) CODE_IN_IWRAM;
+void *memmove8(void *dst, const void *src, int l) CODE_IN_IWRAM;
+void *memcpy(void *dst, const void *src, int l) CODE_IN_IWRAM;
+void *memcpy8(void *dst, const void *src, int l) CODE_IN_IWRAM;
+int strcmp(const char *s1, const char *s2) CODE_IN_IWRAM;
+int strncmp(const char *s1, const char *s2, int n) CODE_IN_IWRAM;
+int strlen(const char *s) CODE_IN_IWRAM;
+char *strcpy(char *dst, const char *src) CODE_IN_IWRAM;
+char *strncpy(char *dst, const char *src, int n) CODE_IN_IWRAM;
+int memcmp(const char *s1, const char *s2, int n) CODE_IN_IWRAM;
 
 void memory_init(uint32 *ptr, int size);
 void *memory_alloc(int size);

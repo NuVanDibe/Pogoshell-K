@@ -46,7 +46,7 @@ reset_func:
 @	bne		0b
 @	mov		r1,#0
 @	mov		r0,#0xfc		@reset all execept RAM
-	mov		r0,#0xff		@reset all execept RAM
+	mov		r0,#0xfe		@reset all execept RAM
 	swi		#0x010000
 @	mov		r0,#0
 @	cmp		r11,#0

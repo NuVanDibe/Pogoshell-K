@@ -1,4 +1,10 @@
+
+#include <pogo.h>
+#include "gba.h"
+#include "gba-jpeg-decode.h"
+
 #define CODE_IN_IWRAM __attribute__ ((section (".iwram"), long_call))
+#define VAR_IN_IWRAM __attribute__ ((section (".iwram")))
 
 extern const unsigned char ToZigZag [];
 
@@ -21,3 +27,7 @@ extern void DecodeCoefficients (
     JPEG_HuffmanTable *dcTable, JPEG_HuffmanTable *acTable,
     const unsigned char **dataBase, unsigned int *bitsLeftBase,
     unsigned long int *bitsDataBase, const unsigned char *toZigZag) CODE_IN_IWRAM;
+
+extern void merge_sort(void *array, int count, int size, int cf(void *a, void *b)) CODE_IN_IWRAM;
+
+extern void render_jpg(int x, int y, int scale, int hdbw, int wdbh) CODE_IN_IWRAM;

@@ -11,7 +11,12 @@ Color Gray_Color = {0x80,0x80,0x80,0};
 
 int widget_render(Widget *w, Rect *r, BitMap *bm)
 {
+	//int i, j;
+	//fprintf(stderr, "Rendering widget 0x%p, 0x%04x, (%d, %d).\n", w, w->type, w->width, w->height);
 	return render_functions[w->type & 0xFF](w, r, bm);
+	//fprintf(stderr, "\n");
+	//fprintf(stderr, "Done rendering widget 0x%p.\n", w);
+	//return i;
 }
 
 

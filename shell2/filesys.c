@@ -2,9 +2,10 @@
 #include <pogo.h>
 #include "settings.h"
 #include "filesys.h"
+#include "iwram.h"
 #include "filetype.h"
 
-#define MARKED_STACK_DEPTH 128
+#define MARKED_STACK_DEPTH 48
 
 extern uint16 marked;
 
@@ -74,47 +75,6 @@ void qsort(void *array, int count, int size, int cf(void *a, void *b))
 }
 */
 
-void merge_sort(void *array, int count, int size, int cf(void *a, void *b))
-{
-	int i, join, actualsize;
-	int left, middle;
-	char *a = (char *)array;
-	char *tmp_item = malloc(size);
-
-	for (i = 0; i < count; i += 2)
-	{
-		if (i < count - 1)
-		{
-			if (cf(&a[i * size], &a[(i + 1) * size]) > 0) {
-				memcpy(tmp_item, &a[i * size], size);
-				memcpy(&a[i * size], &a[(i+1) * size], size);
-				memcpy(&a[(i+1) * size], tmp_item, size);
-			}
-		}
-	}
-	for (i = 4; i < count*2; i *= 2)
-	{
-		for (join = 0; join < count; join += i)
-		{
-			actualsize = count - join;
-			if (actualsize > i)
-				actualsize = i;
-			left = join;
-			middle = join + i/2;
-			while (left < middle && middle < join+actualsize) {
-				if (cf(&a[left * size], &a[middle * size]) > 0) {
-					memcpy(tmp_item, &a[middle * size], size);
-					memmove(&a[(left+1) * size], &a[left * size], size*(middle-left));
-					memcpy(&a[left * size], tmp_item, size);
-					middle++;
-				}
-				left++;
-			}
-		}
-	}
-	free(tmp_item);
-}
-
 static int get_dir(char *name, DirList *list)
 {
 	int i;
@@ -169,9 +129,9 @@ int dl_cmp(DirList *a, DirList *b)
 		switch(settings_get(SF_SORTING))
 		{
 		case SORT_SIZE:
-			return a->size > b->size;
+			return a->size - b->size;
 		case SORT_TYPE:
-			return (filetype_lookup(a) > filetype_lookup(b));
+			return (filetype_lookup(a) - filetype_lookup(b));
 		default:
 			return (strcmp(a->name, b->name));
 		}
@@ -258,7 +218,7 @@ int filesys_getfiles(DirList *list)
 
 		c = get_dir(current, list);
 
-		if(c > 0)
+		if(c > 0 && settings_get(SF_SORTING) != SORT_NONE)
 			merge_sort(list, c, sizeof(DirList), (int (*)(void *, void *))dl_cmp);
 /*
 		if(c > 0)

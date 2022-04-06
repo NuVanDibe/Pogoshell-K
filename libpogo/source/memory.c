@@ -23,6 +23,7 @@ int mem_size = 63*1024;
 /* Exported by linkscript as start of available memory (after any WRAM variables) */
 extern uint32 __eheap_start;
 extern uint32 __iheap_start;
+extern uint32 __iheap_end;
 
 void memory_init(uint32 *ptr, int size)
 {
@@ -65,7 +66,7 @@ void *memory_alloc(int alloc_size)
 	{
 		//mem_base = &__eheap_start;
 		//mem_size = (0x02040000 - (int)mem_base) / 4;
-		memory_init(&__iheap_start, (0x03007E00 - (int) &__iheap_start) / 4);
+		memory_init(&__iheap_start, ((int) &__iheap_end - (int) &__iheap_start) / 4);
 	}
 	
 	if(!first_block)

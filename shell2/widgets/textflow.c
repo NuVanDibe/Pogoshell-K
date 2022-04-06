@@ -9,7 +9,6 @@ int textflow_render(TextFlow *tb, Rect *r, BitMap *bm)
 {
 	int i;
 	uint16 *dst = (uint16 *)bm->pixels + (r->x+2) + (r->y+4) * bm->width;
-
 	if(tb->w.flags & WFLG_REDRAW)
 	{
 

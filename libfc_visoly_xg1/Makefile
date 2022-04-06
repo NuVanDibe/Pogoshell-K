@@ -2,7 +2,7 @@
 # libflashcart Makefile
 # (C) 2002 - 2004 Jonas Minnberg
 
-CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
+CFLAGS	= -Wall -g -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
 LIBNAME = libflashcart.a
 OBJDIR = obj
 

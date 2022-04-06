@@ -3,12 +3,7 @@
 
 #include "core.h"
 
-void *memcpy(void *dst, const void *src, int l);
-int strcmp(const char *s1, const char *s2);
-int strncmp(const char *s1, const char *s2, int n);
-int strlen(const char *s);
 char *strcat(char *s1, const char *s2);
-char *strcpy(char *dst, const char *src);
 char *strchr(const char *str, int c);
 char *strrchr(const char *str, int c);
 char *itoa(int v, char *dst, unsigned int base);

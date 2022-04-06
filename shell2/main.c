@@ -17,11 +17,11 @@
 #include "widgets/widgets.h"
 #include "guiparser.h"
 
-/*extern uint32 *mem_base;
+//extern uint32 *mem_base;
 
-extern int theme_count;
+extern char theme_count;
 char theme_name[32];
-*/
+
 int sram_fd = -1;
 #define free_space() ioctl(sram_fd, SR_FREESPACE)
 
@@ -106,10 +106,9 @@ enum {LOCAL, ALL};
 /* Load current state from SRAM */
 int load_state(int what)
 {
-	char tmp[100];
+	char tmp[128];
 	int fd;
 	uchar usr;
-
 
 	if(what == ALL)
 	{
@@ -132,16 +131,17 @@ int load_state(int what)
 	if(fd >= 0)
 	{
 		read(fd, &state, sizeof(state));
-		read(fd, tmp, 100);
+		read(fd, tmp, 128);
 		close(fd);
 		filesys_cd_marked(tmp);
 		marked = state.marked;
 		memcpy(settings, state.settings, NO_SETTINGS);
-		/*if (settings[SF_THEME] >= theme_count)
+		if (settings[SF_THEME] >= theme_count)
 			settings[SF_THEME] = 0;
-		get_theme_name(settings[SF_THEME], theme_name);*/
+		get_theme_name(settings[SF_THEME], theme_name);
 		return 1;
 	}
+	get_theme_name(settings[SF_THEME], theme_name);
 
 	return 0;
 }
@@ -330,7 +330,7 @@ void init_devices(void)
 //char dirsize[MAX_FILE_COUNT][10];
 //char dirname[MAX_FILE_COUNT][32];
 DirList *dirlist = (DirList *) 0x02000000;
-char *dirsize = (char *) (0x02000000+sizeof(DirList)*MAX_FILE_COUNT);
+char *dirsize = (char *) (0x02000000+(sizeof(DirList))*MAX_FILE_COUNT);
 char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
 //#if MODPTR != (0x02000000+(sizeof(DirList)+10+32)*MAX_FILE_COUNT)
 //#error("You must update MODPTR")
@@ -344,7 +344,10 @@ void update_list(void)
 	int i, t, filecount;
 
 	listview_clear(MainList);
+	listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
+	screen_redraw(MainScreen);
 	filecount = filesys_getfiles(dirlist);
+	listview_clear(MainList);
 	for(i=0; i<filecount; i++)
 	{
 		if(dirlist[i].type || settings_get(SF_HIDESIZE) || (filesys_getstate() == FSTATE_GAMES))
@@ -416,8 +419,8 @@ void setup_screen(void)
 	theme = (char *)0x02000000;
 
 	strcpy(tmp, GET_PATH(THEMES));
-	//strcat(tmp, theme_name);
-	strcat(tmp, "default.theme");
+	strcat(tmp, theme_name);
+	//strcat(tmp, "default.theme");
 	//fp = fopen(".shell/themes/default.theme", "rb");
 	fp = fopen(tmp, "rb");
 	i = fread(theme, 4096, 1, fp);
@@ -893,7 +896,6 @@ int main(int argc, char **argv)
 			update_list();
 
 		screen_redraw(MainScreen);
-
 	}
 
 	return 0;

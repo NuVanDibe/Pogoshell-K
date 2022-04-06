@@ -13,6 +13,7 @@
 #include "core.h"
 #include "device.h"
 #include "gba_defs.h"
+#include "io.h"
 
 #include "cartlib.h"
 
@@ -34,17 +35,17 @@ typedef struct {
 static int dev_count = 0;
 static RegDevice deviceList[MAX_DEVICE];
 
-static int fdmap_count = 3;
+//static int fdmap_count = 3;
 static FdMap fdList[MAX_FD];
 
 void device_init(void)
 {
 	fdList[0].fd = -1;
-	fdList[0].dev = NULL;
+	fdList[0].dev = 1;
 	fdList[1].fd = -1;
-	fdList[1].dev = NULL;
+	fdList[1].dev = 1;
 	fdList[2].fd = -1;
-	fdList[2].dev = NULL;
+	fdList[2].dev = 1;
 }
 
 static Device *dev_fromname(const char *name, char **cutname)
@@ -289,6 +290,7 @@ void device_doirq(void)
 
 int open(const char *name, int flags)
 {
+	int i;
 	int fd;
 	Device *dev;
 	char *cutname;
@@ -298,9 +300,13 @@ int open(const char *name, int flags)
 			fd = dev->open(cutname, flags);
 			if(fd < 0)
 				return fd;
-			fdList[fdmap_count].dev = dev;
-			fdList[fdmap_count].fd = fd;
-			return fdmap_count++;
+			for (i = 3; i < MAX_FD; i++)
+				if (fdList[i].dev == NULL) {
+					//fprintf(stderr, "%d = open(%s, %d) : 0x%p %d\n", i, name, flags, dev, fd); 
+					fdList[i].dev = dev;
+					fdList[i].fd = fd;
+					return i;
+				}
 		}
 	return -1;
 }
@@ -325,22 +331,20 @@ int write(int fd, const void *dest, int size)
 
 int close(int fd)
 {
-	FdMap *f;
-	int oldfd = fd;
+	int devfd = fd;
 	Device *dev;
-	if((dev = dev_fromhandle(&fd)))
-		if(dev->close) {
 
-			fdList[oldfd].dev = NULL;
-			f = &fdList[fdmap_count-1];
-			while(fdmap_count && f->dev == NULL) {
-				fdmap_count--;
-				f = &fdList[fdmap_count-1];
-			}
-
-
-			return dev->close(fd);
+	if (fd > -1) {
+		if((dev = dev_fromhandle(&fd)))
+		{
+			//fprintf(stderr, "close(%d) : 0x%p, %d\n", devfd, dev, fd);
+			fdList[devfd].dev = NULL;
+			if(dev->close)
+				return dev->close(fd);
+			else
+				return 0;
 		}
+	}
 	return -1;
 }
 

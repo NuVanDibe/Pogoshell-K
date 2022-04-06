@@ -14,15 +14,15 @@ endif
 LIBFCLASHCART = ../libfc_$(CART)/libflashcart.a
 
 
-LIBFILE = libpogo.a
+LIBFILE = libpogod.a
 LIBS = -L$(POGO)/lib -lpogo -lgcc
 
 #ifeq (mb, $(EXT))
 #DEFINES += MULTIBOOT
 #endif
 
-CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Os -nostdinc -I$(POGO)/include
-CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -O2 -nostdinc -I$(POGO)/include
+CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -g -Os -nostdinc -I$(POGO)/include
+CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -g -Os -nostdinc -I$(POGO)/include
 
 ASFLAGS = -mthumb-interwork
 

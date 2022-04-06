@@ -21,7 +21,7 @@ LD = $(PREFIX)gcc
 AR = $(PREFIX)ar
 OBJCOPY = $(PREFIX)objcopy
 
-COREFILES = memory.o core_misc.o core.o device.o font.o rtc.o
+COREFILES = memory.o core_iwram.o core_misc.o core.o device.o font.o rtc.o
 ASMFILES = sema.o
 DEVICES = screen.o keyboard.o vkeyboard.o smartkey.o editbuf.o cursor.o \
           console.o romfilesys.o sramfile.o sram_access.o debug.o

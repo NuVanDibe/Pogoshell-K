@@ -36,7 +36,7 @@ int rand(void)
 
 }
 
-int getseed(void)
+unsigned int getseed(void)
 {
 	return seed;
 }

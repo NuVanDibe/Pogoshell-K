@@ -1,5 +1,6 @@
 #include <pogo.h>
 #include "misc.h"
+#include "unapack.h"
 
 extern void LZ77UnCompWram(void *Srcp, void *Destp);
 
@@ -131,20 +132,22 @@ uchar *file2mem(char *fname, void *mem, int msize)
 	if(mem && !ptr)
 	{
 		// Read file to top of buffer
-		if(s[2] == 'z')
+		if(s[2] == 'z' || (s[2] == 'a' && s[3] == 'p'))
 			ptr = mem + msize - fsize;
-		else
+		else {
 			ptr = mem;
-
-		read(fd, ptr, fsize);
+			read(fd, ptr, fsize);
+		}
 	}
 	close(fd);
 
 	//fprintf(stderr, "FILE %s\n", s);
 
-	if(mem && s[2] == 'z')
-	{
+	if(mem && s[2] == 'z') {
 		LZ77UnCompWram(ptr, mem);
+		ptr = mem;
+	} else if (mem && s[2] == 'a' && s[3] == 'p') {
+		depack(ptr, mem);
 		ptr = mem;
 	}
 

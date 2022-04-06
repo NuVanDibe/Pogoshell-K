@@ -23,6 +23,8 @@
 extern char theme_count;
 char theme_name[32];
 
+int sleep_array[] = { 0, 1*60*60, 3*60*60, 5*60*60, 10*60*60, 30*60*60 };
+int sleep_time;
 int screensaver_count;
 int sram_fd = -1;
 #define free_space() ioctl(sram_fd, SR_FREESPACE)
@@ -50,7 +52,6 @@ Screen *MainScreen;
 Window *MessageWin;
 TextFlow *MessageTxt;
 ListView *MessageList;
-BackDrop *ListBar;
 
 FILE *config_fp;
 
@@ -76,7 +77,7 @@ char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
 struct {
 	unsigned /*short*/ char settings[NO_SETTINGS];
 	uint16 marked;
-	int seed;
+	uint32 seed;
 }  __attribute__ ((packed)) state;
 
 /* Save current state to SRAM */
@@ -150,12 +151,13 @@ int load_state(int what)
 		new_marked = state.marked;
 		srand(state.seed);
 		memcpy(settings, state.settings, NO_SETTINGS);
-		if (settings[SF_THEME] >= theme_count)
-			settings[SF_THEME] = 0;
-		get_theme_name(settings[SF_THEME], theme_name);
+		
+		if (settings_get(SF_THEME) >= theme_count)
+			settings_set(SF_THEME, 0);
+		get_theme_name(settings_get(SF_THEME), theme_name);
 		return 1;
 	}
-	get_theme_name(settings[SF_THEME], theme_name);
+	get_theme_name(settings_get(SF_THEME), theme_name);
 
 	return 0;
 }
@@ -444,8 +446,6 @@ void setup_screen(void)
 	MainList = (ListView *)guiparser_findwidget("list");
 	MessageTxt = (TextFlow *)guiparser_findwidget("mflow");
 
-	ListBar = MainList->scrollbar;
-
 	if(mbox)
 	{
 		//textflow_set_attribute(MessageTxt, WATR_TEXT, "This is just a little\ntest of the messagebox,\nI hope it works well!\n--Sasq");
@@ -580,10 +580,7 @@ void cmd_settings(char *name)
 	/*int r;
 
 	r =*/ settings_edit();
-	if(settings_get(SF_SCROLLBAR))
-		MainList->scrollbar = ListBar;
-	else
-		MainList->scrollbar = NULL;
+	sleep_time = sleep_array[settings_get(SF_SLEEP)];
 	save_state();
 	/*if (r) {
 		mem_base = NULL;
@@ -750,12 +747,6 @@ int main(int argc, char **argv)
 
 	fclose(config_fp);
 
-	if(settings_get(SF_SCROLLBAR))
-		MainList->scrollbar = ListBar;
-	else
-		MainList->scrollbar = NULL;
-
-
 	if((fp = fopen("/sram/.bookmark", "rb")))
 	{
 		unsigned int l;
@@ -796,8 +787,8 @@ int main(int argc, char **argv)
 			sleepcount++;
 			Halt();
 
-			if (sleepcount >= (3*60*60)) {
-				if (screensaver_count) {
+			if (sleep_time && sleepcount >= sleep_time) {
+				if (settings_get(SF_SCREENSAVER) && screensaver_count) {
 					DIR *dir;
 					struct dirent *de;
 					int i;

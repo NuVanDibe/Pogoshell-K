@@ -36,13 +36,13 @@ OBJCOPY = $(PREFIX)objcopy
 
 TARGET = pogo
 
-WIDGETS = widgets/textbar.o widgets/tricontainer.o widgets/listview.o widgets/textflow.o
+WIDGETS = widgets/textbar.o widgets/tricontainer.o widgets/listview.o widgets/textflow.o widgets/scrollbar.o
 
 CART_OBJFILES = main.o filetype.o filesys.o
 
 FULL_OBJFILES = bmpview.o jpgview.o jpeg.o iwram.o sram_convert.o widgets/textreader.o
 
-COMMON_OBJFILES = crt0.o text.o bitmap.o window.o backdrop.o \
+COMMON_OBJFILES = crt0.o text.o unapack.o bitmap.o window.o backdrop.o \
 	   guiparser.o savesystem.o rle.o msgbox.o users.o  \
 		   misc.o gameromfs.o settings.o syscall.o $(WIDGETS)
 

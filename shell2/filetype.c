@@ -71,6 +71,8 @@ static int check_extention(char *data, DirList *entry)
 int execute_mb(char *cmd, char *fname, int keys)
 {
 	uchar *ptr;
+	uint16 *p2;
+	int i;
 	//int fd = open(fname, 0);
 	//void *p = (void *)lseek(fd, 0, SEEK_MEM);
 	//close(fd);
@@ -92,13 +94,18 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//else
 
 
-	//SETW(REG_IE, 0);
-	//SETW(REG_IF, 0);
-	//SETW(REG_IME, 0);
-	//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-	//SETW(REG_BG1CNT, 0);
+	SETW(REG_IE, 0);
+	SETW(REG_IF, 0);
+	SETW(REG_IME, 0);
+	SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+	SETW(REG_BG1CNT, 0);
+	SETW(REG_SOUNDBIAS, 0x0200);
+	// Don't use memset as memset is in iwram
+	p2 = (uint16 *) 0x03000000;
+	for (i = 0; i < 0x8000/2; i++)
+		p2[i] = 0;
 	//SoftReset(0xe2);
-	SoftReset(0xfe);
+	//SoftReset(0xfe);
 	((void(*)(void))0x02000000)();
 
 	return 1;

@@ -14,7 +14,6 @@ BackDrop *backdrop_new(uint16 style)
 	bd->color[1] = Black_Color;
 	bd->color[2] = Gray_Color;
 	bd->color[3] = Gray_Color;
-	bd->color[4] = Dark_Color;
 
 	bd->border = 0;
 	bd->bitmap = NULL;

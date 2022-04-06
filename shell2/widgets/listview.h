@@ -2,6 +2,7 @@
 #ifndef LISTVIEW_H
 #define LISTVIEW_H
 
+#include "scrollbar.h"
 #include "../backdrop.h"
 
 #define MAPSLOTCOUNT ((MAX_FILE_COUNT+31)>>5)
@@ -36,7 +37,7 @@ typedef struct
 
 	char **texts[8];
 
-	BackDrop *scrollbar;
+	Scrollbar *scrollbar;
 	
 	Color textcolor[4];
 
@@ -49,6 +50,7 @@ void listview_addline(ListView *lv, BitMap *icon, ...);
 void listview_setline(ListView *lv, int index, BitMap *bm, ...);
 void listview_set_attribute(ListView *tb, int attr, void *val);
 void listview_set_marked(ListView *lv, int i);
+void listview_set_dirty(ListView *lv);
 
 void listview_clear(ListView *lv);
 void listview_set_start(ListView *lv, int i);

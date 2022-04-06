@@ -11,12 +11,13 @@
 extern ListView *MainList;
 extern Screen *MainScreen;
 
-enum { ST_YESNO, ST_SORT, ST_THEME };
+enum { ST_YESNO, ST_SORT, ST_SLEEP, ST_THEME };
 
-const static uchar stypes[NO_SETTINGS] = { ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_SORT, ST_YESNO, ST_THEME };
+const static uchar stypes[NO_SETTINGS] = { ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_YESNO, ST_SORT, ST_YESNO, ST_SLEEP, ST_YESNO, ST_THEME };
 const static char *sort_types[] = { "Name", "Type", "Size", "None" };
+const static char *sleep_types[] = { "Never", "1 Min", "3 Min", "5 Min", "10 Min", "30 Min" };
 unsigned /*short*/char settings[NO_SETTINGS];
-const static unsigned /*short*/char defsettings[NO_SETTINGS] = {0, 1, 1, 1, 0, 0, 0, 1, 0};
+const static unsigned /*short*/char defsettings[NO_SETTINGS] = {0, 1, 1, 1, 0, 0, 0, 1, 2, 1, 0};
 
 char temp_theme_name[32];
 char theme_count = 1;
@@ -60,7 +61,9 @@ void update_line(int i)
 		p = (settings[i] ? TEXT(YES) : TEXT(NO));
 	else if(stypes[i] == ST_SORT)
 		p = sort_types[settings[i]];
-	else {
+	else if(stypes[i] == ST_SLEEP) {
+		p = sleep_types[settings[i]];
+	} else {
 		get_theme_name(settings[i], temp_theme_name);
 		tmp = strchr(temp_theme_name, '.');
 		if (tmp)
@@ -138,7 +141,7 @@ void get_theme_name(char line, char *dest)
 
 /*int*/void settings_edit(void)
 {
-	int i,c,h;
+	int i,c,h,m;
 	int marked = 0;
 	int qualifiers = 0;
 
@@ -199,10 +202,25 @@ void get_theme_name(char line, char *dest)
 
 		case RAWKEY_A:
 			settings[marked]++;
-			if(stypes[marked] == ST_YESNO) settings[marked] = (settings[marked] % 2);
-			if(stypes[marked] == ST_SORT) settings[marked] = (settings[marked] % 4);
-			if(stypes[marked] == ST_THEME) settings[marked] = (settings[marked] % theme_count);
+			switch (stypes[marked]) {
+				case ST_SORT:
+					m = 4;
+					break;
+				case ST_THEME:
+					m = theme_count;
+					break;
+				case ST_SLEEP:
+					m = 6;
+					break;
+				case ST_YESNO:
+				default:
+					m = 2;
+					break;
+			}
+			settings[marked] %= m;
 			update_line(marked);
+			if (marked == 7)
+				 listview_set_dirty(MainList);
 			break;
 		case RAWKEY_B:
 			return /* 0 */;

@@ -46,7 +46,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	uint16 *d, *dst;
 
-	Rect tr = *org_r, cr = *org_r, sbar = *org_r;
+	Rect tr = *org_r, cr = *org_r;
 	Rect *r = &cr;
 
 	BitMap *sbm = NULL;
@@ -78,6 +78,12 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	if(lv->dirty == 0xFF)
 	{
+		if (lv->scrollbar) {
+			scrollbar_set_start(lv->scrollbar, lv->start);
+			scrollbar_set_lines(lv->scrollbar, lv->lines);
+			scrollbar_set_showing(lv->scrollbar, lv->showing);
+			scrollbar_set_dirty(lv->scrollbar);
+		}
 		if(lv->backdrop)
 			backdrop_render(lv->backdrop, r, bm);
 		/*if(sbm)
@@ -90,38 +96,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	r->y += lv->marginy;
 
-	if(lv->scrollbar && lv->dirty == 0xFF)
-	{
-		Color c;
-		sbar.x += (sbar.w - 9);
-		sbar.w = 8;
-		sbar.y += 1;
-		sbar.h -= 2;
-
-		c = lv->scrollbar->color[4];
-		if (c.a == 1)
-			bitmap_addbox(bm, &sbar, 0x0C63);
-		else if (c.a == 0xFF)
-			bitmap_addbox(bm, &sbar, TO_RGB16(c));
-		else if (c.a == 0xFE)
-			bitmap_negbox(bm, &sbar, TO_RGB16(c));
-		else if (c.a > 0x7F)
-			bitmap_avgbox(bm, &sbar, TO_RGB16(c));
-		else
-			bitmap_fillbox(bm, &sbar, TO_RGB16(c));
-
-		i = lv->lines;
-		if(i < lv->showing)
-			i = lv->showing;
-
-		sbar.w-=2;
-		sbar.x++;
-		sbar.y = sbar.y + lv->start * sbar.h / i;
-
-		sbar.h = sbar.h * lv->showing / i;
-
-		if (lv->lines > lv->showing)
-			backdrop_render(lv->scrollbar, &sbar, bm);
+	if (lv->scrollbar) {
+		scrollbar_render(lv->scrollbar, r, bm);
 	}
 
 	if(!lv->lines) {
@@ -143,8 +119,6 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	r2.x = r->x;
 	r2.y = r->y;
 	r2.w = r->w;
-	if(lv->scrollbar)
-		r2.w -= 10;
 	r2.h = lineh;
 
 	font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
@@ -275,7 +249,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 	case WATR_SCROLLBAR:
 		if(lv->scrollbar)
 			free(lv->scrollbar);
-		lv->scrollbar = (BackDrop *)val;
+		lv->scrollbar = (Scrollbar *)val;
 		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_MARGIN:
@@ -383,6 +357,11 @@ void listview_clear(ListView *lv)
 		lv->w.height += lv->backdrop->border*2;
 		lv->w.width += lv->backdrop->border*2;
 	}
+	lv->w.flags |= WFLG_REDRAW;
+}
+
+void listview_set_dirty(ListView *lv)
+{
 	lv->w.flags |= WFLG_REDRAW;
 }
 

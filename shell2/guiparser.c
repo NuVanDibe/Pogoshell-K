@@ -181,6 +181,12 @@ Widget *guiparser_create(char *spec, char *rootitem)
 				attr_func = (WidgetAttrFunc)listview_set_attribute;
 			}
 			else
+			if(strncmp(startp, "SCROLL", 6) == 0)
+			{
+				lastw = (Widget *)scrollbar_new();
+				attr_func = (WidgetAttrFunc)scrollbar_set_attribute;
+			}
+			else
 			if(strncmp(startp, "TRI", 3) == 0)
 			{
 				lastw = (Widget *)tricontainer_new();

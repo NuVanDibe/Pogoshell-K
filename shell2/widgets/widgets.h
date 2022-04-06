@@ -5,6 +5,7 @@
 #include "textbar.h"
 #include "textflow.h"
 #include "listview.h"
+#include "scrollbar.h"
 #include "textreader.h"
 
 #endif

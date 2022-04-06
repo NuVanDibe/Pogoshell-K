@@ -46,6 +46,7 @@ time_t time(time_t *t);
 void exit(int rc);
 int atexit(void *func);
 void abort(void);
+int getseed(void);
 void srand(unsigned int s);
 
 typedef void DIR;

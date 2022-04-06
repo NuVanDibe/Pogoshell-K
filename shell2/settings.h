@@ -11,7 +11,8 @@ void settings_init(void);
 void get_theme_name(char line, char *dest);
 
 enum { SF_HIDEEXT, SF_ASKSAVE, SF_ASKLOAD, SF_HIDEDOT, SF_INTROSKIP,
-       SF_HIDESIZE, SF_SORTING, SF_SCROLLBAR, SF_THEME,
+       SF_HIDESIZE, SF_SORTING, SF_SCROLLBAR, SF_SLEEP, SF_SCREENSAVER,
+       SF_THEME,
        NO_SETTINGS };
 
 enum {SORT_NAME, SORT_TYPE, SORT_SIZE, SORT_NONE};
@@ -19,5 +20,6 @@ enum {SORT_NAME, SORT_TYPE, SORT_SIZE, SORT_NONE};
 extern unsigned /*short*/char settings[NO_SETTINGS];
 
 #define settings_get(i) (settings[i])
+#define settings_set(i, v) do { settings[i] = v; } while(0)
 
 #endif

@@ -45,7 +45,7 @@ void jpg_view(char *fname);
 TextBar *StatusBar;
 TextBar *TitleBar;
 ListView *MainList;
-BitMap *IconSet;
+BitMap *IconSet = NULL;
 int IconHeight;
 
 Screen *MainScreen;
@@ -349,10 +349,10 @@ void update_list(void)
 	int i, t, filecount;
 
 	listview_clear(MainList);
-	listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
+	//listview_addline(MainList, NULL, TEXT(PLEASE_WAIT), "");
 	screen_redraw(MainScreen);
 	filecount = filesys_getfiles(dirlist);
-	listview_clear(MainList);
+	//listview_clear(MainList);
 	for(i=0; i<filecount; i++)
 	{
 		if(dirlist[i].type || settings_get(SF_HIDESIZE) || (filesys_getstate() == FSTATE_GAMES))
@@ -466,15 +466,18 @@ void setup_screen(void)
 		listview_set_attribute(MessageList, WATR_ALIGN, (void *) MessageTxt->align);
 	}
 
-	count = IconSet->height / IconHeight;
+	if (IconSet) {
+		count = IconSet->height / IconHeight;
 
-	icon_list = malloc(count *4);
+		icon_list = malloc(count *4);
 
-	for(i=0; i<count; i++)
-	{
-		icon_list[i] = bitmap_new(IconSet->width, IconHeight, BPP16 | TRANSPARENT | DONT_ALLOC);
-		icon_list[i]->pixels = (uint16 *)IconSet->pixels + IconSet->width * i * IconHeight;
-	}
+		for(i=0; i<count; i++)
+		{
+			icon_list[i] = bitmap_new(IconSet->width, IconHeight, BPP16 | TRANSPARENT | DONT_ALLOC);
+			icon_list[i]->pixels = (uint16 *)IconSet->pixels + IconSet->width * i * IconHeight;
+		}
+	} else
+		icon_list = NULL;
 
 	filetype_set_iconset(icon_list);
 	filetype_readtypes(config_fp);
@@ -577,15 +580,13 @@ void cmd_help(char *name)
 
 void cmd_settings(char *name)
 {
-	/*int r;
+	int r;
 
-	r =*/ settings_edit();
+	r = settings_edit();
 	sleep_time = sleep_array[settings_get(SF_SLEEP)];
 	save_state();
-	/*if (r) {
-		mem_base = NULL;
-		((void(*)(void))0x08000000)();
-	}*/
+	if (r)
+		reset_gba();
 	update_list();
 }
 
@@ -623,7 +624,7 @@ int main(int argc, char **argv)
 	int srsize = -1;
 	//uint32 *mem = (uint32 *)0x02000000;
 
-	SoftReset(0x40); //Reset sound
+	SoftReset(0xfc); //Reset sound, sio, and other registers
 
 	rtc_enable();
 	i = rtc_check();

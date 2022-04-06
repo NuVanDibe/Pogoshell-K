@@ -132,6 +132,9 @@ void icons_set_attr(Widget *w, int attr, void *val)
 	switch(attr & 0xFF0)
 	{
 		case WATR_BITMAP:
+			if (IconSet)
+				free(IconSet);
+
 			IconSet = (BitMap *)val;
 			break;
 		case WATR_HEIGHT:

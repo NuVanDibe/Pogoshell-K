@@ -106,6 +106,40 @@ void settings_init(void)
 	}
 }
 
+int set_theme_setting(char *src)
+{
+	int i;
+	char count, current;
+	DIR *dir;
+	struct dirent *de;
+	struct stat sbuf;
+	char *tmp;
+
+	dir = opendir(GET_PATH(THEMES));
+	count = 1;
+	if (dir)
+	{
+		for (i = 0; (de = readdir(dir)) && (i < MAX_FILE_COUNT); i++)
+		{
+			tmp = strrchr(de->d_name, '.');
+			stat(de->d_name, &sbuf);
+			if (!(sbuf.st_mode & S_IFDIR) && strcmp(tmp, ".theme") == 0) {
+				if (strcmp(de->d_name, "default.theme") == 0)
+					current = 0;
+				else
+					current = count++;
+				if (!strcmp(de->d_name, src)) {
+					settings_set(SF_THEME, current);
+					closedir(dir);
+					return 0;
+				}
+			}
+		}
+		closedir(dir);
+	}
+	return 1;
+}
+
 void get_theme_name(char line, char *dest)
 {
 	int i;
@@ -139,11 +173,12 @@ void get_theme_name(char line, char *dest)
 	}
 }
 
-/*int*/void settings_edit(void)
+int settings_edit(void)
 {
 	int i,c,h,m;
 	int marked = 0;
 	int qualifiers = 0;
+	int old_theme = settings_get(SF_THEME);
 
 	listview_clear(MainList);
 
@@ -219,11 +254,11 @@ void get_theme_name(char line, char *dest)
 			}
 			settings[marked] %= m;
 			update_line(marked);
-			if (marked == 7)
+			if (marked == SF_SCROLLBAR)
 				 listview_set_dirty(MainList);
 			break;
 		case RAWKEY_B:
-			return /* 0 */;
+			return (settings_get(SF_THEME) != old_theme) ? 1 : 0;
 		}
 		
 		screen_redraw(MainScreen);

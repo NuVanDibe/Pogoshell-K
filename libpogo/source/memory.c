@@ -9,6 +9,7 @@
  **/
 
 #include "core.h"
+#include "io.h"
 
 typedef struct _MemHead {
 	struct _MemHead *next;
@@ -55,11 +56,24 @@ void mem_check(void)
 }
 */
 
-int free_after;
+/*
+void print_memory(void)
+{
+	MemHead *next_block, *block = first_block;
+
+	while (block)
+	{
+		next_block = block->next;
+		fprintf(stderr, "%p (%d: %d)\n", block, block->size * 4 + sizeof(MemHead), (int) next_block - (int) block - block->size * 4 - sizeof(MemHead));
+		block = next_block;
+	}
+}
+*/
 
 /* Alloc 32bit words */
 void *memory_alloc(int alloc_size)
 {
+	int free_after;
 	MemHead *newblock, *block = first_block;
 
 	if(!mem_base)
@@ -76,6 +90,7 @@ void *memory_alloc(int alloc_size)
 		block = first_block = (MemHead *)mem_base;
 		block->next = 0;
 		block->size = alloc_size;
+		//fprintf(stderr, "%p = malloc(%d+%d)\n", block, block->size * 4, sizeof(MemHead));
 		return block->data;
 	}
 
@@ -93,6 +108,7 @@ void *memory_alloc(int alloc_size)
 			newblock->next = block->next;
 			newblock->size = alloc_size;
 			block->next = newblock;
+			//fprintf(stderr, "%p = malloc(%d+%d)\n", newblock, newblock->size * 4, sizeof(MemHead));
 			return newblock->data;
 		}
 
@@ -126,6 +142,7 @@ void memory_free(void *mem)
 		}*/
 		if(mem == block->data)
 		{
+			//fprintf(stderr, "free(%p) //%d\n", block, block->size * 4 + sizeof(MemHead));
 			if(!last_block)
 				first_block = NULL;
 			else

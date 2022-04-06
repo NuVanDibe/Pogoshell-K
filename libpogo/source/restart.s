@@ -3,6 +3,8 @@
 	.ALIGN
 	.ARM
 
+	.GLOBAL		reset
+
 reset:
 	b	start
 	.byte 1,2,3,4,5,6

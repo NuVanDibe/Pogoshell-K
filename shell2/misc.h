@@ -3,6 +3,7 @@
 
 enum { LZ77 = 1, APACK = 2, RAW = 0 };
 
+void reset_gba (void);
 char *basename(char *str);
 int read_line(char *line, int size, FILE *fp);
 int find_section(FILE *fp, char *name);

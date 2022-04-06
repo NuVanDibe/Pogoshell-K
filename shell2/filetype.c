@@ -21,6 +21,7 @@ void bmz_view(char *fname);
 void bmap_view(char *fname);
 void jpg_view(char *fname);
 void jpe_view(char *fname);
+extern void reset(void);
 
 static BitMap **icon_set;
 
@@ -206,9 +207,25 @@ int set_font(char *cmd, char *fname, int keys)
 {
 	Font *font = font_load(fname);
 	font->flags |= FFLG_TRANSP;
-	if(MainList->font)
-		free(MainList->font);
 	listview_set_attribute(MainList, WATR_FONT, font);
+	return 1;
+}
+
+int set_theme(char *cmd, char *fname, int keys)
+{
+	char *s;
+
+	s = fname;
+	while (*s) s++;
+	while (*s != '/') s--;
+
+	if (strlen(GET_PATH(THEMES)) == (s - fname - 4) && !strncmp(&fname[5], GET_PATH(THEMES), s - fname - 4))
+	{
+		if (!set_theme_setting(s+1)) {
+			save_state();
+			reset_gba();
+		}
+	}
 	return 1;
 }
 
@@ -318,7 +335,10 @@ void filetype_readtypes(FILE *fp)
 					i = atoi(ptr);
 					//fprintf(stderr, "ICON:%d\n", i);
 
-					f->icon = icon_set[i];
+					if (icon_set)
+						f->icon = icon_set[i];
+					else
+						f->icon = NULL;
 					while(isdigit(*ptr++));
 				}
 				else
@@ -398,6 +418,9 @@ void filetype_readtypes(FILE *fp)
 				else
 				if(strcmp(p, "MBAP") == 0)
 					f->handle_func = execute_mbap;
+				else
+				if(strcmp(p, "THM") == 0)
+					f->handle_func = set_theme;
 				else
 				if(strcmp(p, "FNT") == 0)
 					f->handle_func = set_font;

@@ -83,7 +83,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 	static int shift = 0;
 	aes_context ctx;
     
-	enc = file2mem(fname, NULL, 0);
+	enc = file2mem(fname, NULL, 0, RAW);
 	jpg_size = *(int *)enc;
 
     if (jpg_size > sizeof(uint64)*2) {

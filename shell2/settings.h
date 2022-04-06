@@ -5,10 +5,11 @@
 
 //int settings_read(void);
 //int settings_write(void);
-/*int*/void settings_edit(void);
+int settings_edit(void);
 void settings_icon(BitMap *bm);
 void settings_init(void);
 void get_theme_name(char line, char *dest);
+int set_theme_setting(char *src);
 
 enum { SF_HIDEEXT, SF_ASKSAVE, SF_ASKLOAD, SF_HIDEDOT, SF_INTROSKIP,
        SF_HIDESIZE, SF_SORTING, SF_SCROLLBAR, SF_SLEEP, SF_SCREENSAVER,

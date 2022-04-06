@@ -105,7 +105,8 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 			sbar.y = sbar.y + scr->start * sbar.h / i;
 			sbar.h = sbar.h * scr->showing / i;
 
-			backdrop_render(scr->bar, &sbar, bm);
+			if (scr->bar)
+				backdrop_render(scr->bar, &sbar, bm);
 		}
 
 		if (dirty)

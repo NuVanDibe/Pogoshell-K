@@ -4,6 +4,8 @@
 #include "filesys.h"
 #include "iwram.h"
 #include "filetype.h"
+#include "text.h"
+#include "msgbox.h"
 
 #define MARKED_STACK_DEPTH 48
 
@@ -216,10 +218,12 @@ int filesys_getfiles(DirList *list)
 		else
 			fs_state = FSTATE_NORMAL;
 
+		msgbox_transient_show(TEXT(LOADING_LIST), TEXT(PLEASE_WAIT));
 		c = get_dir(current, list);
 
 		if(c > 0 && settings_get(SF_SORTING) != SORT_NONE)
 			merge_sort(list, c, sizeof(DirList), (int (*)(void *, void *))dl_cmp);
+		msgbox_transient_hide();
 /*
 		if(c > 0)
 			qsort(list, c, sizeof(DirList), (int (*)(void *, void *))dl_cmp);

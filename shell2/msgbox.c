@@ -170,10 +170,9 @@ int msgbox_list2(char *title, char *str, int num)
 	return rc;
 }
 
-void msgbox_info(char *title, char *text)
+void msgbox_transient_show(char *title, char *text)
 {
 	Widget *w;
-	int c = 0;
 
 	if((w = guiparser_findwidget(MSGBOX_TITLE)))
 		textbar_set_attribute((TextBar *)w, WATR_TEXT, title);
@@ -189,6 +188,19 @@ void msgbox_info(char *title, char *text)
 
 	window_show(MessageWin);
 	screen_redraw(MainScreen);
+}
+
+void msgbox_transient_hide(void)
+{
+	window_hide(MessageWin);
+	screen_redraw(MainScreen);
+}
+
+void msgbox_info(char *title, char *text)
+{
+	int c = 0;
+
+	msgbox_transient_show(title, text);
 
 	while(c < RAWKEY_START || c > 0x80)
 	{
@@ -196,7 +208,5 @@ void msgbox_info(char *title, char *text)
 			Halt();
 	}
 
-	window_hide(MessageWin);
-	screen_redraw(MainScreen);
-
+	msgbox_transient_hide();
 }

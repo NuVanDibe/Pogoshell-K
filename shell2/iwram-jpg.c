@@ -8,13 +8,8 @@
 
 // JPEG functions
 
-extern unsigned int bits_left;
-extern unsigned long int bits_data;
 extern int bytes_left;
 extern const char *rewind_point;
-
-extern JPEG_HuffmanTable * acTableList;
-extern JPEG_HuffmanTable * dcTableList;
 
 /* Converts left-to-right coefficient indices into zig-zagged indices. */
 const char ToZigZag [JPEG_DCTSIZE2] =
@@ -47,7 +42,9 @@ const char ComponentRange [32 * 3] =
  * between -64 and 64, although out-of-range values are possible.
  * nHorzFactor and nVertFactor, where n is Y, Cb, and Cr, hold the
  * multipliers for each coordinate.  Shift right by horzMax and vertMax to
- * get the actual point to sample data from.
+ * get the actual point to sample data from.  M211 is true if the
+ * component factors satisfy a 2:1:1 relationship; this leads to a much
+ * faster conversion.
  * out and outStride are the output pointers and the number of samples
  * in an output row.  Finally, ComponentRange is a pointer to the
  * JPEG_ComponentRange array.
@@ -56,87 +53,72 @@ const char ComponentRange [32 * 3] =
 CODE_IN_IWRAM void ConvertBlock (
     signed char *YBlock, signed char *CbBlock, signed char *CrBlock,
     int YHorzFactor, int YVertFactor, int CbHorzFactor, int CbVertFactor, int CrHorzFactor, int CrVertFactor, int horzMax, int vertMax,
-    volatile JPEG_OUTPUT_TYPE *out, int bx, int by, int outStride, int outHeight, const char *ComponentRange)
+    char M211, volatile JPEG_OUTPUT_TYPE *out, int bx, int by, int outStride, int outHeight, const char *ComponentRange)
 {
     int px, py;
-	int YWidth, CbWidth, CrWidth;
-	int yy, cby, cry;
-	int yx, cbx, crx;
-	signed char *YScan;
-	signed char *CbScan;
-	signed char *CrScan;
-	volatile JPEG_OUTPUT_TYPE *row = out;
-
-	YWidth = horzMax * YHorzFactor >> 8;
-	CbWidth = horzMax * CbHorzFactor >> 8;
-	CrWidth = horzMax * CrHorzFactor >> 8;
     
     /* Since we need to offset all indices into this anyway, we might as well do it once only. */
     ComponentRange += 32;
 
-	yy = cby = cry = 0;
-	if (by + vertMax <= outHeight && bx + horzMax <= outStride) {
-	   	for (py = 0; py < vertMax; py ++)
-    	{
-			YScan = YBlock + (yy >> 8) * YWidth;
-			CbScan = CbBlock + (cby >> 8) * CbWidth;
-			CrScan = CrBlock + (cry >> 8) * CrWidth;
-
-			yy += YVertFactor;
-			cby += CbVertFactor;
-			cry += CrVertFactor;
-
-			yx = cbx = crx = 0; 
-    	    for (px = 0; px < horzMax; px ++, row ++)
-        	{
-	            int Y = YScan [yx >> 8];
-        	    int Cb = CbScan [cbx >> 8];
-    	        int Cr = CrScan [crx >> 8];
-
-				yx += YHorzFactor;
-				cbx += CbHorzFactor;
-				crx += CrHorzFactor;
+// Screw this "optimization"
+#if 0
+/* Do the faster 2:1:1 code if the image scan satisfies that relationship. */
+    if (M211)
+    {
+        /* Nothing complex here.  Because of its nature, we can do Cb and Cr
+         * conversion only once for every four pixels.  This optimization is
+         * done implicitly, using GCC's optimizer for gleaning the actual
+         * advantage.
+         */
+         
+        for (py = 0; by + py < outHeight && py < 2 * JPEG_DCTSIZE; py += 2)
+        {
+            volatile JPEG_OUTPUT_TYPE *row = &out [outStride * py];
+            volatile JPEG_OUTPUT_TYPE *rowEnd = row + JPEG_DCTSIZE * 2;
             
-				JPEG_Convert (*row, Y, Cb, Cr);
-	        }
-			row += -px + outStride;
-	    }
-	} else {
-	   	for (py = 0; py + by < outHeight && py < vertMax; py ++)
-    	{
-			YScan = YBlock + (yy >> 8) * YWidth;
-			CbScan = CbBlock + (cby >> 8) * CbWidth;
-			CrScan = CrBlock + (cry >> 8) * CrWidth;
-
-			yy += YVertFactor;
-			cby += CbVertFactor;
-			cry += CrVertFactor;
-
-			yx = cbx = crx = 0; 
-    	    for (px = 0; px < horzMax; px ++, row ++)
-        	{
-            	int Y = YScan [yx >> 8];
-	            int Cb = CbScan [cbx >> 8];
-    	        int Cr = CrScan [crx >> 8];
-
-				yx += YHorzFactor;
-				cbx += CbHorzFactor;
-				crx += CrHorzFactor;
+            for (px = 0 ; px + bx < outStride && row < rowEnd; px++, row += 2, YBlock += 2, CbBlock ++, CrBlock ++)
+            {
+                int Cb = *CbBlock, Cr = *CrBlock;
+                JPEG_Convert (row [0], YBlock [0], Cb, Cr);
+				if (bx + px + 1 < outStride)
+                   JPEG_Convert (row [1], YBlock [1], Cb, Cr);
+				if (by + py + 1 < outHeight) {
+                   JPEG_Convert (row [outStride], YBlock [2 * JPEG_DCTSIZE + 0], Cb, Cr);
+				if (bx + px + 1 < outStride)
+                      JPEG_Convert (row [outStride+1], YBlock [2 * JPEG_DCTSIZE + 1], Cb, Cr);
+		}
+            }
             
-				if (bx + px < outStride) {
-					JPEG_Convert (*row, Y, Cb, Cr);
-				}
-    	    }
-			row += -px + outStride;
-	    }
-	}
+            YBlock += JPEG_DCTSIZE * 2;
+        }
+    }
+
+    else {
+#endif
+    for (py = 0; by + py < outHeight && py < vertMax; py ++)
+    {
+        signed char *YScan = YBlock + (py * YVertFactor >> 8) * (horzMax * YHorzFactor >> 8);
+        signed char *CbScan = CbBlock + (py * CbVertFactor >> 8) * (horzMax * CbHorzFactor >> 8);
+        signed char *CrScan = CrBlock + (py * CrVertFactor >> 8) * (horzMax * CrHorzFactor >> 8);
+        
+        volatile JPEG_OUTPUT_TYPE *row = &out [outStride * py];
+        
+        for (px = 0; bx + px < outStride && px < horzMax; px ++, row ++)
+        {
+            int Y = YScan [px * YHorzFactor >> 8];
+            int Cb = CbScan [px * CbHorzFactor >> 8];
+            int Cr = CrScan [px * CrHorzFactor >> 8];
+            
+            JPEG_Convert (*row, Y, Cb, Cr);
+        }
+    }
     
     /* Make sure all variables are referenced. */
     (void) YHorzFactor; (void) YVertFactor; (void) CbHorzFactor;
     (void) CbVertFactor; (void) CrHorzFactor; (void) CrVertFactor;
     (void) horzMax; (void) vertMax; (void) px; (void) py;
     (void) YBlock; (void) CbBlock; (void) CrBlock;
-    (void) out; (void) outStride;
+    (void) M211; (void) out; (void) outStride;
 }
 
 
@@ -208,7 +190,7 @@ CODE_IN_IWRAM void IDCT_Columns (JPEG_FIXED_TYPE *zz)
  * chunk as values in the range -64 to 64, although it can go somewhat outside
  * of that range.  chunkStride is the number of bytes in a row in chunk.
  */
-
+ 
 CODE_IN_IWRAM void IDCT_Rows (const JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride)
 {
     JPEG_FIXED_TYPE tmp0, tmp1, tmp2, tmp3, tmp10, tmp11, tmp12, tmp13;
@@ -250,7 +232,7 @@ CODE_IN_IWRAM void IDCT_Rows (const JPEG_FIXED_TYPE *zz, signed char *chunk, int
          * instruction set, and has an acceptable, likely imperceptible, loss
          * of quality.
          */
-  
+         
         chunk [0] = JPEG_FIXTOI (tmp0 + tmp7) >> 4;
         chunk [1] = JPEG_FIXTOI (tmp1 + tmp6) >> 4;
         chunk [2] = JPEG_FIXTOI (tmp2 + tmp5) >> 4;
@@ -283,8 +265,10 @@ CODE_IN_IWRAM void IDCT_Rows (const JPEG_FIXED_TYPE *zz, signed char *chunk, int
 CODE_IN_IWRAM void DecodeCoefficients (
     JPEG_FIXED_TYPE *dcLast, JPEG_FIXED_TYPE *zz, JPEG_FIXED_TYPE *quant,
     JPEG_HuffmanTable *dcTable, JPEG_HuffmanTable *acTable,
-    const char **dataBase, const char *toZigZag)
+    const char **dataBase, unsigned int *bitsLeftBase,
+    unsigned long int *bitsDataBase, const char *toZigZag)
 {
+    unsigned bits_left = *bitsLeftBase, bits_data = *bitsDataBase; /* Input stream state. */
     const char *data = *dataBase; /* Input stream state. */
     int r, s; /* Various temporary data variables. */
     int index = 1; /* The current zig-zagged index. */
@@ -338,6 +322,8 @@ CODE_IN_IWRAM void DecodeCoefficients (
     }
     
     /* Restore state for the caller. */
+    *bitsDataBase = bits_data;
+    *bitsLeftBase = bits_left;
     *dataBase = data;
 }
 
@@ -380,3 +366,194 @@ CODE_IN_IWRAM void merge_sort(void *array, int count, int size, int cf(void *a, 
 		}
 	}
 }
+
+extern JPEG_OUTPUT_TYPE *jpg_ptr;
+extern int jpg_w;
+extern int jpg_h;
+
+CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift)
+{
+	unsigned int high, low;
+
+	unsigned short *src, *src2, *src3, *src4;
+	unsigned short *s, *s2, *s3, *s4;
+	unsigned short *dst, *d;
+
+	int w, h;
+	int dh, dw;
+	int dh2, dw2, dw2i;
+	int dx, dy;
+	int mw, mh;
+	int shift, l, m;
+
+	s2 = s3 = s4 = NULL;
+
+	dh2 = dw2i = 0;
+
+	shift = (toshift && (mode || (scale < 0))) ? 1 : 0;
+
+	dst = (unsigned short *)0x06000000; //vram
+
+	switch(rotate)
+	{
+		case 3:
+			dx = 240;
+			dy = -1;
+			dst += 240-1;
+			break;
+		case 2:
+			dx = -1;
+			dy = -240;
+			dst += 240*160-1;
+			break;
+		case 1:
+			dx = -240;
+			dy = 1;
+			dst += (160-1)*240;
+			break;
+		default:
+			dx = 1;
+			dy = 240;
+			break;
+	}
+
+	mw = (((rotate&1) ? 160 : 240)-w0)>>1;
+	mh = (((rotate&1) ? 240 : 160)-h0)>>1;
+
+	if (mode)
+		src = jpg_ptr;
+	else
+		src = &jpg_ptr[x + y * jpg_w];
+
+	s = src;
+	if (shift) {
+		dh2 = dw2 = 0;
+		s2 = s3 = s4 = s;
+		dw2 += jpg_w;
+		while (dw2 >= (wi << 1))
+		{
+			dw2 -= (wi << 1);
+			s2++;
+			s4++;
+		}
+		dh2 += jpg_h;
+		while (dh2 >= (hi << 1))
+		{
+			dh2 -= (hi << 1);
+			s3 += jpg_w;
+			s4 += jpg_w;
+		}
+		dh2 >>= 1;
+		dw2 >>= 1;
+		dw2i = dw2;
+	}
+	l = mh;
+	while (l--) {
+		d = dst;
+		m = (rotate&1) ? 160 : 240;
+		while(m--) {
+			*d = 0x0;
+			d += dx;
+		}
+		dst += dy;
+	}
+	dh = 0;
+	h = h0;//<<shift;
+	d = dst;
+	while (h--)
+	{
+		dw = 0;
+		w = w0;//<<shift;
+		l = mw;
+		while(l--) {
+			*dst = 0x0;
+			dst += dx;
+		}
+		src = s;
+		if (shift) {
+			dw2 = dw2i;
+			src2 = s2;
+			src3 = s3;
+			src4 = s4;
+			while (w--)
+			{
+				high =  (*src & 0x739c);
+				low  =  (*src & 0x0c63);
+				high += (*src2 & 0x739c);
+				low  += (*src2 & 0x0c63);
+				high += (*src3 & 0x739c);
+				low  += (*src3 & 0x0c63);
+				high += (*src4 & 0x739c);
+				low  += (*src4 & 0x0c63);
+				*dst = (high+(low&0x318c))>>2;
+				dst += dx;
+
+				dw += jpg_w;
+				while (dw >= wi)
+				{
+					dw -= wi;
+					src++;
+					src3++;
+				}
+				dw2 += jpg_w;
+				while (dw2 >= wi)
+				{
+					dw2 -= wi;
+					src2++;
+					src4++;
+				}
+			}
+			dh += jpg_h;
+			while (dh >= hi)
+			{
+				dh -= hi;
+				s += jpg_w;
+				s2 += jpg_w;
+			}
+			dh2 += jpg_h;
+			while (dh2 >= hi)
+			{
+				dh2 -= hi;
+				s3 += jpg_w;
+				s4 += jpg_w;
+			}
+		} else {
+			while (w--)
+			{
+				*dst = *src;
+				dst += dx;
+
+				dw += jpg_w;
+				while (dw >= wi)
+				{
+					dw -= wi;
+					src++;
+				}
+			}
+			dh += jpg_h;
+			while (dh >= hi)
+			{
+				dh -= hi;
+				s += jpg_w;
+			}
+		}
+		l = ((rotate&1) ? 160 : 240)-w0-mw;
+		while(l--) {
+			*dst = 0x0;
+			dst += dx;
+		}
+		d += dy;
+		dst = d;
+	}
+	l = ((rotate&1) ? 240 : 160)-h0-mh;
+	while (l--) {
+		d = dst;
+		m = (rotate&1) ? 160 : 240;
+		while(m--) {
+			*d = 0x0;
+			d += dx;
+		}
+		dst += dy;
+	}
+}
+

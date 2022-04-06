@@ -7,6 +7,8 @@
 #include "iwram.h"
 #include "aes.h"
 
+void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift);
+
 extern Screen *MainScreen;
 JPEG_OUTPUT_TYPE *jpg_ptr;
 int jpg_w;
@@ -43,15 +45,9 @@ void jpgviewer_set_font(Font *f)
 
 #define BG_PALRAM ((uint16*)0x05000000)
 
-int prepare_jpg(char *ptr)
+int prepare_jpg(JPEG_Decoder *dec, char *ptr)
 {
-	int sfd;
-
-	sfd = open("/dev/screen", 0);
-	ioctl(sfd, SC_SETMODE, 2);
-	close(sfd);
-
-    return JPEG_DecompressImage(ptr, &jpg_ptr, &jpg_w, &jpg_h);
+    return JPEG_DecompressImage_Init(dec, ptr, &jpg_ptr, &jpg_w, &jpg_h);
 }
 
 void generic_image(void)
@@ -290,21 +286,22 @@ int den[]={16,32,8,16,4,8,2,4,1,2,1,1,1,1,1,1,1};
 
 void joint_view(char *jpg)
 {
-	int c,fd, quit = 0, r, l;
-	int x=0, y=0, scale=0, corscale, mode=0, rotate=0, toscale=0, toshift=0;
+	JPEG_Decoder dec;
+	int c, quit = 0, r, l;
+	int x=0, y=0, scale = 0, corscale, mode=0, rotate=0, toscale=0, toshift=0;
 	int dx=0, dy=0;
-	int speed = 8, change1=1, change2=0, oldx=-1, oldy=-1;
+	int speed = 8, full_redraw = 1;
 	unsigned short *p;
-	int w, h;
-	int wi, hi;
+	int w = 0, h = 0;
+	int wi = 0, hi = 0;
+	int oldx, oldy;
 	int edgew, edgeh;
-	int count = 0;
-	int dirty = 1, scalechange = 1;
+	int count = 0, dirty = 0;
 	char buffer[13];
 	u16 *dst;
 	BitMap *bm;
 
-	r = prepare_jpg(jpg);
+	r = prepare_jpg(&dec, jpg);
 
 	if (r == 2) {
 		r = 40;
@@ -315,10 +312,10 @@ void joint_view(char *jpg)
 				*p++ = 0x7fff;
 		}
 	} else if (r) {
+		JPEG_DecompressImage(jpg_ptr, jpg_w, jpg_h);
 		while(!quit)
 		{
-			if (((oldx != x || oldy != y || change1) && !mode) ||
-				(change2)) {
+			if (((dx || dy) && !mode) || full_redraw) {
 				switch(mode)
 				{
 					case 1: //Aspect
@@ -368,46 +365,51 @@ void joint_view(char *jpg)
 						}
 						edgew = edgew*den[corscale]/num[corscale];
 						edgeh = edgeh*den[corscale]/num[corscale];
-						corscale = scale + OFFSET;
 						sprintf(buffer, "%d%%", (int) (num[corscale]*100/den[corscale]));
 
-						if((x+edgew) > jpg_w)
-							x = (jpg_w-edgew);
-						if((y+edgeh) > jpg_h)
-							y = (jpg_h-edgeh);
-						if(x < 0) x = 0;
-						if(y < 0) y = 0;
-
+						oldx = x;
+						oldy = y;
+						x += dx;
+						y += dy;
+						if (x + edgew > jpg_w)
+							x = jpg_w - edgew;
+						if (y + edgeh > jpg_h)
+							y = jpg_h - edgeh;
+						if (x < 0)
+							x = 0;
+						if (y < 0)
+							y = 0;
+						if (!full_redraw && (oldx != x || oldy != y))
+							render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
 						break;
 				}
-				render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
-				dirty = 1;
-				count = 0;
+				if (full_redraw) {
+					render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
+					dirty = 1;
+					full_redraw = 0;
+				}
+
+				if (dirty) {
+					bm = MainScreen->bitmap;
+					l = font_text(jpg_typeface->font, buffer, NULL, bm->width);
+ 					dst = (uint16 *)bm->pixels + (bm->width - l);
+					font_setcolor(0x7fff, 0);
+					font_setshadowoutline(TO_RGB16(jpg_typeface->shadow), TO_RGB16(jpg_typeface->outline));
+					font_text(jpg_typeface->font, buffer, dst, bm->width);
+					count = 0;
+				}
 			}
-			change1 = change2 = 0;
-			oldx = x;
-			oldy = y;
 
 			c = getchar();
 
 			count++;
 			Halt();
 			if (count > 60*4) {
-				if (scalechange) {
-					scalechange = 0;
+				if (dirty) {
+					dirty = 0;
 					render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
 				}
 				count = 0;
-			}
-
-			if (scalechange && dirty) {
-				dirty = 0;
-				bm = MainScreen->bitmap;
-				l = font_text(jpg_typeface->font, buffer, NULL, bm->width);
- 				dst = (uint16 *)bm->pixels + (bm->width - l);
-				font_setcolor(0x7fff, 0);
-				font_setshadowoutline(TO_RGB16(jpg_typeface->shadow), TO_RGB16(jpg_typeface->outline));
-				font_text(jpg_typeface->font, buffer, dst, bm->width);
 			}
 
 			switch(c&0x7F)
@@ -417,14 +419,13 @@ void joint_view(char *jpg)
 				break;
 			case RAWKEY_R:
 				toscale = c&0x80 ? 0 : 1;
+				dx = dy = 0;
 				break;
 			case RAWKEY_RIGHT:
 				if (toscale) {
 					if (c != (RAWKEY_RIGHT|0x80)) {
 						rotate = (rotate+1)&3;
-						change2 = 1;
-						scalechange = dirty = 1;
-						count = 0;
+						full_redraw = 1;
 					}
 				} else {
 					if (rotate&1) {
@@ -438,9 +439,7 @@ void joint_view(char *jpg)
 				if (toscale) {
 					if (c != (RAWKEY_LEFT|0x80)) {
 						rotate = (rotate+3)&3;
-						change2 = 1;
-						scalechange = dirty = 1;
-						count = 0;
+						full_redraw = 1;
 					}
 				} else {
 					if (rotate&1) {
@@ -453,11 +452,10 @@ void joint_view(char *jpg)
 			case RAWKEY_UP:
 				if (toscale) {
 					if (c != (RAWKEY_UP|0x80)) {
-						scale++;
-						scale = (scale > OFFSET) ? OFFSET : scale;
-						change1 = 1;
-						scalechange = dirty = 1;
-						count = 0;
+						if (scale < OFFSET) {
+							scale++;
+							full_redraw = 1;
+						}
 					}
 				} else {
 					if (rotate&1) {
@@ -470,11 +468,10 @@ void joint_view(char *jpg)
 			case RAWKEY_DOWN:
 				if (toscale) {
 					if (c != (RAWKEY_DOWN|0x80)) {
-						scale--;
-						scale = (scale < -OFFSET) ? -OFFSET : scale;
-						change1 = 1;
-						scalechange = dirty = 1;
-						count = 0;
+						if (scale >- OFFSET) {
+							scale--;
+							full_redraw = 1;
+						}
 					}
 				} else {
 					if (rotate&1) {
@@ -487,23 +484,21 @@ void joint_view(char *jpg)
 			case RAWKEY_SELECT:
 				if (c != (RAWKEY_SELECT|0x80)) {
 					mode=(mode+1)%3;
-					change2 = 1;
-					scalechange = dirty = 1;
-					count = 0;
+					full_redraw = 1;
 				}
 				break;
 			case RAWKEY_START:
 				if (toscale) {
 					if (c != (RAWKEY_START|0x80)) {
 						toshift ^= 1;
-						change2 = 1;
+						full_redraw = 1;
 					}
 				} else {
 					if (c != (RAWKEY_START|0x80)) {
-						scale = 0;
-						change1 = 1;
-						scalechange = dirty = 1;
-						count = 0;
+						if (scale && !mode) {
+							scale = 0;
+							full_redraw = 1;
+						}
 					}
 				}
 				break;
@@ -513,12 +508,8 @@ void joint_view(char *jpg)
 					quit = 1;
 				break;
 			}
-			x += dx;
-			y += dy;
 		}
 	}
 
-	fd = open("/dev/screen", 0);
-	ioctl(fd, SC_SETMODE, 2);
-	close(fd);
 }
+

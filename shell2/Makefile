@@ -23,7 +23,8 @@ LIBS = -L$(POGO)/lib -lpogo -lgcc
 
 CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
 CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
-CFLAGS3 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
+CFLAGSI = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -O3 -marm -nostdinc -I$(POGO)/include
+CFLAGSR = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -O3 -nostdinc -I$(POGO)/include
 CFLAGS4 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -O3 -nostdinc -I$(POGO)/include
 
 
@@ -42,7 +43,7 @@ WIDGETS = widgets/textbar.o widgets/tricontainer.o widgets/listview.o widgets/te
 
 CART_OBJFILES = main.o filetype.o filesys.o
 
-FULL_OBJFILES = bmview.o bmpview.o jpgview.o jpeg.o iwram.o sram_convert.o widgets/textreader.o
+FULL_OBJFILES = bmview.o bmpview.o jpgview.o jpeg.o renderjpg.o iwram.o sram_convert.o widgets/textreader.o
 
 COMMON_OBJFILES = crt0.o text.o unapack.o bitmap.o window.o backdrop.o \
 	   guiparser.o savesystem.o rle.o msgbox.o users.o  \
@@ -66,7 +67,7 @@ unapack.o: unapack.c
 	$(CC) -c $(CFLAGS4) $< -o $@
 
 iwram.o : iwram.c
-	$(CC) -c $(CFLAGS3) $< -o $@
+	$(CC) -c $(CFLAGSI) $< -o $@
 
 users.o : users.c
 	$(CC) -c $(CFLAGS2) $< -o $@

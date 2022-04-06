@@ -9,7 +9,7 @@ LIBNAME = libpogod.a
 OBJDIR = objd
 else
 CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
-FONT_CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
+FONT_CFLAGS	= -Wall -O3 -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
 LIBNAME = libpogo.a
 OBJDIR = obj
 endif

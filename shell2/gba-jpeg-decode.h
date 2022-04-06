@@ -121,9 +121,30 @@ struct JPEG_Decoder
     const char *acTables [4]; /**< The AC huffman table slots. */
     const char *dcTables [4]; /**< The DC huffman table slots. */
     JPEG_QuantizationTable quantTables [4]; /**< The quantization table slots. */
-    unsigned int restartInterval; /**< Number of MCU in the restart interval (Ri). */
+    unsigned int initRestartInterval; /**< Number of MCU in the restart interval (Ri). */
     JPEG_FrameHeader frame; /**< Current frame. */
     JPEG_ScanHeader scan; /**< Current scan. */
+
+    int YHorzFactor, YVertFactor; /* Scaling factors for the Y component. */
+    int CbHorzFactor, CbVertFactor; /* Scaling factors for the Cb component.  The default is important because it is used for greyscale images. */
+    int CrHorzFactor, CrVertFactor; /* Scaling factors for the Cr component.  The default is important because it is used for greyscale images. */
+    int horzMax, vertMax; /* The maximum horizontal and vertical scaling factors for the components. */
+	JPEG_FrameHeader_Component *frameComponents[JPEG_MAXIMUM_COMPONENTS]; /* Pointers translating scan header components to frame header components. */
+    JPEG_FrameHeader_Component *item, *itemEnd; /* The frame header's components for loops. */
+	JPEG_FIXED_TYPE dcLast[JPEG_MAXIMUM_COMPONENTS]; /* The last DC coefficient computed.  This is initialized to zeroes at the start and after a restart interval. */
+    const char *data; /* The input data pointer; this must be right at the start of scan data. */
+    const char *startdata; /* The input start data pointer; this must be right at the start of scan data. */
+   
+	signed char blockBase[JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS]; /* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */ 
+    signed char *YBlock; /* Y component temporary block that holds samples for the MCU currently being decompressed. */
+    signed char *CbBlock; /* Cb component temporary block that holds samples for the MCU currently being decompressed. */
+    signed char *CrBlock; /* Cr component temporary block that holds samples for the MCU currently being decompressed. */
+    
+    int acTableUse[2]; /* The indices of the decompressed AC Huffman tables, or -1 if this table hasn't been used. */
+    int dcTableUse[2]; /* The indices of the decompressed DC Huffman tables, or -1 if this table hasn't been used. */
+    int restartInterval; /* Number of blocks until the next restart. */
+
+	int factorSum;
 };
 
 /** Start reading bits. */
@@ -273,7 +294,10 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const char **data);
   * Returns true on success and false on failure (failure isn't possible).
   */
   
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
+void JPEG_Decoder_ReadImage_Init(const char *dataBase);
+void JPEG_Decoder_ReadImage_Reset();
+int JPEG_Decoder_ReadImage (JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
+
 
 /** Perform a 2D inverse DCT computation on the input.
   *
@@ -291,6 +315,7 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride);
   * failure (failure isn't possible).
   */
   
-int JPEG_DecompressImage (const char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight);
+int JPEG_DecompressImage_Init (JPEG_Decoder *decoder, const char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight);
+int JPEG_DecompressImage(JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
 
 #endif /* GBA_IMAGE_JPEG_H */

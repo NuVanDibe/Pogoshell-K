@@ -89,7 +89,7 @@
   * in the output value (of type JPEG_OUTPUT_TYPE).  By default this stores to
   * 15-bit RGB.
   */
-  
+ 
 #define JPEG_Convert(OUT, Y, Cb, Cr) \
     do { \
         int eY = (Y) + 63; \
@@ -102,7 +102,7 @@
         B = ComponentRange [B >> 2] << 10; \
         (OUT) = R | G | B; \
     } while (0)
-    
+
 #endif /* JPEG_Convert  */
 
 #ifndef JPEG_Assert

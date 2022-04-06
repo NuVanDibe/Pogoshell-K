@@ -239,14 +239,11 @@ int memory_avail(void)
 		else
 			free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
 
-		if (free_after)
-			fprintf(stderr, "%p %d ", &block->data[block->size & 0x00FFFFFF], free_after);
 		if(free_after > largest_block)
 			largest_block = free_after;
 		free_total += free_after;
 		block = block->next;
 	}
-	fprintf(stderr, "\n");
 	return free_total;
 }
 

@@ -30,4 +30,4 @@ extern void DecodeCoefficients (
 
 extern void merge_sort(void *array, int count, int size, int cf(void *a, void *b)) CODE_IN_IWRAM;
 
-extern void render_jpg(int x, int y, int scale, int hdbw, int wdbh) CODE_IN_IWRAM;
+extern void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift) CODE_IN_IWRAM;

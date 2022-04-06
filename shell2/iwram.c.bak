@@ -371,167 +371,163 @@ extern JPEG_OUTPUT_TYPE *jpg_ptr;
 extern int jpg_w;
 extern int jpg_h;
 
+#define MIN(a,b) (a<b ? a : b)
+#define MAX(a,b) (a>b ? a : b)
+
 #define R(x) (x&31)
 #define G(x) ((x>>5)&31)
 #define B(x) ((x>>10)&31)
 
-CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift)
+CODE_IN_IWRAM void render_jpg(int x, int y, int scale, int hdbw, int wdbh)
 {
 	static unsigned short red[240];
 	static unsigned short green[240];
 	static unsigned short blue[240];
 
-	unsigned short *src, *dst, *s, *d;
+	int wi, hi;
+	unsigned short *src, *dst;
 
 	int w, h;
 	int dh, dw;
-	int dx, dy;
-	int mw, mh;
-	int shift, l, m;
-
-	shift = (toshift && (mode || (scale < 0))) ? 1 : 0;
 
 	dst = (unsigned short *)0x06000000; //vram
 
-	switch(rotate)
+	switch (scale)
 	{
-		case 3:
-			dx = 240;
-			dy = -1;
-			dst += 240-1;
-			break;
-		case 2:
-			dx = -1;
-			dy = -240;
-			dst += 240*160-1;
-			break;
+		// Aspect
 		case 1:
-			dx = -240;
-			dy = 1;
-			dst += (160-1)*240;
+			w = 240;
+			//h = 240 * jpg_h / jpg_w;
+			h = hdbw;
+			if (h > 160) {
+				h = 160;
+				//w = 160 * jpg_w / jpg_h;
+				w = wdbh;
+			}
+			/**(int *)(0x02000000) = w;
+			*(int *)(0x02000004) = h;
+			while(1);*/
+			dh = 0;
+			dst += (160-h)/2*240;
+			src = jpg_ptr;
+			hi = h*2;
+			while (hi--)
+			{
+				dw = 0;
+				wi = w*2;
+				if (!(hi&1))
+					dst += (240 - w)/2;
+				x = 0;
+				while (wi--)
+				{
+					if (!(wi&1) || !(hi&1)) {
+						red[x] += R(*src);
+						green[x] += G(*src);
+						blue[x] += B(*src);
+					} else {
+						red[x] = R(*src);
+						green[x] = G(*src);
+						blue[x] = B(*src);
+					}
+					
+					if (!(wi&1) && !(hi&1)) {
+						*dst++ = ((red[x]>>2)&31) |
+						          (((green[x]>>2)&31)<<5) |
+						          (((blue[x]>>2)&31)<<10);
+					}
+
+					if (!(wi&1))
+						x++;
+
+					dw += jpg_w;
+					while (dw >= w*2)
+					{
+						dw -= w*2;
+						src++;
+					}
+				}
+				if (!(hi&1))
+					dst += 240-w-(240 - w)/2;
+				src -= jpg_w;
+				dh += jpg_h;
+				while (dh >= h*2)
+				{
+					dh -= h*2;
+					src += jpg_w;
+				}
+			}
+			break;
+		// Stretch
+		case 2:
+			h = 320;
+			dh = 0;
+			src = jpg_ptr;
+			while (h--)
+			{
+				dw = 0;
+				w = 480;
+				x = 0;
+				while (w--)
+				{
+					if (!(w&1) || !(h&1)) {
+						red[x] += R(*src);
+						green[x] += G(*src);
+						blue[x] += B(*src);
+					} else {
+						red[x] = R(*src);
+						green[x] = G(*src);
+						blue[x] = B(*src);
+					}
+					
+					if (!(w&1) && !(h&1)) {
+						*dst++ = ((red[x]>>2)&31) |
+						          (((green[x]>>2)&31)<<5) |
+						          (((blue[x]>>2)&31)<<10);
+					}
+
+					if (!(w&1))
+						x++;
+
+					dw += jpg_w;
+					while (dw >= 480)
+					{
+						dw -= 480;
+						src++;
+					}
+				}
+				src -= jpg_w;
+				dh += jpg_h;
+				while (dh >= 320)
+				{
+					dh -= 320;
+					src += jpg_w;
+				}
+			}
 			break;
 		default:
-			dx = 1;
-			dy = 240;
+			w = MIN(jpg_w, 240);
+			h = MIN(jpg_h, 160);
+
+			if((x+240) > jpg_w)
+				x = (jpg_w-240);
+			if((y+160) > jpg_h)
+				y = (jpg_h-160);
+			if(x < 0) x = 0;
+			if(y < 0) y = 0;
+
+			src = &jpg_ptr[x + y * jpg_w];
+			if (h < 160)
+				dst += (160 - h)/2*240;
+			while(h--)
+			{
+				wi = w;
+				dst += (240 - w)/2;
+				while(wi--)
+					*dst++ = *src++;
+				dst += 240-w-(240 - w)/2;
+				src += (jpg_w - w);
+			}
 			break;
-	}
-
-	mw = (((rotate&1) ? 160 : 240)-w0)>>1;
-	mh = (((rotate&1) ? 240 : 160)-h0)>>1;
-
-	if (mode)
-		src = jpg_ptr;
-	else
-		src = &jpg_ptr[x + y * jpg_w];
-	//dst += ((160-hi)>>1)*240;
-	hi <<= shift;
-	wi <<= shift;
-	h = h0<<shift;
-	dh = 0;
-	if (mh) {
-		l = mh;
-		while (l--) {
-			d = dst;
-			m = (rotate&1) ? 160 : 240;
-			while(m--) {
-				*d = 0x0;
-				d += dx;
-			}
-			dst += dy;
-		}
-	}
-	while (h--)
-	{
-		s = src;
-		d = dst;
-		dw = 0;
-		w = w0<<shift;
-		l = mw;
-		while(l--) {
-			*dst = 0x0;
-			dst += dx;
-		}
-		if (shift) {
-			x = 0;
-			red[0] = green[0] = blue[0] = 0;
-			while (w--)
-			{
-				if (!(w&1) || !(h&1)) {
-					red[x] += R(*src);
-					green[x] += G(*src);
-					blue[x] += B(*src);
-				} else {
-					red[x] = R(*src);
-					green[x] = G(*src);
-					blue[x] = B(*src);
-				}
-					
-				if (!(w&1) && !(h&1)) {
-					*dst = ((red[x]>>2)&31) |
-					        (((green[x]>>2)&31)<<5) |
-				    	    (((blue[x]>>2)&31)<<10);
-					dst += dx;
-				}
-
-				if (!(w&1))
-					x++;
-				
-				dw += jpg_w;
-				while (dw >= wi)
-				{
-					dw -= wi;
-					src++;
-				}
-			}
-			if (!(h&1)) {
-				l = ((rotate&1) ? 160 : 240)-w0-mw;
-				while(l--) {
-					*dst = 0x0;
-					dst += dx;
-				}
-			}
-			dst = d;
-			if (!(h&1))
-				dst += dy;
-		} else {
-			while (w--)
-			{
-				*dst = *src;
-				dst += dx;
-
-				dw += jpg_w;
-				while (dw >= wi)
-				{
-					dw -= wi;
-					src++;
-				}
-			}
-			l = ((rotate&1) ? 160 : 240)-w0-mw;
-			while(l--) {
-				*dst = 0x0;
-				dst += dx;
-			}
-			dst = d + dy;
-		}
-		src = s;
-		dh += jpg_h;
-		while (dh >= hi)
-		{
-			dh -= hi;
-			src += jpg_w;
-		}
-	}
-	if (mh) {
-		l = ((rotate&1) ? 240 : 160)-h0-mh;
-		while (l--) {
-			d = dst;
-			m = (rotate&1) ? 160 : 240;
-			while(m--) {
-				*d = 0x0;
-				d += dx;
-			}
-			dst += dy;
-		}
 	}
 }
 

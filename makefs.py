@@ -6,7 +6,7 @@ Pogoshell v2.0b3-mod5.
 
 Uses rijndael.py from the tlslite package
 
-Usage: makefs.py [-rexmcva:] [--exclude=] pogo.gba root flashme.gba
+Usage: makefs.py [-rsxmcva:] [--exclude=] pogo.gba root flashme.gba
 
 Made by Kuwanger in Jan/Feb 2006
 """
@@ -601,7 +601,7 @@ class pogofile(pogoobject):
 			self.contents = self.contents[0:self.size]
 
 def usage(name):
-	print "Usage: %s [-rxmvc[a<c>]] [--exclude=...] pogo.gba root root.gba" % name
+	print "Usage: %s [-rsxmvc[a<c>]] [--exclude=...] pogo.gba root root.gba" % name
 
 if __name__ == "__main__":
 	i = 1

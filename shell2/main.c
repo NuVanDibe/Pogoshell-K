@@ -109,47 +109,13 @@ void save_state(void)
 		close(fd);
 	}
 
-	sram_setuser(0);
-
-	fd = open("/sram/.glbstate", O_CREAT);
-	if(fd >= 0)
-	{
-		usr = 0;
-		write(fd, &usr, 1);
-		usr = CurrentUser;
-		write(fd, &usr, 1);
-		close(fd);
-	}
-
-	sram_setuser(CurrentUser);
-
 }
 
-enum {LOCAL, ALL};
-
 /* Load current state from SRAM */
-int load_state(int what)
+int load_state(void)
 {
 	char tmp[128];
 	int fd;
-	uchar usr;
-
-	if(what == ALL)
-	{
-		sram_setuser(0);
-
-		fd = open("/sram/.glbstate", 0);
-		if(fd >= 0)
-		{
-			read(fd, &usr, 1);
-			read(fd, &usr, 1);
-			CurrentUser = usr;
-			update_user();
-			close(fd);
-		}
-
-		sram_setuser(CurrentUser);
-	}
 
 	fd = open("/sram/.state", 0);
 	if(fd >= 0)
@@ -168,6 +134,48 @@ int load_state(int what)
 		return 1;
 	}
 	get_theme_name(settings_get(SF_THEME), theme_name);
+
+	return 0;
+}
+
+int save_user(void)
+{
+	int fd;
+	uchar usr;
+
+	sram_setuser(0);
+
+	fd = open("/sram/.glbstate", O_CREAT);
+	if(fd >= 0)
+	{
+		usr = 0;
+		write(fd, &usr, 1);
+		usr = CurrentUser;
+		write(fd, &usr, 1);
+		close(fd);
+	}
+	sram_setuser(CurrentUser);
+
+	return 0;
+}
+
+int load_user(void)
+{
+	int fd;
+	uchar usr;
+
+	sram_setuser(0);
+
+	fd = open("/sram/.glbstate", 0);
+	if(fd >= 0)
+	{
+		read(fd, &usr, 1);
+		read(fd, &usr, 1);
+		CurrentUser = usr;
+		update_user();
+		close(fd);
+	}
+	sram_setuser(CurrentUser);
 
 	return 0;
 }
@@ -406,7 +414,11 @@ void update_list(void)
 	if (marked == 0xFFFF && filecount)
 		marked = 0;
 
-	listview_set_marked(MainList, marked);
+	if (marked != 0xFFFF && filecount) {
+		listview_set_marked(MainList, marked);
+		if (listview_get_marked(MainList) == 0xFFFF)
+			listview_set_marked(MainList, 0);
+	}
 
 	if(filesys_getstate() == FSTATE_SRAM)
 		pprintf(tmp, TEXT(TITLEBAR_SRAM));
@@ -591,13 +603,23 @@ void cmd_sramdel(char *name)
 
 void cmd_switchuser(char *name)
 {
+	int old_theme, old_user;
 	char tmp[50];
 
+	old_user = CurrentUser;
+	old_theme = settings_get(SF_THEME);
 	save_state();
 	switch_user();
-	load_state(LOCAL);
-	sprintf(tmp, TEXT(SWITCHED_USER), UserName);
-	statusbar_set(tmp);
+
+	if (old_user != CurrentUser) {
+		save_user();
+		load_state();
+		if (settings_get(SF_THEME) != old_theme) {
+			reset_gba();
+		}
+		sprintf(tmp, TEXT(SWITCHED_USER), UserName);
+		statusbar_set(tmp);
+	}
 	update_list();
 }
 
@@ -618,10 +640,14 @@ void cmd_help(char *name)
 
 void cmd_settings(char *name)
 {
+	int old_hidedot;
 	int r;
 
+	old_hidedot = settings_get(SF_HIDEDOT);
 	r = settings_edit();
 	sleep_time = sleep_array[settings_get(SF_SLEEP)];
+	if (settings_get(SF_HIDEDOT) != old_hidedot)
+		filesys_cd_marked_current();
 	save_state();
 	if (r)
 		reset_gba();
@@ -771,7 +797,8 @@ int main(int argc, char **argv)
 	settings_init();
 	//strcpy(theme_name, "default.theme");
 
-	have_state = load_state(ALL);
+	load_user();
+	have_state = load_state();
 
 	//dprint("blah\n");
 	//time(NULL);
@@ -815,6 +842,7 @@ int main(int argc, char **argv)
 	{
 		cmd_about(NULL);
 		save_state();
+		save_user();
 	}
 
 	// Give the clipboard whatever space is free.

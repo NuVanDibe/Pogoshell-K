@@ -66,7 +66,7 @@ int msgbox_yesno(tbox *box, char *text)
 
 int msgbox_list(tbox *box, char *title, char **lines, int num)
 {
-	int i, c;
+	int i, c, h;
 	int rc = -2;
 	int marked = 0;
 	TextBar *tb;
@@ -103,7 +103,7 @@ int msgbox_list(tbox *box, char *title, char **lines, int num)
 		if (box->list->backdrop)
 			i -= box->list->backdrop->border*2;
 	}
-	listview_set_attribute(box->list, WATR_COLWIDTH, i);
+	listview_set_attribute(box->list, WATR_COLWIDTH, (void *) i);
 
 	box->win->x = (240 - box->win->width) / 2;
 	box->win->y = (160 - box->win->height) / 2;
@@ -125,6 +125,22 @@ int msgbox_list(tbox *box, char *title, char **lines, int num)
 				rc = -1;
 				break;
 
+			case RAWKEY_LEFT:
+				h = listview_get_marked(box->list);
+				listview_set_marked(box->list, marked - box->list->showing);
+				if (h == listview_get_marked(box->list))
+					listview_set_marked(box->list, 0);
+				marked = listview_get_marked(box->list);
+				screen_redraw(MainScreen);
+				break;
+			case RAWKEY_RIGHT:
+				h = listview_get_marked(box->list);
+				listview_set_marked(box->list, marked + box->list->showing);
+				if (h == listview_get_marked(box->list))
+					listview_set_marked(box->list, box->list->lines-1);
+				marked = listview_get_marked(box->list);
+				screen_redraw(MainScreen);
+				break;
 			case RAWKEY_UP:
 				if(marked)
 				{

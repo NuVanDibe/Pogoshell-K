@@ -85,7 +85,7 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_MARGIN:
-		switch ((n>>1) & 7)
+		switch (n & 7)
 		{
 			case 1:
 				tb->marginu = tb->margind = (int) val;
@@ -185,6 +185,7 @@ TextFlow *textflow_new(Font *font, int texlen)
 
 	tb->w.type = WIDGET_TEXTFLOW;
 	tb->textcolor[0] = Black_Color;
+	tb->textcolor[2] = White_Color;
 	tb->textcolor[3] = Blue_Color;
 	tb->w.flags = WFLG_REDRAW;
 	tb->backdrop = NULL;
@@ -196,6 +197,7 @@ TextFlow *textflow_new(Font *font, int texlen)
 	tb->w.width = tb->marginl + tb->marginr;
 	strcpy(tb->text, "");
 	tb->font = font;
+	tb->align = ALIGN_LEFT;
 	tb->numlines = 0;
 
 	return tb;

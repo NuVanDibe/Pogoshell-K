@@ -6,13 +6,17 @@
 
 enum {
 	TROUGH_NEVER = 0,
-	TROUGH_MINIMAL = 1,
-	TROUGH_PARTIAL = 2,
-	TROUGH_ALWAYS = 3,
+	TROUGH_MINIMALLEFT = 1,
+	TROUGH_MINIMALRIGHT = 2,
+	TROUGH_MINIMALBOTH = 3,
+	TROUGH_PARTIAL = 4,
+	TROUGH_ALWAYS = 5,
 	BAR_NEVER = 0,
-	BAR_MINIMAL = 4,
-	BAR_PARTIAL = 8,
-	BAR_ALWAYS = 12
+	BAR_MINIMALLEFT = 8,
+	BAR_MINIMALRIGHT = 16,
+	BAR_MINIMALBOTH = 24,
+	BAR_PARTIAL = 32,
+	BAR_ALWAYS = 40
 };
 
 #define WIDGET_SCROLLBAR 0x1005
@@ -32,6 +36,8 @@ typedef struct
 	uint16 marginu[2];
 	uint16 margind[2];
 	uint16 alignside;
+	uint16 addleft;
+	uint16 addright;
 
 	Color troughcolor;
 

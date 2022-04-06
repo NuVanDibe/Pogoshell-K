@@ -96,15 +96,19 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	r->y += lv->marginy;
 
-	if (lv->scrollbar) {
+	if (lv->scrollbar)
 		scrollbar_render(lv->scrollbar, r, bm);
-	}
 
 	if(!lv->lines) {
 		lv->dirty = 0;
 	    for (i = 0; i < MAPSLOTCOUNT; i++)
         	lv->redrawmap[i] = 0;
 		return 1;
+	}
+
+	if (lv->scrollbar && lv->columns == 2) {
+		lv->colwidth[0] += lv->scrollbar->addleft;
+		lv->colwidth[1] += lv->scrollbar->addright;
 	}
 
 	dst = (uint16 *)bm->pixels + (r->x + lv->iconw + lv->marginx) + (r->y + fonty) * bm->width ;
@@ -146,9 +150,14 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 					bitmap_addbox(bm, &r2, TO_RGB16(c));
 				else if(c.a == 0xFE)
 					bitmap_negbox(bm, &r2, TO_RGB16(c));
-				else if(c.a > 0x7F)
-					bitmap_avgbox(bm, &r2, TO_RGB16(c));
-				else
+				else if (c.a > 0x7a) {
+					if (c.a == 0x80 || c.a > 0x85)
+						bitmap_avgbox(bm, &r2, TO_RGB16(c));
+					else if (c.a < 0x80)
+						bitmap_colorbox(bm, &r2, TO_RGB16(c), 0x80 - c.a);
+					else
+						bitmap_backbox(bm, &r2, TO_RGB16(c), c.a - 0x80);
+				} else
 					bitmap_fillbox(bm, &r2, TO_RGB16(c));
 				font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
 			}
@@ -174,6 +183,11 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		}
 		dst += (bm->width * lineh);
 		y += lineh;
+	}
+
+	if (lv->scrollbar && lv->columns == 2) {
+		lv->colwidth[0] -= lv->scrollbar->addleft;
+		lv->colwidth[1] -= lv->scrollbar->addright;
 	}
 
 	lv->dirty = 0;

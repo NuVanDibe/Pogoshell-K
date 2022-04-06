@@ -115,12 +115,16 @@ int gethex(char *p)
 {
 	int l = 0;
 
-	while(*p >= '0' && *p <= 'F')
+	while((*p >= '0' && *p <= '9') ||
+		  (*p >= 'A' && *p <= 'F') ||
+		  (*p >= 'a' && *p <= 'f'))
 	{
 		if(*p <= '9')
 			l = (l << 4) | ((*p++) - '0');
-		else
+		else if (*p <= 'F')
 			l = (l << 4) | ((*p++) - 'A' + 10);
+		else
+			l = (l << 4) | ((*p++) - 'a' + 10);
 	}
 		
 	return l;

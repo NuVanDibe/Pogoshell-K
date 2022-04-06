@@ -168,8 +168,11 @@ void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col)
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
 	int dmod = (dst->width - r->w);
 	int dh = r->h;
+	uint16 colh, coll;
 	uint32 high, low;
 
+	colh = col & 0x739c;
+	coll = col & 0x0c63;
 	while(dh--)
 	{
 		w = r->w;
@@ -177,9 +180,78 @@ void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col)
 		{
 			high = *d & 0x739c;
 			low = *d & 0x0c63;
-			high += (col & 0x739c);
-			low += (col & 0x0c63);
+			high += colh;
+			low += coll;
 			*d = (high+(low&0x18c6))>>1;
+			d++;
+		}
+
+		d += dmod;
+	}
+}
+
+void bitmap_backbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
+{
+	int w;
+	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
+	int dmod = (dst->width - r->w);
+	int dh = r->h;
+	uint16 mask16;
+	uint32 high, low, mask;
+
+	mask16 = (0x1f >> shift);
+	mask16 |= (mask16 << 5) | (mask16 << 10);
+	col = (col>>shift) & mask16;
+	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
+	while(dh--)
+	{
+		w = r->w;
+		while(w--)
+		{
+			high = *d;
+			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
+			high += low;
+			mask = high & ((1<<5) | (1<<11) | (1<<17));
+			mask >>= 1;
+			mask |= (mask>>1);
+			mask |= (mask>>2);
+			mask |= (mask>>1);
+			high |= mask;
+			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
+			d++;
+		}
+
+		d += dmod;
+	}
+}
+
+void bitmap_colorbox(BitMap *dst, Rect *r, uint16 col, uint16 shift)
+{
+	int w;
+	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
+	int dmod = (dst->width - r->w);
+	int dh = r->h;
+	uint16 mask16;
+	uint32 high, low, mask;
+
+	mask16 = (0x1f >> shift);
+	mask16 |= (mask16 << 5) | (mask16 << 10);
+	low = (col&0x1f) | ((col&(0x1f<<5))<<1) | ((col&(0x1f<<10))<<2);
+	while(dh--)
+	{
+		w = r->w;
+		while(w--)
+		{
+			high = (*d >> shift) & mask16;
+			high = (high&0x1f) | ((high&(0x1f<<5))<<1) | ((high&(0x1f<<10))<<2);
+			high += low;
+			mask = high & ((1<<5) | (1<<11) | (1<<17));
+			mask >>= 1;
+			mask |= (mask>>1);
+			mask |= (mask>>2);
+			mask |= (mask>>1);
+			high |= mask;
+			*d = (high&0x1f) | ((high&(0x1f<<6))>>1) | ((high&(0x1f<<12))>>2);
 			d++;
 		}
 

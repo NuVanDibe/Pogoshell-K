@@ -27,7 +27,9 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 			space_for_trough = 1;
 			if (dirty && (scr->lines > scr->showing))
 				draw_trough = 1;
-		} else if ((scr->style & TROUGH_MINIMAL) == TROUGH_MINIMAL) {
+		} else if ((((scr->style & TROUGH_MINIMALLEFT) == TROUGH_MINIMALLEFT)) ||
+				(((scr->style & TROUGH_MINIMALRIGHT) == TROUGH_MINIMALRIGHT)) ||
+				(((scr->style & TROUGH_MINIMALBOTH) == TROUGH_MINIMALBOTH))) {
 			if (scr->lines > scr->showing) {
 				space_for_trough = 1;
 				if (dirty)
@@ -44,7 +46,9 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 				space_for_bar = 1;
 				if (dirty && (scr->lines > scr->showing))
 					draw_bar = 1;
-			} else if ((scr->style & BAR_MINIMAL) == BAR_MINIMAL) {
+			} else if ((((scr->style & BAR_MINIMALLEFT) == BAR_MINIMALLEFT)) ||
+					(((scr->style & BAR_MINIMALRIGHT) == BAR_MINIMALRIGHT)) ||
+					(((scr->style & BAR_MINIMALBOTH) == BAR_MINIMALBOTH))) {
 				if (scr->lines > scr->showing) {
 					space_for_bar = 1;
 					if (dirty)
@@ -63,10 +67,55 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 			r->w -= sbar.w;
 			if (!scr->alignside)
 				r->x += sbar.w;
+			scr->addleft = scr->addright = 0;
 		} else if (space_for_bar) {
+			if ((scr->style & TROUGH_MINIMALLEFT) == TROUGH_MINIMALLEFT) {
+				scr->addleft = scr->marginl[0] + scr->marginr[0];
+				scr->addright = 0;
+			}
+			if ((scr->style & TROUGH_MINIMALRIGHT) == TROUGH_MINIMALRIGHT) {
+				scr->addright = scr->marginl[0] + scr->marginr[0];
+				scr->addleft = 0;
+			}
+			if ((scr->style & TROUGH_MINIMALBOTH) == TROUGH_MINIMALBOTH) {
+				scr->addleft = (scr->marginl[0] + scr->marginr[0])/2;
+				scr->addright = (scr->marginl[0] + scr->marginr[0]) - scr->addleft;
+			}
 			r->w -= (sbar.w - scr->marginl[0] - scr->marginr[0]);
 			if (!scr->alignside)
 				r->x += (sbar.w - scr->marginl[0] - scr->marginr[0]);
+		} else {
+			if ((((scr->style & TROUGH_MINIMALLEFT) == TROUGH_MINIMALLEFT)) ||
+				(((scr->style & TROUGH_MINIMALRIGHT) == TROUGH_MINIMALRIGHT)) ||
+				(((scr->style & TROUGH_MINIMALBOTH) == TROUGH_MINIMALBOTH))) {
+				if ((scr->style & TROUGH_MINIMALLEFT) == TROUGH_MINIMALLEFT) {
+					scr->addleft = sbar.w;
+					scr->addright = 0;
+				}
+				if ((scr->style & TROUGH_MINIMALRIGHT) == TROUGH_MINIMALRIGHT) {
+					scr->addright = sbar.w;
+					scr->addleft = 0;
+				}
+				if ((scr->style & TROUGH_MINIMALBOTH) == TROUGH_MINIMALBOTH) {
+					scr->addleft = sbar.w/2;
+					scr->addright = sbar.w - scr->addleft;
+				}
+			} else if ((((scr->style & BAR_MINIMALLEFT) == BAR_MINIMALLEFT)) ||
+					(((scr->style & BAR_MINIMALRIGHT) == BAR_MINIMALRIGHT)) ||
+					(((scr->style & BAR_MINIMALBOTH) == BAR_MINIMALBOTH))) {
+				if ((scr->style & BAR_MINIMALLEFT) == BAR_MINIMALLEFT) {
+					scr->addleft = sbar.w - (scr->marginl[0] + scr->marginr[0]);
+					scr->addright = 0;
+				}
+				if ((scr->style & BAR_MINIMALRIGHT) == BAR_MINIMALRIGHT) {
+					scr->addright = sbar.w - (scr->marginl[0] + scr->marginr[0]);
+					scr->addleft = 0;
+				}
+				if ((scr->style & BAR_MINIMALBOTH) == BAR_MINIMALBOTH) {
+					scr->addleft = (sbar.w - (scr->marginl[0] + scr->marginr[0]))/2;
+					scr->addright = (sbar.w - (scr->marginl[0] + scr->marginr[0])) - scr->addleft;
+				}
+			}
 		}
 
 		sbar.x += scr->marginl[0];
@@ -85,9 +134,14 @@ int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 				bitmap_addbox(bm, &sbar, TO_RGB16(c));
 			else if (c.a == 0xFE)
 				bitmap_negbox(bm, &sbar, TO_RGB16(c));
-			else if (c.a > 0x7F)
-				bitmap_avgbox(bm, &sbar, TO_RGB16(c));
-			else
+			else if (c.a > 0x7a) {
+				if (c.a == 0x80 || c.a > 0x85)
+					bitmap_avgbox(bm, &sbar, TO_RGB16(c));
+				else if (c.a < 0x80)
+					bitmap_colorbox(bm, &sbar, TO_RGB16(c), 0x80 - c.a);
+				else
+					bitmap_backbox(bm, &sbar, TO_RGB16(c), c.a - 0x80);
+			} else
 				bitmap_fillbox(bm, &sbar, TO_RGB16(c));
 		}
 
@@ -245,8 +299,8 @@ void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 		sc->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_STYLE:
-		sc->style &= ~(3<<(n<<1));
-		sc->style |= (((int) val)<<(n<<1));
+		sc->style &= ~(7<<(n*3));
+		sc->style |= (((int) val)<<(n*3));
 		sc->w.flags |= WFLG_REDRAW;
 		break;
 	}

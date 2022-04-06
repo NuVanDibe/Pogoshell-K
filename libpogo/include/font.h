@@ -30,7 +30,6 @@ typedef struct {
 #define FFLG_TRANSP 8
 #define FFLG_BOLD 16
 #define FFLG_ITALIC 32
-#define FFLG_SLANT 64
 
 uchar font_putchar(Font *font, char c, uint16 *dest, int width);
 uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwidth);

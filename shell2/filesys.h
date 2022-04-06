@@ -17,6 +17,7 @@ int filesys_parent(void);
 int filesys_back(void);
 int filesys_enter(int i);
 char *filesys_fullname(int i);
+int filesys_cd_marked_current(void);
 int filesys_cd_marked(char *name);
 int filesys_cd(char *name, uint16 marked);
 char *filesys_get_current(void);

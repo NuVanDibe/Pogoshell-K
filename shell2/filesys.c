@@ -304,6 +304,11 @@ char *filesys_fullname(int i)
 	return currtemp;
 }
 
+int filesys_cd_marked_current(void)
+{
+	return filesys_cd_marked(current);
+}
+
 int filesys_cd_marked(char *name)
 {
 	char *p;

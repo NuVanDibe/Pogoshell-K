@@ -80,7 +80,10 @@ int execute_mb(char *cmd, char *fname, int keys)
 	
 	//set_ram_start(0);
 
+	memset((void *)(0x02000000), 0, 256*1024);
 	ptr = file2mem(fname, (void *)0x02000000, 256*1024);
+	if(ptr != (void *)0x02000000)
+		memcpy((void *)0x02000000, ptr, 256*1024);
 
 	set_ram_start(0);
 
@@ -88,8 +91,6 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//	LZ77UnCompWram(p, (void *)0x02000000);
 	//else
 
-	if(ptr != (void *)0x02000000)
-		memcpy((void *)0x02000000, ptr, 256*1024);
 
 	//SETW(REG_IE, 0);
 	//SETW(REG_IF, 0);
@@ -158,6 +159,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		uint16 *p2;
 		int i;
 
+		memset((void *)(0x02000000), 0, 256*1024);
 		ptr = file2mem(tmp, (void *)0x02000000, 256*1024);
 		if(ptr != (uchar *) 0x02000000)
 			memcpy((void *) 0x02000000, ptr, 256*1024);
@@ -174,7 +176,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		
 		// Don't use memset as memset is in iwram
 		p2 = (uint16 *) 0x03000000;
-		for (i = 0; i < 0x7e00/2; i++)
+		for (i = 0; i < 0x8000/2; i++)
 			p2[i] = 0;
 		//SoftReset(0xe2);
 		((void(*)(void))0x02000000)();
@@ -183,7 +185,6 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	set_ram_start(0);
 	execv(tmp, args);
 	return 1;
-
 }
 
 int set_font(char *cmd, char *fname, int keys)

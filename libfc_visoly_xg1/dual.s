@@ -30,6 +30,9 @@ Setup_VIS:
 	add		r6,r6,#-1
 	bne		0b
 
+	ldr		r1,[r0,#8]
+	strh	r2,[r1]
+
 	ldr		r1,[r0,#4]
 	strh	r2,[r1]
 
@@ -229,31 +232,31 @@ executeCart:
 	ldr		r1, =reset_end
 	mov		r2, #0x03000000
 	add		r2, r2, #0x7E00
-	mov		r3,#0
-	strb	r3,[r2, #0x1FA]
+	mov		r3, #0
+	strb	r3, [r2, #0x1FA]
 0:
-	ldr		r3,[r0],#4
-	str		r3,[r2],#4
+	ldr		r3, [r0], #4
+	str		r3, [r2], #4
 	cmp		r0,r1
 	bne		0b
 
 	mov		r2, #0x03000000
 	add		r1, r2, #0x7E00
-@	add		r2, r1, #0x200
+	mov		sp, r1
 
 	bx		r1
 
 reset_func:
 
-@	add		r1,#0x100
-@	mov		r3,#0
-@0:
-@	str		r3,[r1, #4]!
-@	cmp		r1,r2
-@	bne		0b
+	mov		r3, #0
+0:
+	str		r3, [r1, #-4]!
+	cmp		r1, r2
+	bne		0b
 
+	mov		r0,#0xfc
 @	mov		r0,#0xfc		@reset all execept RAM
-	mov		r0,#0xfe
+@	mov		r0,#0xfe
 	swi		#0x010000
 
 	cmp		r11,#0

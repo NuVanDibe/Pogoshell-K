@@ -204,7 +204,7 @@ void make_arguments(const char *cmdname, const char *const *argv)
 void execv(const char *cmdname, const char *const *argv)
 {
 	uint32 *p;
-	uint32 l;
+	uint32 l, i;
 
 	int fd = open(cmdname, 0);
 	if(fd >= 0)
@@ -219,24 +219,24 @@ void execv(const char *cmdname, const char *const *argv)
 
 			// Remap for start position of rom
 			p = (uint32 *)(0x02000000+255*1024);
-			if(argv[0])
+			//if(argv[0])
 				p[-1] -= (l - 0x08000000);
 
 			//reset_io();
 
-			//SETW(REG_IE, 0);
-			//SETW(REG_IF, 0);
-			//SETW(REG_IME, 0);
+			SETW(REG_IE, 0);
+			SETW(REG_IF, 0);
+			SETW(REG_IME, 0);
 
 
-			//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-			//SETW(REG_BG1CNT, 0);
+			SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+			SETW(REG_BG1CNT, 0);
 
-			//p = (uint32 *)0x03007FC0;
-			//for(i=0; i<4*4; i++)
-			//	p[i] = 0;
+			p = (uint32 *)0x03007FC0;
+			for(i=0; i<4*4; i++)
+				p[i] = 0;
 
-			//SETW(REG_SOUNDBIAS, 0x0200);
+			SETW(REG_SOUNDBIAS, 0x0200);
 
 #ifdef CARTLIB
 			fcExecuteRom(l, jump_adress);

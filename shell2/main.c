@@ -26,7 +26,6 @@ char theme_name[32];
 int screensaver_count;
 int sram_fd = -1;
 #define free_space() ioctl(sram_fd, SR_FREESPACE)
-#define abs(x) ((x < 0) ? -x : x)
 
 extern void SoftReset(unsigned char flags);
 // Device init funtions
@@ -611,6 +610,11 @@ int sram_strcmp(const char *a, const char *b);
 
 uchar main_tmp[50];
 
+int abs(int x)
+{
+	return (x < 0) ? -x : x;
+}
+
 int main(int argc, char **argv)
 {
 	FILE *fp;
@@ -796,12 +800,11 @@ int main(int argc, char **argv)
 				if (screensaver_count) {
 					DIR *dir;
 					struct dirent *de;
-					int i, j;
+					int i;
 					DirList dl;
 					char filename[128];
 
-					j = rand();
-					i = abs(j) % screensaver_count;
+					i = abs(rand()) % screensaver_count;
 					dir = opendir(GET_PATH(SCREENSAVERS));
 					do {
 						de = readdir(dir);
@@ -809,8 +812,8 @@ int main(int argc, char **argv)
 							i--;
 					} while (i > 0);
 					closedir(dir);
-					strcpy(filename, "/rom/");
-					strcat(filename, GET_PATH(SCREENSAVERS));
+					//strcpy(filename, "/rom/");
+					strcpy(filename, GET_PATH(SCREENSAVERS));
 					strcat(filename, de->d_name);
 					strcpy(dl.name, de->d_name);
 					dl.size = de->d_size;
@@ -818,6 +821,12 @@ int main(int argc, char **argv)
 					i = filetype_lookup(&dl);
 					if (filetype_handle(filename, i, 0) == 2)
 						update_list();
+					/*filesys_cd_marked(GET_PATH(SCREENSAVERS));
+					update_list();
+					marked = 2;
+					i = filetype_lookup(&dirlist[marked]);
+					if (filetype_handle(filesys_fullname(marked), i, qualifiers) == 2)
+						update_list();*/
 				} else { 
 					suspend();
 					getchar(); //dump char used for wakeup

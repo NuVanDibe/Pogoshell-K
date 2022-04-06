@@ -16,17 +16,26 @@ CODE_IN_IWRAM void *memset(void *dest, int v, int l)
 {
 	int l2;
 	uchar *d;
-	uint16 v2, *d2 = dest;
+	uint16 v2, *d2;
+
+	d = dest;
 	
 	v2 = v | (v<<8);
 
+	if (l && (((int) d)&1)) {
+		*d++ = v;
+		l--;
+	}
+
+	d2 = (uint16 *) d;
 	l2 = l>>1;
 	while (l2--)
 		*d2++ = v2;
 
-	d = (uchar *) d2;
-	if (l & 1)
+	if (l & 1) {
+		d = (uchar *) d2;
 		*d++ = v;
+	}
 
 	return dest;
 }

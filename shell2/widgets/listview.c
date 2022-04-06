@@ -325,7 +325,7 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 
 	p = (uint32 *)&lv->textcolor[0];
 
-	p[0] = 0x00000000;
+	p[0] = 0x01000000;
 	p[2] = 0x00FFFFFF;
 	p[3] = 0x00FF0000;
 

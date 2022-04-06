@@ -35,7 +35,7 @@ void generic_image(void)
 	{
 		for (x = 0; x < 120; x++)
 		{
-			color = (x*y)/300 + ((119-x)*(79-y)/300);
+			color = ((x*y)>>9) + (((119-x)*(79-y))>>9) + ((x+y)>>4);
 			//color = (x*y)/300;
 			color = color | (color<<5) | (color<<10);
 			p[i1+x] = color;
@@ -55,6 +55,8 @@ void draw_block(int x, int y)
     int w, h;
 
 	c = 31<<(5*((x>>3)&3));
+	if (c & 0x8000)
+		c--;
 
 	for (h = 0; h < 8; h++)
 	    for (w = 0; w < 8; w++)
@@ -194,7 +196,7 @@ int decrypt_image(char *fname, uchar *jpg, int msize)
 		old_enc[0] = old_enc[1] = 0xfedcba9876543210ll;
 		out = (uint64 *) jpg;
 		lljpg += 2;
-    	for (i = 0; i < jpg_size/sizeof(uint64); i+=2)
+    	for (i = 0; i < (jpg_size/sizeof(uint64)+1); i+=2)
 	    {
     		aes_decrypt(&ctx, (unsigned char *) &lljpg[i], (unsigned char *) &out[i]);
 			out[i] ^= old_enc[0];

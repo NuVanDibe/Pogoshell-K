@@ -41,11 +41,11 @@ static FdMap fdList[MAX_FD];
 void device_init(void)
 {
 	fdList[0].fd = -1;
-	fdList[0].dev = 1;
+	fdList[0].dev = NULL;
 	fdList[1].fd = -1;
-	fdList[1].dev = 1;
+	fdList[1].dev = NULL;
 	fdList[2].fd = -1;
-	fdList[2].dev = 1;
+	fdList[2].dev = NULL;
 }
 
 static Device *dev_fromname(const char *name, char **cutname)
@@ -154,7 +154,7 @@ void make_arguments(const char *cmdname, const char *const *argv)
 {
 	int fd;
 	uint32 *p;
-	uchar *ptr;
+	char *ptr;
 	int i = 0;
 //	int l = 0;
 	
@@ -168,8 +168,8 @@ void make_arguments(const char *cmdname, const char *const *argv)
 */
 	p = (uint32 *)(0x02000000+255*1024);
 	p[0] = 0xFAB0BABE;	
-	ptr = (uchar *)&p[2];
-	strcpy(ptr, (uchar *) cmdname);
+	ptr = (char *)&p[2];
+	strcpy(ptr, (char *) cmdname);
 	ptr += (strlen(ptr)+1);
 	while(argv && argv[i])
 	{

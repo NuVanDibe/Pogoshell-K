@@ -286,8 +286,8 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
                         int start = cx + cy * stride;
                         JPEG_FIXED_TYPE zz [JPEG_DCTSIZE2];
 
-						if (data > *dataBase + jpg_size)
-							goto finish;
+						//if (data > *dataBase + jpg_size)
+						//	goto finish;
 
                         /* Decode coefficients. */
                         DecodeCoefficients (&dcLast [c], zz, quant, dcTable, acTable, &data, &bits_left, &bits_data, ToZigZag);

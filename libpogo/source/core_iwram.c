@@ -32,39 +32,45 @@ CODE_IN_IWRAM void *memcpy8(void *dst, const void *src, int l)
 CODE_IN_IWRAM void *memcpy(void *dst, const void *src, int l)
 {
 	uchar *d, *s;
-	uint16 *d16, *s16, l16;
+	uint16 *d16, *s16;
+	int l16, odd;
 
-	if( ((int)src & 1) || ((int)dst & 1))
-	{
-		d = (uchar *)dst;
-		s = (uchar *)src;
-	} else {
-		d16 = (uint16 *)dst;
-		s16 = (uint16 *)src;
+	d = (uchar *)dst;
+	s = (uchar *)src;
+	odd = ((int) s & 1)^((int) d & 1);
+	if (!odd) {
+		if((int)s & 1)
+		{
+			*(d++)= *(s++);
+			l--;
+		}
+		d16 = (uint16 *)d;
+		s16 = (uint16 *)s;
 		l16 = l>>1;
 		while(l16--)
-			*d16++ = *s16++;
+			*(d16++) = *(s16++);
 		d = (uchar *) d16;
 		s = (uchar *) s16;
 		l = l&1;
 	}
 	while(l--)
-		*d++ = *s++;
+		*(d++)= *(s++);
 	return dst;
 }
 
 CODE_IN_IWRAM void *memcpy_rev(void *dst, const void *src, int l)
 {
 	uchar *d, *s;
-	uint16 *d16, *s16, l16, even;
+	uint16 *d16, *s16;
+	int l16, odd, n;
 
 	d = (uchar *)dst + l;
 	s = (uchar *)src + l;
-	even = ((int) s & 1)^((int) d & 1);
-	if (even) {
+	odd = ((int) s & 1)^((int) d & 1);
+	if (!odd) {
 		if((int)s & 1)
 		{
-			*(--d)= *(--s);
+			*(--d) = *(--s);
 			l--;
 		}
 		d16 = (uint16 *)d;

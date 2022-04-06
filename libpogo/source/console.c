@@ -14,6 +14,7 @@
 #include "device.h"
 #include "screen.h"
 #include "gba_defs.h"
+#include "string.h"
 
 #include "console.h"
 
@@ -210,13 +211,14 @@ static void console_setcolor(int fg, int bg)
 #define isalpha(c) ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
 #define isdigit(c) ((c >= '0' && c <= '9') || (c == '-'))
 
+#if 0
 static int atoi(const char *s)
 {
 	int v = 0;
 	uchar neg = 0;
 
 	while(*s == ' ')
-		*s++;
+		s++;
 
 	if(*s == '-') {
 		s++;
@@ -233,6 +235,7 @@ static int atoi(const char *s)
 
 	return v;
 }
+#endif
 
 int parse_ansi(char *s, int *args)
 {

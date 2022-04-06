@@ -47,7 +47,7 @@ int atoi(const char *s)
 	uchar neg = 0;
 
 	while(*s == ' ')
-		*s++;
+		s++;
 
 	if(*s == '-') {
 		s++;

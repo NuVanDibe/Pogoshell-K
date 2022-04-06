@@ -305,8 +305,8 @@ CODE_IN_IWRAM void DecodeCoefficients (
         {
             index += r;
             JPEG_Value (s, r);
-			//if (index < 0 || index > JPEG_DCTSIZE2 - 1)
-			//	break;
+			if (index < 0 || index > JPEG_DCTSIZE2 - 1)
+				break;
             zz [toZigZag [index]] = r * quant [index];
             if (index == JPEG_DCTSIZE2 - 1)
                 break;
@@ -371,15 +371,10 @@ extern JPEG_OUTPUT_TYPE *jpg_ptr;
 extern int jpg_w;
 extern int jpg_h;
 
-#define R(x) (x&31)
-#define G(x) ((x>>5)&31)
-#define B(x) ((x>>10)&31)
-
 CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int mode, int scale, int rotate, int toshift)
 {
-	static unsigned short red[240];
-	static unsigned short green[240];
-	static unsigned short blue[240];
+	unsigned int high[240];
+	unsigned int low[240];
 
 	unsigned short *src, *dst, *s, *d;
 
@@ -419,11 +414,14 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 	mw = (((rotate&1) ? 160 : 240)-w0)>>1;
 	mh = (((rotate&1) ? 240 : 160)-h0)>>1;
 
+	l = w0;
+	while (--l > -1)
+		high[l] = low[l] = 0;
+
 	if (mode)
 		src = jpg_ptr;
 	else
 		src = &jpg_ptr[x + y * jpg_w];
-	//dst += ((160-hi)>>1)*240;
 	hi <<= shift;
 	wi <<= shift;
 	h = h0<<shift;
@@ -453,46 +451,50 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 		}
 		if (shift) {
 			x = 0;
-			red[0] = green[0] = blue[0] = 0;
-			while (w--)
-			{
-				if (!(w&1) || !(h&1)) {
-					red[x] += R(*src);
-					green[x] += G(*src);
-					blue[x] += B(*src);
-				} else {
-					red[x] = R(*src);
-					green[x] = G(*src);
-					blue[x] = B(*src);
-				}
-					
-				if (!(w&1) && !(h&1)) {
-					*dst = ((red[x]>>2)&31) |
-					        (((green[x]>>2)&31)<<5) |
-				    	    (((blue[x]>>2)&31)<<10);
-					dst += dx;
-				}
-
-				if (!(w&1))
-					x++;
-				
-				dw += jpg_w;
-				while (dw >= wi)
+			if (h&1) {
+				while (w--)
 				{
-					dw -= wi;
-					src++;
+					high[x] += (*src & 0x739c);
+					low[x] += (*src & 0x0c63);
+
+					x += (w&1)^1;
+
+					dw += jpg_w;
+					while (dw >= wi)
+					{
+						dw -= wi;
+						src++;
+					}
 				}
-			}
-			if (!(h&1)) {
+				dst = d;
+			} else {
+				while (w--)
+				{
+					high[x] += (*src & 0x739c);
+					low[x] += (*src & 0x0c63);
+
+					if (!(w&1)) {
+						*dst = (high[x]+(low[x]&0x318c))>>2;
+						dst += dx;
+						high[x] = low[x] = 0;
+						x++;
+					}
+
+					dw += jpg_w;
+					while (dw >= wi)
+					{
+						dw -= wi;
+						src++;
+					}
+				}
 				l = ((rotate&1) ? 160 : 240)-w0-mw;
 				while(l--) {
 					*dst = 0x0;
 					dst += dx;
 				}
-			}
-			dst = d;
-			if (!(h&1))
+				dst = d;
 				dst += dy;
+			}
 		} else {
 			while (w--)
 			{

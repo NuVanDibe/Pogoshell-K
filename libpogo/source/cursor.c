@@ -74,7 +74,7 @@ void cursor_init(void)
 	OAM_BASE[2] = 0x0200;
 	OAM_BASE[3] = 0;
 	
-	dp = 0x05000200;
+	dp = (uint16 *) 0x05000200;
 	*dp++ = 0x001F;
 	*dp++ = 0x001F;
 	*dp++ = 0x001F;

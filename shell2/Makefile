@@ -21,8 +21,9 @@ LIBS = -L$(POGO)/lib -lpogo -lgcc
 #DEFINES += MULTIBOOT
 #endif
 
-CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -g -Os -nostdinc -I$(POGO)/include
-CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -g -Os -nostdinc -I$(POGO)/include
+CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
+CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
+CFLAGS3 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
 
 ASFLAGS = -mthumb-interwork
 
@@ -58,6 +59,9 @@ $(CART)_obj:
 
 mb :
 	mb -s $(TARGET)_$(CART).$(EXT) -c -w 250 -x 400
+
+iwram.o : iwram.c
+	$(CC) -c $(CFLAGS3) $< -o $@
 
 users.o : users.c
 	$(CC) -c $(CFLAGS2) $< -o $@

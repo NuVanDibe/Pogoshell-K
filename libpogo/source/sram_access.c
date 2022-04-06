@@ -126,7 +126,7 @@ void sram_strcpy(char *dest, const char *src)
 	sram_write_bytes(dest, 0, srambuf);
 }
 
-int sram_strcmp(const char *a, const char *b)
+int sram_strcmp(const uchar *a, const uchar *b)
 {
 	int l;
 
@@ -155,7 +155,7 @@ void sram_memset(char *dest, int val, int len)
 	}
 }
 
-void sram_memmove(char *dest, char *src, int len)
+void sram_memmove(uchar *dest, uchar *src, int len)
 {
 	int l;
 
@@ -188,7 +188,7 @@ void sram_memmove(char *dest, char *src, int len)
 	}
 }
 
-void sram_memcpy(char *dest, const char *src, int len)
+void sram_memcpy(unsigned char *dest, const unsigned char *src, int len)
 {
 	int l;
 

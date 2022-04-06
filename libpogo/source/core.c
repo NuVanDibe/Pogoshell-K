@@ -187,7 +187,7 @@ void AgbMain(void)
 
 	__gccmain();
 
-	uchar *p = (uchar *)(0x02000000 + 255 * 1024 + 8);
+	char *p = (uchar *)(0x02000000 + 255 * 1024 + 8);
 	uint32 *p2 = (uint32 *)(0x02000000 + 255 * 1024);
 
 	//_dprintf("val is %x from %p\n", p2[0], p2);

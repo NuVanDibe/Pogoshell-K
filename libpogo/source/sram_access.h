@@ -3,10 +3,10 @@
 
 void sram_read_bytes(char *sram_src, int size, void *dest);
 void sram_write_bytes(char *sram_dst, int size, void *src);
-void sram_memcpy(char *dest, const char *src, int len);
-void sram_memmove(char *dest, char *src, int len);
+void sram_memcpy(unsigned char *dest, const unsigned char *src, int len);
+void sram_memmove(uchar *dest, uchar *src, int len);
 void sram_memset(char *dest, int val, int len);
-int sram_strcmp(const char *a, const char *b);
+int sram_strcmp(const uchar *a, const uchar *b);
 void sram_strcpy(char *dest, const char *src);
 
 extern unsigned char srambuf[1024];

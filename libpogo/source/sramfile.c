@@ -32,7 +32,7 @@
 typedef struct _SRamFile
 {
 	struct _SRamFile *next;
-	char name[32];
+	uchar name[32];
 	uchar flags;
 	uchar user;
 	uint32 length;
@@ -60,7 +60,7 @@ static SRamFile *gap = NULL;
 //static char *sramfile_mem = (char *)0x0E000000;
 //static int sram_size = 64*1024;
 #ifdef WITH_TIME
-char *sramfile_mem = (char *)0x0E010000;
+uchar *sramfile_mem = (uchar *)0x0E010000;
 int sram_size = 192*1024;
 #else
 extern char *sramfile_mem;
@@ -90,7 +90,7 @@ int sram_getuser(void)
 
 static int free_space(void);
 
-static SRamFile *find_prev_file(const char *name)
+static SRamFile *find_prev_file(const uchar *name)
 {
 	unsigned char fuser = 0;
 	SRamFile *f, *lastf = NULL, *match = NULL;
@@ -128,7 +128,7 @@ static SRamFile *find_prev_file(const char *name)
 
 
 /* Create a new empty file and make it the gapfile */
-static SRamFile *create_file(const char *name)
+static SRamFile *create_file(const uchar *name)
 {
 	int l;
 	int zero = 0;
@@ -210,7 +210,7 @@ static SRamFile *close_gap(SRamFile *f, SRamFile *prev, int up)
 		dest = (((uchar *)&f[1]) + l); /* Ptr to after file */
 		SET32(l, next->length);
 
-		sram_memcpy(dest, (char *)next, l + sizeof(SRamFile));
+		sram_memcpy(dest, (uchar *)next, l + sizeof(SRamFile));
 		SET32(f->next, dest);
 	}
 	else
@@ -220,7 +220,7 @@ static SRamFile *close_gap(SRamFile *f, SRamFile *prev, int up)
 			dest = (uchar *)next - l - sizeof(SRamFile);
 		else
 			dest = ((uchar *)&sramfile_mem[sram_size]) - l - sizeof(SRamFile);
-		sram_memmove(dest, (char *)f, l + sizeof(SRamFile));
+		sram_memmove(dest, (uchar *)f, l + sizeof(SRamFile));
 
 		SET32(prev->next, dest); 
 		f = (SRamFile*)dest;
@@ -316,7 +316,7 @@ static void print_sys(void)
 }
 */
 
-static int sram_stat(const char *name, struct stat *buffer)
+static int sram_stat(const uchar *name, struct stat *buffer)
 {
 	int l;
 	SRamFile *f, *lastf;
@@ -403,7 +403,7 @@ static int sram_open(const char *name, int mode)
 
 static int sram_write(int fd, const void *src, int size)
 {
-	char *p;
+	uchar *p;
 	int l;
 
 	OpenFile *of = &openFiles[fd];
@@ -424,7 +424,7 @@ static int sram_write(int fd, const void *src, int size)
 	if((of->pos + size > l) && gap != f)
 		of->file = f = bump_file(f, size);
 
-	p = ((char *)&f[1]) + of->pos;
+	p = ((uchar *)&f[1]) + of->pos;
 
 	of->flags |= OFL_WRITE;
 
@@ -444,7 +444,7 @@ static int sram_write(int fd, const void *src, int size)
 
 static int sram_read(int fd, void *dest, int size)
 {
-	char *p;
+	uchar *p;
 	int l;
 	unsigned char fuser = 0;
 	OpenFile *of = &openFiles[fd];
@@ -453,7 +453,7 @@ static int sram_read(int fd, void *dest, int size)
 	if(!f)
 	{
 		/* File is filelist */
-		char *d = (char *)dest;
+		uchar *d = (uchar *)dest;
 		while(of->pos && size >= 40)
 		{
 			f = (SRamFile *)of->pos;
@@ -464,7 +464,7 @@ static int sram_read(int fd, void *dest, int size)
 			if(!fuser || (user == fuser))
 			{
 				sram_memcpy(d, f->name, 32);
-				sram_memcpy(&d[32], (const char *)&f->length, 4);
+				sram_memcpy(&d[32], (const uchar *)&f->length, 4);
 				sram_memset(&d[36], 0, 4);
 				d+=40;
 				size-=40;
@@ -473,10 +473,10 @@ static int sram_read(int fd, void *dest, int size)
 			SET32(f, f->next);
 			of->pos = (int32)f;
 		}
-		return d - (char*)dest;
+		return d - (uchar*)dest;
 	}
 
-	p = ((char *)&f[1]) + of->pos;
+	p = ((uchar *)&f[1]) + of->pos;
 
 	SET32(l, f->length);
 
@@ -668,7 +668,7 @@ void sram_init_old(void)
 		device_register(&sramdev, "/sram", NULL, -1);
 	}
 
-	if((start_keys != (U_KEY|L_BUTTON)) && (sram_strcmp(sramfile_mem, SRAM_HEAD) == 0))
+	if((start_keys != (U_KEY|L_BUTTON)) && (sram_strcmp(sramfile_mem, (uchar *)SRAM_HEAD) == 0))
 	{
 		SET32(first, sramfile_mem[8]);
 		SET32(gap, sramfile_mem[12]);
@@ -676,7 +676,7 @@ void sram_init_old(void)
 	else
 	{
 		first = gap = NULL;
-		sram_memcpy(sramfile_mem, SRAM_HEAD, 8);
+		sram_memcpy(sramfile_mem, (uchar *) SRAM_HEAD, 8);
 		SET32(sramfile_mem[8], zero);
 		SET32(sramfile_mem[12], zero);
 

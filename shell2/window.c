@@ -6,6 +6,7 @@ static Screen *currentScreen;
 WidgetRenderFunc render_functions[8];
 
 Color Black_Color = {0,0,0,0};
+Color Blue_Color = {0,0,0xFF,0};
 Color White_Color = {0xFF,0xFF,0xFF,0};
 Color Gray_Color = {0x80,0x80,0x80,0};
 

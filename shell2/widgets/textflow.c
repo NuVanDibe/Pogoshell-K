@@ -19,7 +19,7 @@ int textflow_render(TextFlow *tb, Rect *r, BitMap *bm)
 		else
 			bitmap_fillbox(bm, r, 0x6318);
 
-		font_setcolor(TO_RGB16(tb->textcolor), 0x0000);
+		font_setcolor(TO_RGB16(tb->textcolor[0]), 0x0000);
 
 		for(i=0; i<tb->numlines; i++)
 		{
@@ -51,6 +51,7 @@ int calc_lengths(TextFlow *tf)
 void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 {
 	int l;
+	int n = attr&0xf;
 	char *p;
 	switch(attr & 0xFF0)
 	{
@@ -59,14 +60,14 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLOR:
-		tb->textcolor = *((Color *)val);
+		tb->textcolor[n] = *((Color *)val);
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_RGB:
 		l = (int)val;
-		tb->textcolor.r = l>>16;
-		tb->textcolor.g = (l>>8) & 0xff;
-		tb->textcolor.b = l & 0xff;
+		tb->textcolor[n].r = l>>16;
+		tb->textcolor[n].g = (l>>8) & 0xff;
+		tb->textcolor[n].b = l & 0xff;
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_TEXT:
@@ -123,7 +124,8 @@ TextFlow *textflow_new(Font *font, int texlen)
 	tb->w.type = WIDGET_TEXTFLOW;
 	tb->w.height = font->height+2;
 	tb->w.width = 0;
-	tb->textcolor = Black_Color;
+	tb->textcolor[0] = Black_Color;
+	tb->textcolor[3] = Blue_Color;
 	tb->w.flags = WFLG_REDRAW;
 	tb->backdrop = NULL;
 	tb->text = malloc(texlen);

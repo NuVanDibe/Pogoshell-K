@@ -452,6 +452,8 @@ void setup_screen(void)
 
 		if(MessageTxt->backdrop)
 			listview_set_attribute(MessageList, WATR_BACKDROP, MessageTxt->backdrop);
+		listview_set_attribute(MessageList, WATR_COLOR+0, &(MessageTxt->textcolor[0]));
+		listview_set_attribute(MessageList, WATR_COLOR+3, &(MessageTxt->textcolor[3]));
 	}
 
 	count = IconSet->height / IconHeight;

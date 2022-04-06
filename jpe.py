@@ -60,8 +60,8 @@ if __name__ == "__main__":
 		if pad:
 			contents += long2chrl(SystemRandom(0).getrandbits(pad*8), pad)
 		fd.write(pack("<i", size))
-		'''salt = SystemRandom(0).getrandbits(128)'''
-		salt = 0xfedcba9876543210fedcba9876543210
+		salt = SystemRandom(0).getrandbits(128)
+		'''salt = 0xfedcba9876543210fedcba9876543210'''
 		fd.write(long2chrl(salt, 16))
 		key = getkey(salt)
 		size += pad

@@ -7,6 +7,7 @@
 #define TO_RGB16(c) ( ((c.b << 7) & 0x7C00) | ((c.g << 2) & 0x03E0) | (c.r >> 3) )
 
 extern Color Black_Color;
+extern Color Blue_Color;
 extern Color White_Color;
 extern Color Gray_Color;
 

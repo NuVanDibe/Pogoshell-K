@@ -187,6 +187,7 @@ int listview_render(ListView *lv, Rect *r, BitMap *bm)
 void listview_set_attribute(ListView *lv, int attr, void *val)
 {
 	Color c;
+	int i;
 	int n = attr & 0xf;
 	uint32 l;
 
@@ -203,7 +204,6 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		lv->colwidth[n] = (int)val;
 		lv->w.flags = WFLG_REDRAW;
 		break;
-
 	case WATR_RGB:
 		l = (int)val;
 		c.r = (l>>16) & 0xff;
@@ -301,8 +301,6 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 	p[1] = 0x00FF0000;
 
 	lv->iconw = 0;
-
-	lv->w.flags = WFLG_REDRAW;
 
 	lv->icons = malloc(sizeof(BitMap *) * maxlines);
 	memset(lv->icons, 0, sizeof(BitMap *) * maxlines);

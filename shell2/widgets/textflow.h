@@ -16,7 +16,7 @@ typedef struct
 	uint16 textlength[20];
 	uint16 numlines;
 	Font *font;
-	Color textcolor;
+	Color textcolor[4];
 
 } TextFlow;
 

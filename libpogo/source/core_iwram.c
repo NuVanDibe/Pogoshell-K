@@ -161,7 +161,7 @@ CODE_IN_IWRAM int strlen(const char *s)
 
 CODE_IN_IWRAM char *strcpy(char *dst, const char *src)
 {
-	register char *d = dst;
+	char *d = dst;
 	while(*src)
 		*dst++ = *src++;
 	*dst++ = 0;
@@ -170,7 +170,7 @@ CODE_IN_IWRAM char *strcpy(char *dst, const char *src)
 
 CODE_IN_IWRAM char *strncpy(char *dst, const char *src, int n)
 {
-	register char *d = dst;
+	char *d = dst;
 	while(*src && n--)
 		*dst++ = *src++;
 	*dst++ = 0;

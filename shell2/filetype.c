@@ -22,7 +22,8 @@ void bmz_view(char *fname);
 void bmap_view(char *fname);
 void jpg_view(char *fname);
 void jpe_view(char *fname);
-extern void reset(void);
+//extern void reset(void);
+extern void setup_screen(void);
 
 static BitMap **icon_set;
 static BitMap *settings_icn = NULL;
@@ -92,7 +93,7 @@ int execute_mbap(char *cmd, char *fname, int keys)
 
 int execute_mb_joined(char *fname, int decompression, int keys)
 {
-	uchar *ptr;
+	char *ptr;
 	uint16 *p2;
 	int i;
 
@@ -178,14 +179,14 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	s = strrchr(cmd, '.');
 	if(s && (strncmp(s, ".mb", 3) == 0))
 	{
-		uchar *ptr;
+		char *ptr;
 		uint16 *p2;
 		int i;
 
 		memset((void *)(0x02000000), 0, 256*1024);
 		ptr = file2mem(tmp, (void *)0x02000000, 256*1024,
 			(s[3] == 'z') ? LZ77 : ((s[3] == 'a' && s[4] == 'p') ? APACK : RAW));
-		if(ptr != (uchar *) 0x02000000)
+		if(ptr != (char *) 0x02000000)
 			return 1;
 		make_arguments(tmp, args);
 
@@ -213,8 +214,8 @@ int set_font(char *cmd, char *fname, int keys)
 	tf = listview_get_typeface(MainList);
 	typeface = typeface_new(font_load(fname), 0);
 
-	typeface_set_attribute(typeface, WATR_STYLE, FFLG_TRANSP);
-	typeface_set_attribute(typeface, WATR_STYLE, tf->style);
+	typeface_set_attribute(typeface, WATR_STYLE, (void *) FFLG_TRANSP);
+	typeface_set_attribute(typeface, WATR_STYLE, (void *) tf->style);
 	typeface_set_attribute(typeface, WATR_COLOR + 0, &(tf->shadow));
 	typeface_set_attribute(typeface, WATR_COLOR + 1, &(tf->outline));
 
@@ -244,6 +245,11 @@ int changedir(char *cmd, char *fname, int keys)
 {
 	filesys_cd(fname, marked);
 	return 2;
+}
+
+int do_nothing(char *cmd, char *fname, int keys)
+{
+	return 1;
 }
 
 int textreader_show_text(char *name);
@@ -428,6 +434,11 @@ void filetype_readtypes(FILE *fp)
 					f->handle_func = changedir;
 				}
 				else
+				if(strcmp(p, "SAV") == 0)
+				{
+					f->handle_func = do_nothing;
+				}
+				else
 				if(strcmp(p, "DEF") == 0)
 				{	
 					filetypes[0] = f;
@@ -506,14 +517,17 @@ void filetype_set_icons(void)
 {
 	FileType *f;
 	int i;
-	for (i=1; i<ftcount; i++)
-	{
-		f = filetypes[i];
-		if (f->iconidx >= 0 && icon_set)
-			f->icon = icon_set[f->iconidx];
-	}
-	if (settings_iconidx >= 0 && icon_set) {
-		settings_icn = icon_set[settings_iconidx];
+	if (icon_set) {
+		for (i=0; i<ftcount; i++)
+		{
+			f = filetypes[i];
+		
+			if (f->iconidx >= 0)
+				f->icon = icon_set[f->iconidx];
+		}
+		if (settings_iconidx >= 0) {
+			settings_icn = icon_set[settings_iconidx];
+		}
 	}
 	settings_icon(settings_icn);		
 }

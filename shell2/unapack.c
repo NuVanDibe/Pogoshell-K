@@ -2,10 +2,11 @@
 #include <pogo.h>
 #include "unapack.h"
 
-static unsigned char *src, *dest, *destorg, lwm, mask, byte;
-static unsigned int recentoff, gamma;
+static const char *src;
+static char *dest = NULL, *destorg, lwm, mask, byte;
+static unsigned int recentoff = 0, gamma;
 
-static int getbit()
+static inline int getbit()
 {
 	if (mask&1)
 		byte = *src++;
@@ -13,14 +14,14 @@ static int getbit()
 	return (byte&mask);
 }
 
-static void getbitgamma()
+static inline void getbitgamma()
 {
 	gamma <<= 1;
 	if (getbit())
 		gamma++;
 }
 
-static void ap_getgamma()
+static inline void ap_getgamma()
 {
 	gamma = 1;
 	do {
@@ -28,14 +29,14 @@ static void ap_getgamma()
 	} while (getbit());
 }
 
-static void copyloop()
+static inline void copyloop()
 {
 	do {
 		*dest++ = dest[-recentoff];
 	} while (--gamma);
 }
 
-static void ap_is_lwm()
+static inline void ap_is_lwm()
 {
 	recentoff = *src++ + (gamma<<8);
 	ap_getgamma();
@@ -48,7 +49,7 @@ static void ap_is_lwm()
 	copyloop();
 }
 
-int depack(uchar *source, uchar *destination)
+int depack(const char const *source, char *destination)
 {
 	int done = 0;
 	src = source;
@@ -97,7 +98,7 @@ int depack(uchar *source, uchar *destination)
 				getbitgamma();
 				if (gamma)
 					gamma = dest[-gamma];
-				*dest++ = (unsigned char) gamma;
+				*dest++ = (char) gamma;
 				lwm = 0;
 			}
 		} else {

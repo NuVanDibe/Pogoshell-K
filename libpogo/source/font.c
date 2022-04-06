@@ -60,12 +60,17 @@ static void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, i
 		while(height--)
 		{
 			w = width;
-			while(w--)
-			{
-				if(*src)
-					*dst = colors[*src];
-				dst++;
-				src++;
+			if (solid) {
+				while (w--)
+					*dst++ = colors[*src++];
+			} else {
+				while(w--)
+				{
+					if(*src)
+						*dst = colors[*src];
+					dst++;
+					src++;
+				}
 			}
 			dst += dmod;
 			src += smod;
@@ -103,8 +108,8 @@ static uchar font_putmono(Font *font, char c, uint16 *dest, int width, int dw)
 			if (c < font->first || c >= font->last)
 				return 0;
 
-			if (solid)
-				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
+			//if (solid)
+			//	block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 			block_copy(dest, &font->pixels[(c - font->first) * w], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 	}
@@ -133,8 +138,8 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width, int dw)
 
 		if(dest)
 		{
-			if(solid)
-				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
+			//if(solid)
+			//	block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 			block_copy(dest, &font->pixels[offset], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 		w += font->spacing;
@@ -157,7 +162,7 @@ uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwid
 
 	w2 = 0;
 	h2 = 0;
-
+/*
 	if (outline) {
 		w2 += 2;
 		h2 += 2;
@@ -170,7 +175,7 @@ uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwid
 		w2++;
 		h2++;
 	}
-
+*/
 	if(font->offsets)
 		putchar = font_putprop;
 	else
@@ -278,9 +283,8 @@ uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwid
 			colors = font_colors;
 
 		putchar(font, c, dest, width, dw);
-		drawwidth--;
 		if (bold)
-			putchar(font, c, dest + 1, width, dw);
+			putchar(font, c, dest + 1, width, --dw);
 		font->flags = old_flags;
 	}
 
@@ -290,17 +294,17 @@ uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwid
 int font_height(Font *font)
 {
 	int h2;
-	int outline = (font->flags & FFLG_OUTLINE),
+/*	int outline = (font->flags & FFLG_OUTLINE),
 		dropshadow = (font->flags & FFLG_DROPSHADOW);
-
+*/
 	h2 = font->height;
 
-	if (outline)
+/*	if (outline)
 		h2 += 2;
 
 	if (dropshadow)
 		h2++;
-
+*/
 	return h2;
 }
 
@@ -335,6 +339,8 @@ int font_text_truncate(Font * font, char *str, uint16 * dest, int width, int dra
 	right = (drawwidth-period)>>1;
 	right = (right < 0) ? 0 : right;
 	left = right;
+
+	s1 = s2 = NULL;
 
 	l = 0;
     // Find left side.
@@ -378,7 +384,7 @@ int font_text_truncate(Font * font, char *str, uint16 * dest, int width, int dra
 		while (*str)
 		    l += font_putchar(font, *str++, dest ? &dest[l] : NULL, width);
 	}
-    return l;
+    return l - ((font->offsets) ? font->spacing : 0);
 }
 
 int font_text(Font * font, char *str, uint16 * dest, int width)
@@ -417,8 +423,16 @@ int font_text_multi(Font **fontlist, int *current, char *str, uint16 *dest, int 
 
 Font *font_dup(Font *font)
 {
-	Font *f = malloc(sizeof(Font));
+	Font *f;
+	int l;
+
+	l = strlen(font->name);
+	if(!(l & 1))
+		l++;
+	f = malloc(sizeof(Font) + l + 1);
 	memcpy(f, font, sizeof(Font));
+	f->name = (char *)&f[1];
+	strcpy(f->name, font->name);
 	return f;
 }
 
@@ -442,16 +456,15 @@ Font *font_load(char *name)
 		if(!(l & 1))
 			l++;
 
-		size = sizeof(Font);
-		//size = sizeof(Font) + l + 1;
+		size = sizeof(Font) + l + 1;
 
 		rfont = malloc(size);
 		memcpy(rfont, &font, 8);
 
 		//fprintf(stderr, "FONT %p %d\n", rfont, size);
 
-		//rfont->name = (char *)&rfont[1];
-		//strcpy(rfont->name, name);
+		rfont->name = (char *)&rfont[1];
+		strcpy(rfont->name, name);
 
 		mem += 8;
 		

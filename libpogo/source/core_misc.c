@@ -23,7 +23,7 @@ int clock(void)
 
 struct tm *time2(struct tm *tm)
 {
-	uchar data[7];
+	char data[7];
 
 	rtc_get(data);
 
@@ -84,7 +84,7 @@ time_t time(time_t *t)
 
 	uint32 total;
 	int secs,mins,hour,days,mons,year;
-	uchar data[7];
+	char data[7];
 
 	rtc_get(data);
 

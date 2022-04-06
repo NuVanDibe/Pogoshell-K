@@ -60,6 +60,18 @@ void memory_free_context(int context);
 void Halt(void);
 void set_ram_start(int i);
 
+typedef struct
+{
+	char *name;
+	unsigned char uid;
+} User;
+
+typedef struct
+{
+	int usercount;
+	User **users;
+} UserList;
+
 typedef uint32 time_t;
 #define CLOCKS_PER_SEC 50
 int clock(void);

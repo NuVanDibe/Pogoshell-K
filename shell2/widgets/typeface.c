@@ -20,7 +20,7 @@ Typeface *typeface_new(Font *font, uchar global)
 void typeface_set_attribute(Typeface *tf, int attr, void *val)
 {
 	Color c;
-	int i, n = attr & 0xf;
+	int n = attr & 0xf;
 	uint32 l;
 
 	switch(attr & 0xFFF0)

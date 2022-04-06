@@ -168,7 +168,7 @@ static int rf_read(int fd, void *dest, int size)
 	rsize = rf->size & 0x7fffffff;
 
 	/* Get ptr to current pos in ROM */
-	uchar *p = &((uchar *)rootdir)[rf->start + f->pos];
+	char *p = &rootdir[rf->start + f->pos];
 	if(f->pos + size > rsize)
 		size = (rsize - f->pos);
 	if(size) {
@@ -200,7 +200,7 @@ static int rf_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
 	}
 
 	/* Get ptr to current pos in ROM */
-	rf = &((uchar *)rootdir)[rf->start + f->pos];
+	rf = (Romfile *) &rootdir[rf->start + f->pos];
 	if (f->pos + sizeof(Romfile) > rsize) {
 		*result = NULL;
 		return 0;

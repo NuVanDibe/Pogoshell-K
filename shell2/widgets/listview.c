@@ -39,22 +39,63 @@ static void draw_gradient(ListView *lv, Rect *r, uint16 *dst, BitMap *bm)
 	int i, j, l;
 	int dh;
 	uint16 gdcol;
-	Color c, *cp;
+	Color col, *colptr;
 
-	dh = l = 0;
-	for (i = 0; i < r->h; i++)
-	{
-		cp = lv->associatecolors[l];
-		c = (cp) ? *cp : lv->textcolor[0];
-		gdcol = TO_RGB16(c);
-		for (j = 0; j < lv->gradientwidth; j++)
-			*dst++ = gdcol;
-		dh += lv->lines;
-		while (dh >= r->h) {
-			l++;
-			dh -= r->h;
+	if (lv->gradientstyle == SIMPLE) {
+		dh = l = 0;
+		for (i = 0; i < r->h; i++)
+		{
+			colptr = lv->associatecolors[l];
+			col = (colptr) ? *colptr : lv->textcolor[0];
+			gdcol = TO_RGB16(col);
+			for (j = 0; j < lv->gradientwidth; j++)
+				*dst++ = gdcol;
+			dh += lv->lines;
+			while (dh >= r->h) {
+				l++;
+				dh -= r->h;
+			}
+			dst += (bm->width - lv->gradientwidth);
 		}
-		dst += (bm->width - lv->gradientwidth);
+	} else if (lv->gradientstyle == GRADIENT) {
+		Color col2;
+		int x;
+		uint16 c0, c1, c2, d0, d1, d2;
+
+		dh = 0;
+		colptr = lv->associatecolors[0];
+		col = (colptr) ? *colptr : lv->textcolor[0];
+
+		for (i = 0; i < lv->lines; i++)
+		{
+			x = 0;
+			dh += r->h;
+			while (dh >= lv->lines) {
+				x++;
+				dh -= (lv->lines);
+			}
+			if (x) {
+				colptr = lv->associatecolors[i];
+				col2 = (colptr) ? *colptr : lv->textcolor[0];
+				c0 = col.b << 7;
+				c1 = col.g << 2;
+				c2 = col.r << 2;
+				d0 = ((col2.b - col.b) << 7) / x;
+				d1 = ((col2.g - col.g) << 2) / x;
+				d2 = ((col2.r - col.r) << 2) / x;
+
+				while (x--) {
+					gdcol = (c0 & 0x7c00) | (c1 & 0x03e0) | ((c2 >> 5) & 0x1f);
+					c0 += d0;
+					c1 += d1;
+					c2 += d2;
+					for (j = 0; j < lv->gradientwidth; j++)
+						*dst++ = gdcol;
+					dst += (bm->width - lv->gradientwidth);
+				}
+				col = col2;
+			}
+		}
 	}
 }
 
@@ -124,7 +165,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	r->y += lv->marginy;
 
-	if (lv->columns == 2) {
+	if (lv->columns == 2 && lv->gradientstyle) {
 		if (lv->gradientwidth &&
 			(lv->gradientalign == ALIGN_LEFT || lv->gradientalign == ALIGN_RIGHT))
 		{	
@@ -148,7 +189,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 			lv->colwidth[0] += lv->scrollbar->addleft;
 			lv->colwidth[1] += lv->scrollbar->addright;
 		}
-		if (lv->gradientwidth && lv->gradientalign == ALIGN_CENTER)	{	
+		if (lv->gradientstyle && lv->gradientwidth && lv->gradientalign == ALIGN_CENTER)	{	
 			lv->colwidth[0] -= lv->gradientwidth/2;
 			lv->colwidth[1] -= (lv->gradientwidth - lv->gradientwidth/2);
 			dst = (uint16 *) bm->pixels + r->y * bm->width + r->x;
@@ -163,7 +204,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	if(!lv->lines) {
 		if (lv->columns == 2) {
-			if (lv->gradientwidth) {
+			if (lv->gradientstyle && lv->gradientwidth &&
+				(lv->gradientalign == ALIGN_LEFT || lv->gradientalign == ALIGN_RIGHT || lv->gradientalign == ALIGN_CENTER)) {
 				lv->colwidth[0] += lv->gradientwidth/2;
 				lv->colwidth[1] += (lv->gradientwidth - lv->gradientwidth/2);
 			}
@@ -179,7 +221,6 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	}
 
 	dst = (uint16 *)bm->pixels + (r->x + lv->iconw + lv->marginx) + (r->y + fonty) * bm->width ;
-
 
 //	fprintf(stderr, "%d / %d = %d\n", r->h, lv->lineh, lv->showing);
 
@@ -231,16 +272,16 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 						bitmap_backbox(bm, &r2, TO_RGB16(c), c.a - 0x80);
 				} else
 					bitmap_fillbox(bm, &r2, TO_RGB16(c));
-				c = (cp) ? *cp : lv->textcolor[2];
+				c = (cp && (lv->associatestyle & COLORHIGHLIGHT)) ? *cp : lv->textcolor[2];
 				font_setcolor(TO_RGB16(c), TO_RGB16(lv->textcolor[3]));	
 			} else {
-				c = (cp) ? *cp : lv->textcolor[0];
+				c = (cp && (lv->associatestyle & COLORTEXT)) ? *cp : lv->textcolor[0];
 				font_setcolor(TO_RGB16(c), 0x0000);	
 			}
 			for(j=0; j<lv->columns; j++)
 			{
 				if (lv->colwidth[j]) {
-					drawwidth = (i == lv->marked) ? freewidth : lv->colwidth[j];
+					drawwidth = (i == lv->marked || (lv->truncatestyle == FULL)) ? freewidth : lv->colwidth[j];
 					if (lv->colalign[j] == ALIGN_LEFT) {
 						l = font_text_truncate(f, lv->texts[j][i], d, bm->width, drawwidth);
 					} else {
@@ -260,7 +301,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	}
 
 	if (lv->columns == 2) {
-		if (lv->gradientwidth) {
+		if (lv->gradientwidth &&
+			(lv->gradientalign == ALIGN_LEFT || lv->gradientalign == ALIGN_RIGHT || lv->gradientalign == ALIGN_CENTER)) {
 			lv->colwidth[0] += lv->gradientwidth/2;
 			lv->colwidth[1] += (lv->gradientwidth - lv->gradientwidth/2);
 		}
@@ -348,6 +390,23 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		lv->scrollbar = (Scrollbar *)val;
 		lv->w.flags |= WFLG_REDRAW;
 		break;
+	case WATR_STYLE:
+		switch (n)
+		{
+			case ASSOCIATESTYLE:
+				lv->associatestyle = (int)val;
+				//fprintf(stderr, "asociatestyle: %d\n", lv->associatestyle);
+				break;
+			case TRUNCATESTYLE:
+				lv->truncatestyle = (int)val;
+				break;
+			case GRADIENTSTYLE:
+			default:
+				lv->gradientstyle = (int)val;
+				break;
+		}
+		lv->w.flags |= WFLG_REDRAW;
+		break;
 	case WATR_MARGIN:
 		if((attr & 0xF) == 0)
 			lv->marginx = (int)val;
@@ -402,6 +461,7 @@ ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf)
 	lv->marginy = 0;
 
 	lv->w.type = WIDGET_LISTVIEW;
+	lv->w.flags = WFLG_REDRAW;
 
 	lv->typeface = tf;
 
@@ -417,7 +477,6 @@ ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf)
 	p[0] = 0x01000000;
 	p[2] = 0x00FFFFFF;
 	p[3] = 0x00FF0000;
-
 
 	lv->iconw = 0;
 
@@ -447,6 +506,9 @@ ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf)
 
 	lv->columns = columns;
 
+	lv->associatestyle = COLORTEXT;
+	lv->truncatestyle = TRUNCATE;
+
 	lv->dirty = 0xFF;
 
 	lv->scrollbar = NULL;
@@ -455,6 +517,7 @@ ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf)
 
 	lv->gradientwidth = 2;
 	lv->gradientalign = ALIGN_RIGHT;
+	lv->gradientstyle = SIMPLE; 
 
 	return lv;
 

@@ -50,7 +50,7 @@ typedef struct {
 	int (*readdir_r)(DIR *dir, struct dirent *entry, struct dirent **result);
 } Device;
 
-int device_register(Device *dev, char *name, volatile void (*irqfunc)(void), int fd);
+int device_register(Device *dev, char *name, void (*irqfunc)(void), int fd);
 
 int open(const char *name, int flags);
 int read(int fd, void *dest, int size);
@@ -101,14 +101,15 @@ void execv_jump(const char *cmdname, const char *const *argv, void *jump);
 /* SRAM ioctl commands */
 #define SR_SETUSER 20
 #define SR_GETUSER 21
-#define SR_FREESPACE 22
-
+#define SR_SETUSERLIST 22
+#define SR_GETUSERLIST 23
+#define SR_FREESPACE 24
 
 /* ROM ioctl commands */
-#define RM_SETKEY 23
-#define RM_VERIFYKEY 24
-#define RM_GETKEY 25
-#define RM_ALREADYHIDDEN 26
+#define RM_SETKEY 25
+#define RM_VERIFYKEY 26
+#define RM_GETKEY 27
+#define RM_ALREADYHIDDEN 28
 
 /* Parameters */
 

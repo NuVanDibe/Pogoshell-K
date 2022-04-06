@@ -66,7 +66,7 @@ void print_memory(void)
 	while (block)
 	{
 		next_block = block->next;
-		fprintf(stderr, "%p (%d: %d)\n", block, block->size * 4 + sizeof(MemHead), (int) next_block - (int) block - block->size * 4 - sizeof(MemHead));
+		fprintf(stderr, "%p (%d: %d)\n", block, (block->size & 0x00ffffff) * 4 + sizeof(MemHead), (int) next_block - (int) block - (block->size & 0x00ffffff) * 4 - sizeof(MemHead));
 		block = next_block;
 	}
 }
@@ -109,7 +109,7 @@ void *memory_alloc(int alloc_size)
 	{
 		//mem_base = &__eheap_start;
 		//mem_size = (0x02040000 - (int)mem_base) / 4;
-		memory_init(&__iheap_start, ((int) &__iheap_end - (int) &__iheap_start) / 4);
+		memory_init(&__iheap_start, ((int) &__iheap_end - (int) &__iheap_start)>>2);
 	}
 	
 	if(!first_block)
@@ -119,7 +119,7 @@ void *memory_alloc(int alloc_size)
 		block = first_block = (MemHead *)mem_base;
 		block->next = 0;
 		block->size = alloc_size | context;
-		//fprintf(stderr, "%p = malloc(%d+%d)\n", block, block->size * 4, sizeof(MemHead));
+		//fprintf(stderr, "%p(%p) = malloc(%d+%d)\n", block, block->data, (block->size & 0x00FFFFFF) * 4, sizeof(MemHead));
 		return block->data;
 	}
 
@@ -131,13 +131,14 @@ void *memory_alloc(int alloc_size)
 		else
 			free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
 
-		if(free_after >= (alloc_size + 3))
+		if(free_after >= (alloc_size + 2))
 		{
 			newblock = (MemHead *)&block->data[block->size & 0x00FFFFFF];
 			newblock->next = block->next;
 			newblock->size = alloc_size | context;
 			block->next = newblock;
-			//fprintf(stderr, "%p = malloc(%d+%d)\n", newblock, newblock->size * 4, sizeof(MemHead));
+			//fprintf(stderr, "%p(%p) = malloc(%d+%d)\n", newblock, newblock->data, (newblock->size & 0x00FFFFFF) * 4, sizeof(MemHead));
+			//fprintf(stderr, "%p\n", newblock->data);
 			return newblock->data;
 		}
 
@@ -238,11 +239,14 @@ int memory_avail(void)
 		else
 			free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
 
+		if (free_after)
+			fprintf(stderr, "%p %d ", &block->data[block->size & 0x00FFFFFF], free_after);
 		if(free_after > largest_block)
 			largest_block = free_after;
 		free_total += free_after;
 		block = block->next;
 	}
+	fprintf(stderr, "\n");
 	return free_total;
 }
 
@@ -252,13 +256,13 @@ int memory_avail(void)
 
 void *malloc(int x)
 {
-	void *p = memory_alloc((x+3)/4);
+	void *p = memory_alloc((x+3)>>2);
 	return p;
 };
 
 void *realloc(void *p, int l)
 {
-	return memory_realloc(p, (l+3)/4);
+	return memory_realloc(p, (l+3)>>2);
 }
 
 void free(void *x)

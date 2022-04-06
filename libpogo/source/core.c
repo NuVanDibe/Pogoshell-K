@@ -76,8 +76,10 @@ void set_ram_start(int i)
 	}
 }
 
+void InterruptProcess(void) __attribute__ ((noinline));
+
 /* Must be called by IRQ-handler (in crt0.S) */
-volatile void InterruptProcess(void)
+void InterruptProcess(void)
 {
 	int i = GETW(REG_IF);
 	if(i & V_COUNT_INTR_FLAG)
@@ -135,7 +137,7 @@ extern void device_init(void);
 int start_keys = 0;
 
 /* Startup code (core init) */
-volatile void __gccmain(void)
+void __gccmain(void)
 {
 	int i;
 	int keys = 0x3FF;
@@ -187,7 +189,7 @@ void AgbMain(void)
 
 	__gccmain();
 
-	char *p = (uchar *)(0x02000000 + 255 * 1024 + 8);
+	char *p = (char *)(0x02000000 + 255 * 1024 + 8);
 	uint32 *p2 = (uint32 *)(0x02000000 + 255 * 1024);
 
 	//_dprintf("val is %x from %p\n", p2[0], p2);

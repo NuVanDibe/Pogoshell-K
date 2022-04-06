@@ -15,7 +15,7 @@ typedef struct _OldSRamFile
 int sram_convert(void)
 {
 	char id[8];
-	uchar *ptr = (uchar *)0x02000000;
+	char *ptr = (char *)0x02000000;
 	OldSRamFile sfile;
 	OldSRamFile *f;
 	int count = 0;
@@ -27,12 +27,12 @@ int sram_convert(void)
 	for(bank=1; bank<4; bank++)
 	{
 		set_ram_start(bank);
-		memcpy8(id, (uchar *)0x0E000000, 8);
+		memcpy8(id, (char *)0x0E000000, 8);
 		id[7] = 0;
 		//fprintf(2, "BANK %d: %s\n", bank, id);
 		if(strcmp(id, "MINSF2") == 0)
 		{
-			memcpy8(&f, (uchar *)0x0E000008, 4);
+			memcpy8(&f, (char *)0x0E000008, 4);
 
 			while(f)
 			{
@@ -54,7 +54,7 @@ int sram_convert(void)
 	if(count)
 	{
 		char name[40];
-		ptr = (uchar *)0x02000000;
+		ptr = (char *)0x02000000;
 
 		sram_init();
 		strcpy(name, "/sram/");

@@ -9,10 +9,10 @@
 // JPEG functions
 
 extern int bytes_left;
-extern const unsigned char *rewind_point;
+extern const char *rewind_point;
 
 /* Converts left-to-right coefficient indices into zig-zagged indices. */
-const unsigned char ToZigZag [JPEG_DCTSIZE2] =
+const char ToZigZag [JPEG_DCTSIZE2] =
 {
     0, 1, 8, 16, 9, 2, 3, 10,
     17, 24, 32, 25, 18, 11, 4, 5,
@@ -27,7 +27,7 @@ const unsigned char ToZigZag [JPEG_DCTSIZE2] =
 /* This converts values in the range [-32 .. 32] to [0 .. 32] by clamping
  * values outside of that range.  To use it, add 32 to your input.
  */
-const unsigned char ComponentRange [32 * 3] =
+const char ComponentRange [32 * 3] =
 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
@@ -53,7 +53,7 @@ const unsigned char ComponentRange [32 * 3] =
 CODE_IN_IWRAM void ConvertBlock (
     signed char *YBlock, signed char *CbBlock, signed char *CrBlock,
     int YHorzFactor, int YVertFactor, int CbHorzFactor, int CbVertFactor, int CrHorzFactor, int CrVertFactor, int horzMax, int vertMax,
-    char M211, volatile JPEG_OUTPUT_TYPE *out, int bx, int by, int outStride, int outHeight, const unsigned char *ComponentRange)
+    char M211, volatile JPEG_OUTPUT_TYPE *out, int bx, int by, int outStride, int outHeight, const char *ComponentRange)
 {
     int px, py;
     
@@ -265,11 +265,11 @@ CODE_IN_IWRAM void IDCT_Rows (const JPEG_FIXED_TYPE *zz, signed char *chunk, int
 CODE_IN_IWRAM void DecodeCoefficients (
     JPEG_FIXED_TYPE *dcLast, JPEG_FIXED_TYPE *zz, JPEG_FIXED_TYPE *quant,
     JPEG_HuffmanTable *dcTable, JPEG_HuffmanTable *acTable,
-    const unsigned char **dataBase, unsigned int *bitsLeftBase,
-    unsigned long int *bitsDataBase, const unsigned char *toZigZag)
+    const char **dataBase, unsigned int *bitsLeftBase,
+    unsigned long int *bitsDataBase, const char *toZigZag)
 {
     unsigned bits_left = *bitsLeftBase, bits_data = *bitsDataBase; /* Input stream state. */
-    const unsigned char *data = *dataBase; /* Input stream state. */
+    const char *data = *dataBase; /* Input stream state. */
     int r, s; /* Various temporary data variables. */
     int index = 1; /* The current zig-zagged index. */
     
@@ -290,7 +290,7 @@ CODE_IN_IWRAM void DecodeCoefficients (
     
     /* Store the DC coefficient. */
     *dcLast += s;
-    zz [toZigZag [0]] = *dcLast * quant [0];
+    zz [(int) toZigZag [0]] = *dcLast * quant [0];
 
     while (1)
     {
@@ -307,7 +307,7 @@ CODE_IN_IWRAM void DecodeCoefficients (
             JPEG_Value (s, r);
 			if (index < 0 || index > JPEG_DCTSIZE2 - 1)
 				break;
-            zz [toZigZag [index]] = r * quant [index];
+            zz [(int) toZigZag [index]] = r * quant [index];
             if (index == JPEG_DCTSIZE2 - 1)
                 break;
             index ++;
@@ -385,6 +385,10 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 	int dx, dy;
 	int mw, mh;
 	int shift, l, m;
+
+	s2 = s3 = s4 = NULL;
+
+	dh2 = dw2i = 0;
 
 	shift = (toshift && (mode || (scale < 0))) ? 1 : 0;
 

@@ -20,7 +20,9 @@ typedef struct
 	uint16 marginr;
 	uint16 marginu;
 	uint16 margind;
-	uint16 align;
+	uint16 marginlistx;
+	uint16 marginlisty;
+	uint16 align[2];
 	Typeface *typeface;
 	Color textcolor[4];
 

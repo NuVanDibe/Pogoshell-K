@@ -112,7 +112,6 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 			}
 			tb->w.flags |= WFLG_REDRAW;
 		}
-		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_FONT:
 		if (!tb->typeface->global) {
@@ -137,7 +136,6 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 			tb->align = (int)val;
 			tb->w.flags |= WFLG_REDRAW;
 		}
-		tb->w.flags |= WFLG_REDRAW;
 		break;
 	//case WATR_NAME:
 	//	strcpy(tb->w.name, (char *)val);

@@ -14,11 +14,11 @@ const
 void bmp_view_joint(char *fname, int decompression);
 
 //static unsigned short bmp_colors[256];
-static unsigned char *bmp_ptr;
+static char *bmp_ptr;
 static int bmp_h;
 static int bmp_w;
 static int bmp_bpp;
-static unsigned char *bmp_cols;
+static char *bmp_cols;
 const unsigned char *gammatabs[4] = {0, gammatab75, gammatab55, gammatab25};
 
 #define BG_PALRAM ((uint16*)0x05000000)
@@ -31,13 +31,13 @@ void set_gamma(int level)
 	for(i=0; i<256; i++)
 	{
 		if(level)
-			BG_PALRAM[i] = (gamma[bmp_cols[i*4]]<<10) | (gamma[bmp_cols[i*4+1]]<<5) | (gamma[bmp_cols[i*4+2]]);
+			BG_PALRAM[i] = (gamma[(int) bmp_cols[i*4]]<<10) | (gamma[(int) bmp_cols[i*4+1]]<<5) | (gamma[(int) bmp_cols[i*4+2]]);
 		else
 			BG_PALRAM[i] = ((bmp_cols[i*4]&0xf8)<<7) | ((bmp_cols[i*4+1]&0xf8)<<2) | ((bmp_cols[i*4+2]&0xf8)>>3);
 	}
 }
 
-void prepare_bmp(unsigned char *ptr, uint16 *colors)
+void prepare_bmp(char *ptr, uint16 *colors)
 {
 	int i,size, sfd;
 
@@ -78,7 +78,7 @@ void set_palette(uint16 *colors, int fader)
 void render_bmp(int x, int y, int scalex, int scaley)
 {
 	int wi;
-	unsigned char *src;
+	char *src;
 	unsigned short *dst, *s16;
 
 	int w = MIN(bmp_w, 240);
@@ -188,7 +188,7 @@ void bmp_view_joint(char *fname, int decompression)
 		*p++ = 0;
 
 	pfree();
-	uchar *bmp = file2mem(fname, pmalloc(120*1024), 120*1024, decompression);
+	char *bmp = file2mem(fname, pmalloc(120*1024), 120*1024, decompression);
 
 	prepare_bmp(bmp, NULL);
 

@@ -1,2 +1,2 @@
 
-int depack(unsigned char *source, unsigned char *destination);
+int depack(const char const *source, char *destination);

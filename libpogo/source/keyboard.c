@@ -70,8 +70,10 @@ static int vkey_read(int fd, char *dest, int count)
 	return org-count;
 }
 
+static void vkey_update(void) __attribute__ ((noinline));
+
 /* Call every frame */
-static volatile void vkey_update(void)
+static void vkey_update(void)
 {
 	int diff,i;
 	int keys;

@@ -82,7 +82,7 @@ int rtc_check(void)
 	return (check_val != 0);
 }
 
-int rtc_get(uchar *data)
+int rtc_get(char *data)
 {
 	int i;
 
@@ -110,12 +110,12 @@ int rtc_get(uchar *data)
 	*RTC_RW = 5;
 
 	for(i=0; i<4; i++)
-		data[i] = (uchar)rtc_read();
+		data[i] = (char)rtc_read();
 	
 	*RTC_RW = 5;
 
 	for(i=4; i<7; i++)
-		data[i] = (uchar)rtc_read();
+		data[i] = (char)rtc_read();
 
 	return 0;
 }

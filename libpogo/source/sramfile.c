@@ -23,6 +23,7 @@
 
 #define PACKED __attribute__ ((packed))
 #include "core.h"
+#include "io.h"
 #include "device.h"
 #include "gba_defs.h"
 #include "sram_access.h"
@@ -32,9 +33,9 @@
 typedef struct _SRamFile
 {
 	struct _SRamFile *next;
-	uchar name[32];
+	char name[32];
 	uchar flags;
-	uchar user;
+	char user;
 	uint32 length;
 #ifdef WITH_TIME
 	uint32 time;
@@ -45,6 +46,7 @@ typedef struct
 {
 	SRamFile *file;
 	uint32 pos;
+	signed char user;
 	uint16 flags;
 } OpenFile;
 
@@ -71,7 +73,8 @@ extern int sram_size;
 static int openCount = 0;
 static OpenFile openFiles[MAX_OPENFILE_COUNT];
 
-static uchar user;
+static signed char user;
+static UserList *userlist = NULL;
 
 /*
 void sram_setuser(int x)
@@ -90,9 +93,55 @@ int sram_getuser(void)
 
 static int free_space(void);
 
-static SRamFile *find_prev_file(const uchar *name)
+static signed char sram_root_to_user(const char *name, const char **new_name)
 {
-	unsigned char fuser = 0;
+	const char *oldname, *orgname;
+	int i;
+
+	orgname = name;
+
+	while(*name == '/')
+		name++;
+
+	oldname = name;
+	while(*name && *name != '/') name++;
+
+	if (*name == '/') {
+		if (userlist) {
+			for (i = 0; i < userlist->usercount; i++)
+			{
+				if (!memcmp(userlist->users[i]->name, oldname, name-oldname))
+				{
+					while(*name == '/')
+						name++;
+					*new_name = name;
+					return userlist->users[i]->uid;
+				}
+			}
+		}
+		*new_name = NULL;
+		return -1;
+	}
+
+	if (userlist) {
+		for (i = 0; i < userlist->usercount; i++)
+		{
+			if (!memcmp(userlist->users[i]->name, oldname, name-oldname))
+			{
+				while(*name == '/')
+					name++;
+				*new_name = name;
+				return userlist->users[i]->uid;
+			}
+		}
+	}
+	*new_name = orgname;
+	return 0;
+}
+
+static SRamFile *find_prev_file(const char *name)
+{
+	char fuser = 0;
 	SRamFile *f, *lastf = NULL, *match = NULL;
 	
 	f = first;
@@ -106,17 +155,15 @@ static SRamFile *find_prev_file(const uchar *name)
 			dprint(tmp);
 		}*/
 
-		if(user)
-			sram_memcpy(&fuser, &f->user, 1);
-
+		sram_memcpy(&fuser, &f->user, 1);
 
 		if(sram_strcmp(f->name, name) == 0)
 		{
-			if(user == fuser)
+			if (user == fuser)
 				return lastf;
 
-			if(!(user && fuser))
-				match = lastf;
+			/*if(!(user && fuser))
+				match = lastf;*/
 		}
 
 		lastf = f;
@@ -128,7 +175,7 @@ static SRamFile *find_prev_file(const uchar *name)
 
 
 /* Create a new empty file and make it the gapfile */
-static SRamFile *create_file(const uchar *name)
+static SRamFile *create_file(const char *name)
 {
 	int l;
 	int zero = 0;
@@ -316,7 +363,7 @@ static void print_sys(void)
 }
 */
 
-static int sram_stat(const uchar *name, struct stat *buffer)
+static int sram_stat_by_user(const char *name, struct stat *buffer)
 {
 	int l;
 	SRamFile *f, *lastf;
@@ -355,8 +402,30 @@ static int sram_stat(const uchar *name, struct stat *buffer)
 	return -1;
 }
 
+static int sram_stat(const char *name, struct stat *buffer)
+{
+	if (user)
+		return sram_stat_by_user(name, buffer);
+
+	int ret;
+	const char *new_name;
+
+	user = sram_root_to_user(name, &new_name);
+
+	if (user < 0) {
+		user = 0;
+		return -1;
+	}
+
+	ret = sram_stat_by_user(new_name, buffer);
+	user = 0;
+
+	return ret;
+}
+
+
 /* Open a file (creating a new file if necessary */
-static int sram_open(const char *name, int mode)
+static int sram_open_by_user(const char *name, int mode)
 {
 	SRamFile *lastf = NULL;
 	SRamFile *f;
@@ -365,12 +434,14 @@ static int sram_open(const char *name, int mode)
 	while(*name == '/')
 		name++;
 
+
 	if(!*name)
 	{
 		/* Empty name means read filelist */
 		OpenFile *of = &openFiles[openCount++];
 		of->file = 0;
 		of->pos = (uint32)f;
+		of->user = user;
 		of->flags = 0;
 		return openCount-1;
 	}
@@ -399,6 +470,33 @@ static int sram_open(const char *name, int mode)
 	}
 
 	return -1;
+}
+
+static int sram_open(const char *name, int mode)
+{
+	if (user)
+		return sram_open_by_user(name, mode);
+
+	int ret;
+	const char *new_name;
+
+	user = sram_root_to_user(name, &new_name);
+
+	if (user < 0) {
+		user = 0;
+		return -1;
+	}
+
+	if (name == new_name) {
+		while (*name == '/') name++;
+		if (!*name)
+			user = -1;
+	}
+
+	ret = sram_open_by_user(new_name, mode);
+	user = 0;
+
+	return ret;
 }
 
 static int sram_write(int fd, const void *src, int size)
@@ -434,7 +532,7 @@ static int sram_write(int fd, const void *src, int size)
 		SET32(f->time, t);
 	}
 #endif
-	sram_memcpy(p, src, size);
+	sram_memcpy(p, (void *) src, size);
 	of->pos += size;
 	if(of->pos > l)
 		SET32(f->length, of->pos);
@@ -477,14 +575,14 @@ static int sram_read(int fd, void *dest, int size)
 	return size;
 }
 
-static int sram_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+static int sram_readdir_r_by_user(DIR *dir, struct dirent *entry, struct dirent **result)
 {
 	int fd = (int) dir;
 	unsigned char fuser = 0;
 	OpenFile *of = &openFiles[fd];
 	SRamFile *f = of->file;
 
-	if(f) {
+	if (f) {
 		*result = NULL;
 		return EBADF;
 	}
@@ -493,10 +591,9 @@ static int sram_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result
 	{
 		f = (SRamFile *)of->pos;
 
-		if(user)
-			sram_memcpy(&fuser, &f->user, 1);
+		sram_memcpy(&fuser, &f->user, 1);
 
-		if(!fuser || (user == fuser))
+		if (user == fuser)
 		{
 			sram_memcpy(entry->d_name, f->name, 32);
 			sram_memcpy(&entry->d_size, &f->length, 4);
@@ -512,6 +609,34 @@ static int sram_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result
 
 	*result = NULL;
 	return 0;
+}
+
+static int sram_readdir_r(DIR *dir, struct dirent *entry, struct dirent **result)
+{
+	if (user)
+		return sram_readdir_r_by_user(dir, entry, result);
+
+	int fd = (int) dir, ret;
+	OpenFile *of = &openFiles[fd];
+
+	user = of->user;
+
+	if (user < 0) {
+		if (-user - 1 < userlist->usercount) {
+			strcpy(entry->d_name, userlist->users[-user - 1]->name);
+			of->user--;
+			entry->d_size = 0x80000000;
+			*result = entry;
+		} else {
+			of->pos = NULL;
+			*result = NULL;
+		}
+		ret = 0;
+	} else
+		ret = sram_readdir_r_by_user(dir, entry, result);
+	user = 0;
+
+	return ret;
 }
 
 static int sram_lseek(int fd, int offset, int orgin)
@@ -583,7 +708,7 @@ static int sram_close(int fd)
 	return 0;
 }
 
-static int sram_remove(const char *name)
+static int sram_remove_by_user(const char *name)
 {
 	uint32 l;
 	SRamFile *lastf, *f, *sf;
@@ -604,7 +729,26 @@ static int sram_remove(const char *name)
 	return -1;
 }
 
+static int sram_remove(const char *name)
+{
+	if (user)
+		return sram_remove_by_user(name);
 
+	int ret;
+	const char *new_name;
+
+	user = sram_root_to_user(name, &new_name);
+
+	if (user < 0) {
+		user = 0;
+		return -1;
+	}
+
+	ret = sram_remove_by_user(new_name);
+	user = 0;
+
+	return ret;
+}
 
 /* Remove a file */
 /*
@@ -640,6 +784,8 @@ static int sram_remove(const char *name)
 
 static int sram_ioctl(int fd, int req, va_list vl)
 {
+	UserList **getuserlistptr;
+
 	switch(req)
 	{
 	case SR_GETUSER:
@@ -647,6 +793,15 @@ static int sram_ioctl(int fd, int req, va_list vl)
 		break;
 	case SR_SETUSER:
 		user = va_arg(vl, int);
+		return 0;
+		break;
+	case SR_GETUSERLIST:
+		getuserlistptr = va_arg(vl, UserList **);
+		*getuserlistptr = userlist;
+		return 0;
+		break;
+	case SR_SETUSERLIST:
+		userlist = va_arg(vl, UserList *);
 		return 0;
 		break;
 	}
@@ -685,7 +840,7 @@ void sram_init_old(void)
 		device_register(&sramdev, "/sram", NULL, -1);
 	}
 
-	if((start_keys != (U_KEY|L_BUTTON)) && (sram_strcmp(sramfile_mem, (uchar *)SRAM_HEAD) == 0))
+	if((start_keys != (U_KEY|L_BUTTON)) && (sram_strcmp((char *)sramfile_mem, (char *)SRAM_HEAD) == 0))
 	{
 		SET32(first, sramfile_mem[8]);
 		SET32(gap, sramfile_mem[12]);

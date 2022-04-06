@@ -17,6 +17,7 @@
 
 #include "cartlib.h"
 
+extern void SoftReset(unsigned char flags);
 
 typedef struct {
 	uint16 fd;
@@ -26,7 +27,7 @@ typedef struct {
 typedef struct {
 	Device *device;
 	char *name;
-	volatile void (*irqfunc)(void);
+	void (*irqfunc)(void);
 } RegDevice;
 
 #define MAX_DEVICE 8
@@ -74,7 +75,7 @@ static Device *dev_fromhandle(int *fd)
 	return dev;
 }
 
-int device_register(Device *dev, char *name, volatile void (*irqfunc)(void), int fd)
+int device_register(Device *dev, char *name, void (*irqfunc)(void), int fd)
 {
 	RegDevice *d = &deviceList[dev_count++];
 	d->name = name;

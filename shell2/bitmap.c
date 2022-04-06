@@ -454,6 +454,7 @@ BitMap *bitmap_readbm(FILE *fp)
 
 	if((mem = (uint16 *)fseek(fp, 0, SEEK_MEM)))
 	{
+		//fprintf(stderr, "bitmap_readbm(%p); // %p\n", fp, mem);
 		width = mem[2];
 		height = mem[3];
 		bm = malloc(sizeof(BitMap));
@@ -480,12 +481,17 @@ BitMap *bitmap_loadbm(char *name)
 {
 	BitMap *bm;
 	FILE *fp;
-	char tmp[80];
+	char tmp[128];
 	strcpy(tmp, GET_PATH(BITMAPS));
 	strcat(tmp, name);
 	//sprintf(tmp, ".shell/bitmaps/%s", name);
 	fp = fopen(tmp, "rb");
-	bm = bitmap_readbm(fp);
-	fclose(fp);
+	if (fp) {
+		//fprintf(stderr, "bitmap_loadbm(%s); // %d\n", tmp, fp);
+		bm = bitmap_readbm(fp);
+		fclose(fp);
+		//fprintf(stderr, "%p = bitmap_load(...);\n", bm);
+	} else
+		bm = bitmap_new(0, 0, BPP16 | DONT_ALLOC);
 	return bm;
 }

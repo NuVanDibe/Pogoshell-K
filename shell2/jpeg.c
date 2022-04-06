@@ -67,7 +67,7 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride)
 #endif
 
 int bytes_left;
-unsigned char *rewind_point;
+char *rewind_point;
 
 #define decoder_value (0x02040000-sizeof(JPEG_Decoder))
 JPEG_Decoder * decoder;
@@ -88,7 +88,7 @@ JPEG_HuffmanTable * dcTableList;
 /* Takes information discovered in JPEG_Decoder_ReadHeaders and loads the
  * image.  This is a public function; see gba-jpeg.h for more information on it.
  */
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight)
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const char **dataBase, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight)
 {
     JPEG_FrameHeader *frame = &decoder->frame; /* Pointer to the image's frame. */
     JPEG_ScanHeader *scan = &decoder->scan; /* Pointer to the image's scan. */
@@ -103,7 +103,7 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
     int horzShift = 0; /* The right shift to use after multiplying by nHorzFactor to get the actual sample. */
     int vertShift = 0; /* The right shift to use after multiplying by nVertFactor to get the actual sample. */
     char M211 = 0; /* Whether this scan satisfies the 2:1:1 relationship, which leads to faster code. */
-    const unsigned char *data = *dataBase; /* The input data pointer; this must be right at the start of scan data. */
+    const char *data = *dataBase; /* The input data pointer; this must be right at the start of scan data. */
    
 	signed char blockBase [JPEG_DCTSIZE2 * JPEG_MAXIMUM_SCAN_COMPONENT_FACTORS]; /* Blocks that have been read and are alloted to YBlock, CbBlock, and CrBlock based on their scaling factors. */ 
     signed char *YBlock; /* Y component temporary block that holds samples for the MCU currently being decompressed. */
@@ -140,7 +140,7 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
             /* Decompress the DC table if necessary. */
             if (sc->dcTable != dcTableUse [0] && sc->dcTable != dcTableUse [1])
             {
-                const unsigned char *tablePointer = decoder->dcTables [sc->dcTable];
+                const char *tablePointer = decoder->dcTables [(int) sc->dcTable];
                 
                 if (dcTableUse [0] == -1)
                     dcTableUse [0] = sc->dcTable, JPEG_HuffmanTable_Read (&dcTableList [0], &tablePointer);
@@ -153,7 +153,7 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
             /* Decompress the AC table if necessary. */
             if (sc->acTable != acTableUse [0] && sc->acTable != acTableUse [1])
             {
-                const unsigned char *tablePointer = decoder->acTables [sc->acTable];
+                const char *tablePointer = decoder->acTables [(int) sc->acTable];
                 
                 if (acTableUse [0] == -1)
                     acTableUse [0] = sc->acTable, JPEG_HuffmanTable_Read (&acTableList [0], &tablePointer);
@@ -268,7 +268,7 @@ int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **dataBas
                 JPEG_ScanHeader_Component *sc = &scan->componentList [c];
                 JPEG_FrameHeader_Component *fc = frameComponents [c];
                 JPEG_HuffmanTable *dcTable, *acTable;
-                JPEG_FIXED_TYPE *quant = decoder->quantTables [fc->quantTable];
+                JPEG_FIXED_TYPE *quant = decoder->quantTables [(int) fc->quantTable];
                 int stride = fc->horzFactor * JPEG_DCTSIZE;
                 signed char *chunk = 0;
                 
@@ -342,9 +342,9 @@ finish:
 /* Read an JPEG_Marker_SOFn marker into frame.  This expects to start
  * processing immediately after the marker.
  */
-int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const unsigned char **dataBase, JPEG_Marker marker)
+int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const char **dataBase, JPEG_Marker marker)
 {
-    const unsigned char *data = *dataBase;
+    const char *data = *dataBase;
     unsigned short length = (data [0] << 8) | data [1];
     int index;
 
@@ -373,7 +373,7 @@ int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const unsigned char **dataBa
     for (index = 0; index < frame->componentCount; index ++)
     {
         JPEG_FrameHeader_Component *c = &frame->componentList [index];
-        unsigned char pair;
+        char pair;
         
         c->selector = *data ++;
         pair = *data ++;
@@ -397,12 +397,12 @@ int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const unsigned char **dataBa
 /* Read a JPEG_Marker_SOS marker into scan.  This expects to start processing
  * immediately after the marker.
  */
-int JPEG_ScanHeader_Read (JPEG_ScanHeader *scan, const unsigned char **dataBase)
+int JPEG_ScanHeader_Read (JPEG_ScanHeader *scan, const char **dataBase)
 {
-    const unsigned char *data = *dataBase;
+    const char *data = *dataBase;
     unsigned short length = (data [0] << 8) | data [1];
     JPEG_ScanHeader_Component *c, *cEnd;
-    unsigned char pair;
+    char pair;
  
     (void) length;
     JPEG_Assert (length >= 6);
@@ -446,9 +446,9 @@ int JPEG_ScanHeader_Read (JPEG_ScanHeader *scan, const unsigned char **dataBase)
  * SOS marker.
  */
  
-int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataBase)
+int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const char **dataBase)
 {
-    const unsigned char *data = *dataBase;
+    const char *data = *dataBase;
     JPEG_Marker marker;
     int c;
  
@@ -489,13 +489,13 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataB
             case JPEG_Marker_DHT: /* Define Huffman table.  We just skip it for later decompression. */
             {
                 unsigned short length = (data [0] << 8) | data [1];
-                const unsigned char *end = data + length;
+                const char *end = data + length;
                 
                 JPEG_Assert (length >= 2);
                 data += 2;
                 while (data < end)
                 {
-                    unsigned char pair, type, slot;
+                    char pair, type, slot;
                     
                     pair = *data ++;
                     type = pair >> 4;
@@ -505,9 +505,9 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataB
                     JPEG_Assert (slot <= 15);
                     
                     if (type == 0)
-                        decoder->dcTables [slot] = data;
+                        decoder->dcTables [(int) slot] = data;
                     else
-                        decoder->acTables [slot] = data;
+                        decoder->acTables [(int) slot] = data;
                         
                     if (!JPEG_HuffmanTable_Skip (&data))
                         return 0;
@@ -520,7 +520,7 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataB
             case JPEG_Marker_DQT: /* Define quantization table. */
             {
                 unsigned short length = (data [0] << 8) | data [1];
-                const unsigned char *end = data + length;
+                const char *end = data + length;
                 int col, row;
                 JPEG_FIXED_TYPE *s;
                 
@@ -550,7 +550,7 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataB
                         {
                             JPEG_FIXED_TYPE *item = &s [col + row * JPEG_DCTSIZE];
                             
-                            *item = JPEG_FIXMUL (*item, JPEG_AANScaleFactor [ToZigZag [row * JPEG_DCTSIZE + col]]);
+                            *item = JPEG_FIXMUL (*item, JPEG_AANScaleFactor [(int) ToZigZag [row * JPEG_DCTSIZE + col]]);
                         }
                 }
                 
@@ -585,9 +585,9 @@ int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **dataB
 /* Skip past a Huffman table section.  This expects to be called after reading
  * the DHT marker and the type/slot pair.
  */
-int JPEG_HuffmanTable_Skip (const unsigned char **dataBase)
+int JPEG_HuffmanTable_Skip (const char **dataBase)
 {
-    const unsigned char *data = *dataBase;
+    const char *data = *dataBase;
     int c, total = 16;
     
     for (c = 0; c < 16; c ++)
@@ -599,12 +599,12 @@ int JPEG_HuffmanTable_Skip (const unsigned char **dataBase)
 /* Decode a Huffman table and initialize its data.  This expects to be called
  * after the DHT marker and the type/slot pair.
  */
-int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char **dataBase)
+int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const char **dataBase)
 {
-    const unsigned char *data = *dataBase;
-    const unsigned char *bits;
+    const char *data = *dataBase;
+    const char *bits;
     int huffcode [256];
-    unsigned char huffsize [256];
+    char huffsize [256];
     int total = 0;
     int c;
     
@@ -702,7 +702,7 @@ int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *huffmanTable, const unsigned char
 /* Perform the two steps necessary to decompress a JPEG image.
  * Nothing fancy about it.
  */
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight)
+int JPEG_DecompressImage (const char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight)
 {
 	int space_left;
 
@@ -711,7 +711,7 @@ int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int
 	dcTableList = pmalloc(sizeof(JPEG_HuffmanTable)*2);
 
 	space_left = pmemory_free();
-	fprintf(stderr, "space left: %d\n", space_left);
+	//fprintf(stderr, "space left: %d\n", space_left);
 
     // Clear memory.
     /*for (i = 0; i < 64*1024; i++)
@@ -752,7 +752,7 @@ int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int
  * SOFn.
  */
  
-int JPEG_Match (const unsigned char *data)
+int JPEG_Match (const char *data)
 {
     if (data [0] != 0xFF) return 0;
     if (data [1] != 0xD8) return 0;

@@ -11,11 +11,11 @@ extern char *clipboard;
 
 void set_ram_start(int i);
 
-void rle_unpack(uchar *src, uchar *dest, int size)
+void rle_unpack(char *src, char *dest, int size)
 {
 	int count, rep_char;
-	uchar *dst = dest;
-	uchar *s = src+size;
+	char *dst = dest;
+	char *s = src+size;
 
 	while(src < s)
 	{
@@ -31,12 +31,12 @@ void rle_unpack(uchar *src, uchar *dest, int size)
 	}
 }
 
-int rle_pack(uchar *src, uchar *dest, int size)
+int rle_pack(char *src, char *dest, int size)
 {
 	int count, rep_char;
-	uchar *cpos;
-	uchar *dst = dest;
-	uchar *s = src + size;
+	char *cpos;
+	char *dst = dest;
+	char *s = src + size;
 
 	while(src < s)
 	{
@@ -66,18 +66,18 @@ int rle_pack(uchar *src, uchar *dest, int size)
 int save_rle(int fd, int bank)
 {
 	int count;
-	uchar *ptr = (uchar *)0x0E00FFFF;
+	char *ptr = (char *)0x0E00FFFF;
 
-	uchar *buf = clipboard;
+	char *buf = clipboard;
 
 	set_ram_start(bank);
-	while((ptr >= (uchar *)0x0E000000) && (ptr[0] == 0)) ptr--;
+	while((ptr >= (char *)0x0E000000) && (ptr[0] == 0)) ptr--;
 	count = (int)ptr - 0x0E000000 + 1;
 
 	if(!count)
 		return 0;
 
-	count = rle_pack((uchar *)0x0E000000, buf, count);
+	count = rle_pack((char *)0x0E000000, buf, count);
 
 	if(write(fd, buf, count) < 0)
 		count = -1;
@@ -90,13 +90,13 @@ int save_rle(int fd, int bank)
 int load_rle(int fd, int bank)
 {
 	int rc;
-	uchar *buf = clipboard;
+	char *buf = clipboard;
 	if(fd >= 0)
 	{
 		rc = read(fd, buf, 65536);
 		set_ram_start(bank);
 
-		rle_unpack(buf, (uchar *)0x0E000000, rc);
+		rle_unpack(buf, (char *)0x0E000000, rc);
 		return rc;
 	}
 	return 0;

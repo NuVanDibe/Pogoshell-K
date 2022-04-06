@@ -4,11 +4,11 @@
 
 void set_ram_start(int i);
 
-unsigned char srambuf[1024];
+char srambuf[1024];
 
 static char * const sram_mem = (char *)0x0E000000;
 
-void sram_read_bytes(char *sram_src, int size, void *dest)
+void sram_read_bytes(const char *sram_src, int size, void *dest)
 {
 	char *d;
 	int s;
@@ -60,13 +60,13 @@ void sram_read_bytes(char *sram_src, int size, void *dest)
 	}
 }
 
-void sram_write_bytes(char *sram_dest, int size, void *src)
+void sram_write_bytes(void *sram_dest, int size, void *src)
 {
 	char *s;
 	int d; 
 	int bank;
 
-	if(sram_dest < sram_mem)
+	if((char *) sram_dest < sram_mem)
 	{
 		if(size)
 			return (void)memcpy8(sram_dest, src, size);
@@ -122,18 +122,18 @@ void sram_strcpy(char *dest, const char *src)
 		sprintf(tmp, "SRAM %p\n", srambuf);
 		dprint(tmp);
 	}*/
-	sram_read_bytes((char *)src, 0, srambuf);
+	sram_read_bytes((void *) src, 0, srambuf);
 	sram_write_bytes(dest, 0, srambuf);
 }
 
-int sram_strcmp(const uchar *a, const uchar *b)
+int sram_strcmp(const char *a, const char *b)
 {
 	int l;
 
-	sram_read_bytes((char *)b, 0, &srambuf[512]);
+	sram_read_bytes((void *) b, 0, &srambuf[512]);
 	l = strlen(&srambuf[512]);
 	if (l < 512)
-		sram_read_bytes((char *)a, l+1, srambuf);
+		sram_read_bytes((void *) a, l+1, srambuf);
 	else
 		return -1;
 
@@ -155,8 +155,9 @@ void sram_memset(char *dest, int val, int len)
 	}
 }
 
-void sram_memmove(uchar *dest, uchar *src, int len)
+void sram_memmove(void *d, void *s, int len)
 {
+	char *src = s, *dest = d;
 	int l;
 
 	if(dest > src)
@@ -191,7 +192,7 @@ void sram_memmove(uchar *dest, uchar *src, int len)
 void sram_memcpy(void *d, void *s, int len)
 {
 	int l;
-	unsigned char *dest = d, *src = s;
+	char *dest = d, *src = s;
 
 	/*dprint("MEMCPY\n");
 	{
@@ -202,7 +203,7 @@ void sram_memcpy(void *d, void *s, int len)
 	while(len > 0)
 	{
 		l = ((len < 1024) ? len : 1024);
-		sram_read_bytes((char *)src, l, srambuf);
+		sram_read_bytes(src, l, srambuf);
 		sram_write_bytes(dest, l, srambuf);
 		len -= l;
 		src += l;

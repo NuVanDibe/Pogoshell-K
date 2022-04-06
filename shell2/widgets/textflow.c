@@ -11,7 +11,7 @@ int textflow_render(TextFlow *tb, Rect *org_r, BitMap *bm)
 	Rect cr = *org_r;
 	Rect *r = &cr;
 
-	int i;
+	int i, l;
 	uint16 *dst;
 	if(tb->w.flags & WFLG_REDRAW)
 	{
@@ -30,7 +30,14 @@ int textflow_render(TextFlow *tb, Rect *org_r, BitMap *bm)
 
 		for(i=0; i<tb->numlines; i++)
 		{
-			font_text(f, tb->textline[i], dst + (r->w - 2 - tb->textlength[i])/2, bm->width);
+			if (tb->align[0] == ALIGN_LEFT)
+				l = 0;
+			else if (tb->align[0] == ALIGN_RIGHT)
+				l = r->w - tb->textlength[i] - tb->marginl - tb->marginr;
+			else
+				l = (r->w - tb->textlength[i] - tb->marginl - tb->marginr)/2;
+			
+			font_text(f, tb->textline[i], dst + l, bm->width);
 			dst += (font_height(f) * bm->width);
 		}
 		font_setcolor(0, 0);
@@ -111,6 +118,12 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 			case 5:
 				tb->margind = (int) val;
 				break;
+			case 6:
+				tb->marginlistx = (int) val;
+				break;
+			case 7:
+				tb->marginlisty = (int) val;
+				break;
 			case 0:
 			default:
 				tb->marginl = tb->marginr = (int) val;
@@ -157,7 +170,6 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 					tb->w.width += tb->backdrop->border*2;
 				}
 			}
-
 			tb->w.flags |= WFLG_REDRAW;
 		}
 		break;
@@ -195,7 +207,7 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_ALIGN:
-		tb->align = (int)val;
+		tb->align[n&1] = (int)val;
 		tb->w.flags |= WFLG_REDRAW;
 		break;
 	default:
@@ -219,14 +231,15 @@ TextFlow *textflow_new(Font *font, int texlen)
 	tb->w.flags = WFLG_REDRAW;
 	tb->backdrop = NULL;
 	tb->text = malloc(texlen);
-	tb->marginl = tb->marginr = 2;
+	tb->marginlisty = tb->marginlistx = tb->marginl = tb->marginr = 2;
 	tb->marginu = tb->margind = 4;
 	tb->w.height = (font) ? font_height(font) : 0;
 	tb->w.height += tb->marginu + tb->margind;
 	tb->w.width = tb->marginl + tb->marginr;
 	strcpy(tb->text, "");
 	tb->typeface = typeface_new(font, 0);
-	tb->align = ALIGN_LEFT;
+	tb->align[0] = ALIGN_CENTER;
+	tb->align[1] = ALIGN_LEFT;
 	tb->numlines = 0;
 
 	return tb;

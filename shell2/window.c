@@ -24,7 +24,8 @@ int widget_render(Widget *w, Rect *r, BitMap *bm)
 
 Screen *screen_new()
 {
-	Screen *scr = malloc(sizeof(Screen));
+	Screen *scr;
+	scr = malloc(sizeof(Screen));
 	scr->firstWindow = scr->lastWindow = NULL;
 	scr->bitmap = bitmap_getscreen();
 	currentScreen = scr;
@@ -95,6 +96,7 @@ void window_setup(Window *w, Screen *scr, int x, int y, int width, int height)
 	w->height = height;
 	w->width = width;
 	w->parent = scr;
+	w->widget = NULL;
 	w->next = NULL;
 	w->backing = NULL; //bitmap_new(width, height, BPP16);
 

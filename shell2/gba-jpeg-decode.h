@@ -65,21 +65,21 @@ typedef struct JPEG_ScanHeader_Component JPEG_ScanHeader_Component;
 /** A huffman table. */
 struct JPEG_HuffmanTable
 {
-    const unsigned char *huffval; /**< Pointer to values in the table (256 entries). */
+    const char *huffval; /**< Pointer to values in the table (256 entries). */
     int maxcode [17]; /**< The maximum code for each length - 1. */
-    const unsigned char *valptr [16]; /**< Items are subtracted by mincode and then indexed into huffval. */
+    const char *valptr [16]; /**< Items are subtracted by mincode and then indexed into huffval. */
     
-    unsigned char look_nbits [256]; /**< The lookahead buffer lengths. */
-    unsigned char look_sym [256]; /**< The lookahead buffer values. */
+    char look_nbits [256]; /**< The lookahead buffer lengths. */
+    char look_sym [256]; /**< The lookahead buffer values. */
 };
 
 /** An image component in the frame. */
 struct JPEG_FrameHeader_Component
 {
-    unsigned char selector; /**< Component identifier, must be unique amongst the identifiers (C). */
-    unsigned char horzFactor; /**< Horizontal sampling factor. */
-    unsigned char vertFactor; /**< Vertical sampling factor. */
-    unsigned char quantTable; /**< Quantization table destination selector. */
+    char selector; /**< Component identifier, must be unique amongst the identifiers (C). */
+    char horzFactor; /**< Horizontal sampling factor. */
+    char vertFactor; /**< Vertical sampling factor. */
+    char quantTable; /**< Quantization table destination selector. */
 };
 
 /** The frame header state. */
@@ -89,7 +89,7 @@ struct JPEG_FrameHeader
     int encoding; /**< 0 for Huffman coding, 1 for arithmetic coding. */
     char differential; /**< Differential (1) or non-differential (0). */
     
-    unsigned char precision; /**< Sample precision - precision in bits for the samples of the components in the frame. */
+    char precision; /**< Sample precision - precision in bits for the samples of the components in the frame. */
     unsigned short height; /**< Maximum number of lines in the source image, equal to the number of lines in the component with the maximum number of vertical samples.  0 indicates that the number of lines shall be defined by the DNL marker and parameters at the end of the first scan. */
     unsigned short width; /**< Number of samples per line in the source image, equal to the number of samples per line in the component with the maximum number of horizontal samples. */
     JPEG_FrameHeader_Component componentList [JPEG_MAXIMUM_COMPONENTS]; /**< Components. */
@@ -99,9 +99,9 @@ struct JPEG_FrameHeader
 /** A component involved in this scan. */
 struct JPEG_ScanHeader_Component
 {
-    unsigned char selector; /**< Selector index corresponding to one specified in the frame header (Csj). */
-    unsigned char dcTable; /**< DC entropy coding table destination selector (Tdj). */
-    unsigned char acTable; /**< AC entropy coding table destination selector (Taj). */
+    char selector; /**< Selector index corresponding to one specified in the frame header (Csj). */
+    char dcTable; /**< DC entropy coding table destination selector (Tdj). */
+    char acTable; /**< AC entropy coding table destination selector (Taj). */
 };
 
 /** Scan header state. */
@@ -109,17 +109,17 @@ struct JPEG_ScanHeader
 {
     JPEG_ScanHeader_Component componentList [JPEG_MAXIMUM_COMPONENTS]; /**< Components involved in this scan. */
     int componentCount; /**< Number of components involved in this scan. */
-    unsigned char spectralStart; /**< In DCT modes of operation, the first DCT coefficient in each block in zig-zag order which shall be coded in the scan (Ss).  For sequential DCT this is zero. */
-    unsigned char spectralEnd; /**< Specify the last DCT coefficient in each block in zig-zag order which shall be coded in the scan. */
-    unsigned char successiveApproximationBitPositionHigh; /**< (Ah). */
-    unsigned char successiveApproximationBitPositionLow; /**< (Al). */
+    char spectralStart; /**< In DCT modes of operation, the first DCT coefficient in each block in zig-zag order which shall be coded in the scan (Ss).  For sequential DCT this is zero. */
+    char spectralEnd; /**< Specify the last DCT coefficient in each block in zig-zag order which shall be coded in the scan. */
+    char successiveApproximationBitPositionHigh; /**< (Ah). */
+    char successiveApproximationBitPositionLow; /**< (Al). */
 };
 
 /** The complete decoder state. */
 struct JPEG_Decoder
 {
-    const unsigned char *acTables [4]; /**< The AC huffman table slots. */
-    const unsigned char *dcTables [4]; /**< The DC huffman table slots. */
+    const char *acTables [4]; /**< The AC huffman table slots. */
+    const char *dcTables [4]; /**< The DC huffman table slots. */
     JPEG_QuantizationTable quantTables [4]; /**< The quantization table slots. */
     unsigned int restartInterval; /**< Number of MCU in the restart interval (Ri). */
     JPEG_FrameHeader frame; /**< Current frame. */
@@ -194,7 +194,7 @@ no_more_bytes: \
 #define JPEG_BITS_DROP(COUNT) \
     (bits_left -= (COUNT))
 
-/** Read a single unsigned char from the current bit-stream by using the provided table. */
+/** Read a single char from the current bit-stream by using the provided table. */
 #define JPEG_HuffmanTable_Decode(TABLE, OUT) \
     do { \
         int bitcount, result; \
@@ -223,57 +223,57 @@ no_more_bytes: \
         (OUT) = result; \
     } while (0)
 
-//extern const unsigned char JPEG_ToZigZag [JPEG_DCTSIZE2]; /* Converts row-major indices to zig-zagged order. */
-extern const unsigned char JPEG_FromZigZag [JPEG_DCTSIZE2]; /* Converts zig-zagged indices to row-major order. */
+//extern const char JPEG_ToZigZag [JPEG_DCTSIZE2]; /* Converts row-major indices to zig-zagged order. */
+extern const char JPEG_FromZigZag [JPEG_DCTSIZE2]; /* Converts zig-zagged indices to row-major order. */
 extern const JPEG_FIXED_TYPE JPEG_AANScaleFactor [JPEG_DCTSIZE2]; /* AA&N scaling factors for quantisation in fixed point. */
-extern const unsigned char JPEG_ComponentRange [32 * 3]; /* A limited component clamp that keeps values in the 0..31 range if incremented by 32. */
+extern const char JPEG_ComponentRange [32 * 3]; /* A limited component clamp that keeps values in the 0..31 range if incremented by 32. */
 
 /** Return whether this data matches as a JPEG input stream.  You only need
   * to read four bytes.
   */
   
-int JPEG_Match (const unsigned char *data);
+int JPEG_Match (const char *data);
 
 /** Read a FrameHeader segment (SOFn) and store the new data pointer in
   * *data.  Returns true on success and false on failure (failure isn't
   * possible).
   */
 
-int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const unsigned char **data, JPEG_Marker marker);
+int JPEG_FrameHeader_Read (JPEG_FrameHeader *frame, const char **data, JPEG_Marker marker);
 
 /** Read a HuffmanTable segment (DHT) and store the new data pointer in
   * *data.  Returns true on success and false on failure (failure isn't
   * possible).
   */
   
-int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *table, const unsigned char **data);
+int JPEG_HuffmanTable_Read (JPEG_HuffmanTable *table, const char **data);
 
 /** Skip a HuffmanTable segment (DHT) and store the new data pointer in
   * *data on success.  Returns true on success and false on failure (failure
   * isn't possible).
   */
   
-int JPEG_HuffmanTable_Skip (const unsigned char **data);
+int JPEG_HuffmanTable_Skip (const char **data);
 
 /** Read a ScanHeader segment (SOS) and store the new data pointer in
   * *data.  Returns true on success and false on failure (failure isn't
   * possible).
   */
   
-int JPEG_ScanHeader_Read (JPEG_ScanHeader *scan, const unsigned char **data);
+int JPEG_ScanHeader_Read (JPEG_ScanHeader *scan, const char **data);
 
 /** Read all headers up to the start of the image and store the new data
   * pointer in *data.  Returns true on success and false on failure (failure
   * isn't possible).
   */
   
-int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const unsigned char **data);
+int JPEG_Decoder_ReadHeaders (JPEG_Decoder *decoder, const char **data);
 
 /** Read the entire image from the *data value and then store the new data pointer.
   * Returns true on success and false on failure (failure isn't possible).
   */
   
-int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const unsigned char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
+int JPEG_Decoder_ReadImage (JPEG_Decoder *decoder, const char **data, JPEG_OUTPUT_TYPE *out, int outWidth, int outHeight);
 
 /** Perform a 2D inverse DCT computation on the input.
   *
@@ -291,6 +291,6 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride);
   * failure (failure isn't possible).
   */
   
-int JPEG_DecompressImage (const unsigned char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight);
+int JPEG_DecompressImage (const char *data, JPEG_OUTPUT_TYPE **out, int *outWidth, int *outHeight);
 
 #endif /* GBA_IMAGE_JPEG_H */

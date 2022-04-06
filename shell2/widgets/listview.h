@@ -8,6 +8,11 @@
 
 #define MAPSLOTCOUNT ((MAX_FILE_COUNT+31)>>5)
 
+enum { FULL = 0, TRUNCATE = 1 };
+enum { NONE = 0, SIMPLE = 1, GRADIENT = 2 };
+enum { PLAIN = 0, COLORTEXT = 1, COLORHIGHLIGHT = 2, COLORBOTH = 3};
+enum { GRADIENTSTYLE = 0, TRUNCATESTYLE = 1, ASSOCIATESTYLE = 2};
+
 #define WIDGET_LISTVIEW 0x1003
 typedef struct
 {
@@ -34,8 +39,11 @@ typedef struct
 	uint16 colwidth[8];
 	uint16 colalign[8];
 
-	uint16 gradientwidth;
-	uint16 gradientalign;
+	uchar truncatestyle;
+	uchar associatestyle;
+	uchar gradientwidth;
+	uchar gradientalign;
+	uchar gradientstyle;
 
 	BitMap **icons;
 	Color **associatecolors;

@@ -213,12 +213,12 @@ int file2ram(char *fname, void *mem, int msize)
 }
 #endif
 
-uchar *file2mem(char *fname, void *mem, int msize, int decompress)
+char *file2mem(char *fname, void *mem, int msize, int decompress)
 {
 	char *s;
 	int fsize;
 	int fd = open(fname, 0);
-	uchar *ptr;
+	char *ptr;
 
 	s = fname;
 	while(*s++ == '.');
@@ -227,7 +227,7 @@ uchar *file2mem(char *fname, void *mem, int msize, int decompress)
 	fsize = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
 
-	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
+	ptr = (char *)lseek(fd, 0, SEEK_MEM);
 	close(fd);
 
 	if ((!mem && decompress) || !ptr)

@@ -14,6 +14,8 @@ int jpg_h;
 
 static Typeface *jpg_typeface;
 
+void joint_view(char *jpg);
+
 void jpgviewer_init()
 {
 	jpg_typeface = NULL;
@@ -39,11 +41,9 @@ void jpgviewer_set_font(Font *f)
 	jpg_typeface = typeface_new(f, 0);
 }
 
-void joint_view(uchar *jpg);
-
 #define BG_PALRAM ((uint16*)0x05000000)
 
-int prepare_jpg(unsigned char *ptr)
+int prepare_jpg(char *ptr)
 {
 	int sfd;
 
@@ -94,11 +94,11 @@ void draw_block(int x, int y)
 			dest[(y+h)*240+x+w] = c;
 }
 
-int decrypt_image(char *fname, uchar **jpg)
+int decrypt_image(char *fname, char **jpg)
 {
 	int c, done, jpg_size, x, y, shift_count;
     uint64 key[2], old_enc[2], *lljpg, *out, i;
-	uchar *enc;
+	char *enc;
 	static uint64 old_key[2] = {0, 0};
 	static int shift = 0;
 	aes_context ctx;
@@ -108,7 +108,7 @@ int decrypt_image(char *fname, uchar **jpg)
 
 	pfree();
 	out = pmalloc((jpg_size+16)&~15);
-	*jpg = (uchar *) out;
+	*jpg = (char *) out;
 
     if (out && jpg_size > sizeof(uint64)*2) {
 	    lljpg = (uint64 *) &enc[sizeof(int)];
@@ -245,7 +245,7 @@ int decrypt_image(char *fname, uchar **jpg)
 
 void jpe_view(char *fname)
 {
-    uchar *jpg;
+    char *jpg;
     int jpg_size, c, quit;
 
 	generic_image();
@@ -273,7 +273,7 @@ void jpe_view(char *fname)
 
 void jpg_view(char *fname)
 {
-	uchar *ptr;
+	char *ptr;
 
 	ptr = file2mem(fname, NULL, 0, RAW);
 
@@ -288,7 +288,7 @@ void jpg_view(char *fname)
 int num[]={1,  3,1, 3,1,3,1,3,1,3,2,3,4,6,8,12,16};
 int den[]={16,32,8,16,4,8,2,4,1,2,1,1,1,1,1,1,1};
 
-void joint_view(uchar *jpg)
+void joint_view(char *jpg)
 {
 	int c,fd, quit = 0, r, l;
 	int x=0, y=0, scale=0, corscale, mode=0, rotate=0, toscale=0, toshift=0;

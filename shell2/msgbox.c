@@ -12,7 +12,8 @@ extern Screen *MainScreen;
 int msgbox_yesno(tbox *box, char *text)
 {
 	TextBar *tb;
-	int i, c, rc = -1;
+	TriContainer *tc;
+	int i, c, rc = -1, x;
 	char p[strlen(text) + 24];
 
 	//fprintf(stderr, "malloc = %p\n", p);
@@ -23,15 +24,18 @@ int msgbox_yesno(tbox *box, char *text)
 	if (tb)
 		textbar_set_attribute(tb, WATR_TEXT, TEXT(QUESTION));
 
-	i = box->txt->w.width;
-	if (tb && tb->w.width > i)
-		i = tb->w.width;
-	box->win->width = box->txt->w.width;
+	tc = (TriContainer *)box->win->widget;
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i])
+			x += tc->children[i]->height;
+	box->win->height = x;
 
-	i = box->txt->w.height;
-	if (tb)
-		i += tb->w.height;
-	box->win->height = i;
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i] && tc->children[i]->width > x)
+			x = tc->children[i]->width;
+	box->win->width = x;
 
 	box->win->x = (240 - box->win->width) / 2;
 	box->win->y = (160 - box->win->height) / 2;
@@ -65,16 +69,18 @@ int msgbox_yesno(tbox *box, char *text)
 
 int msgbox_list(tbox *box, char *title, char **lines, int num)
 {
-	int i, c, h;
+	int i, c, h, x;
 	int rc = -2;
 	int marked = 0;
 	TextBar *tb;
+	TriContainer *tc;
 
 	if (!box->list)
 		return -1;
 
-	tricontainer_set_attribute((TriContainer *)box->win->widget, WATR_CHILD + 1, (void *)box->list);
+	tc = (TriContainer *)box->win->widget;
 
+	tricontainer_set_attribute(tc, WATR_CHILD + 1, (void *)box->list);
 
 	tb = box->title;	
 	if (tb)
@@ -88,21 +94,22 @@ int msgbox_list(tbox *box, char *title, char **lines, int num)
 
 	listview_set_attribute(box->list, WATR_COLOR, &box->txt->textcolor);
 
-	i = box->list->w.height;
-	if (tb)
-		i += tb->w.height;
-	box->win->height = i;
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i])
+			x += tc->children[i]->height;
+	box->win->height = x;
 
-	i = box->list->w.width;
-	if(tb && tb->w.width > i) {
-		i = tb->w.width;
-		box->win->width = i;
-	} else {
-		box->win->width = i;
-		if (box->list->backdrop)
-			i -= box->list->backdrop->border*2;
-	}
-	listview_set_attribute(box->list, WATR_COLWIDTH, (void *) i);
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i] && tc->children[i]->width > x)
+			x = tc->children[i]->width;
+	box->win->width = x;
+
+	if (box->list->backdrop)
+		x -= box->list->backdrop->border*2;
+	x -= box->list->marginx * 2;
+	listview_set_attribute(box->list, WATR_COLWIDTH, (void *) x);
 
 	box->win->x = (240 - box->win->width) / 2;
 	box->win->y = (160 - box->win->height) / 2;
@@ -196,8 +203,9 @@ int msgbox_list2(tbox *box, char *title, char *str, int num)
 
 void msgbox_transient_show(tbox *box, char *title, char *text)
 {
+	TriContainer *tc;
 	TextBar *tb;
-	int i;
+	int i, x;
 
 	tb = box->title;
 	if (tb)
@@ -206,19 +214,18 @@ void msgbox_transient_show(tbox *box, char *title, char *text)
 	if (box->txt)
 		textflow_set_attribute(box->txt, WATR_TEXT, text);
 
-	i = 0;
-	if (box->txt)
-		i = box->txt->w.height;
-	if (tb)
-		i += tb->w.height;
-	box->win->height = i;
+	tc = (TriContainer *)box->win->widget;
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i])
+			x += tc->children[i]->height;
+	box->win->height = x;
 
-	i = 0;
-	if (box->txt)
-		i = box->txt->w.width;
-	if (tb && tb->w.width > i)
-		i = tb->w.width;
-	box->win->width = i;
+	x = 0;
+	for (i = 0; i < 3; i++)
+		if (tc->children[i] && tc->children[i]->width > x)
+			x = tc->children[i]->width;
+	box->win->width = x;
 
 	box->win->x = (240 - box->win->width) / 2;
 	box->win->y = (160 - box->win->height) / 2;

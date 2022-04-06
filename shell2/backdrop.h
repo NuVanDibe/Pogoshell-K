@@ -23,7 +23,7 @@ typedef struct
 {
 	uint16 style;
 	uchar border;
-	uchar something;
+//	uchar something;
 	Color color[4];
 	BitMap *bitmap;
 

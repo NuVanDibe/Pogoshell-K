@@ -79,7 +79,7 @@ static Device vkeydev;
 /* Marks all keys in the string 'which' on the keyboard */
 static void mark_keys(const char *which)
 {
-	register int i,k,x,y;
+	int i,k,x,y;
 	int runs = 10;
 	k = 0;
 
@@ -274,8 +274,10 @@ static int keys_to_boxpos(int keys)
 	}
 }
 
+static void vkey_update(void) __attribute__ ((noinline));
+
 /* Call every frame */
-static volatile void vkey_update(void)
+static void vkey_update(void)
 {
 	int diff,i;
 	int keys,newbox;

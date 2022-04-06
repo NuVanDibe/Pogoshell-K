@@ -24,7 +24,7 @@ typedef struct _HashEntry
 } HashEntry;
 
 
-static unsigned int hash_string(unsigned char *str)
+static unsigned int hash_string(char *str)
 {
 	unsigned int hash = 0;
 	while(*str)
@@ -42,17 +42,25 @@ void symbol_init(void)
 
 void symbol_add(char *name, int val)
 {
-	HashEntry **he;
+	HashEntry *he;
+//	HashEntry **he;
 	int i = hash_string(name) % 41;
 
-	he = &symbols[i];
+/*	he = &symbols[i];
 	while(*he)
-		he = &((*he)->next);
+		he = &((*he)->next);*/
 
-	*he = malloc(sizeof(HashEntry) + strlen(name) + 1);
+	//fprintf(stderr, "symbold_add(%s, %d);\n", name, val);
+	he = malloc(sizeof(HashEntry) + strlen(name) + 1);
+	strcpy(he->str, name);
+	he->val = val;
+	he->next = symbols[i];
+	symbols[i] = he;
+/*	*he = malloc(sizeof(HashEntry) + strlen(name) + 1);
 	strcpy((*he)->str, name);
 	(*he)->val = val;
 	(*he)->next = NULL;
+*/
 }
 
 int symbol_get(char *name, int *val)
@@ -250,24 +258,22 @@ Widget *guiparser_create(char *spec, char *rootitem)
 
 				//fprintf(stderr, "Opening file %s %s\n", tmp, d);
 
-				//if(())
+				dl.type = 0;
+				if(filetype_bm(&dl))
 				{
-					if(filetype_bm(&dl))
-					{
-						//fp = fopen(tmp, "rb");
-						//bm = bitmap_readbm(fp);
-						//fclose(fp);
-						bm = bitmap_loadbm(tmp);
-						attr_func(lastw, attr, bm);
-					}
-					else if(filetype_font(&dl))
-					{
-						font = font_load_path(tmp);
-						font->flags |= FFLG_TRANSP;
-						attr_func(lastw, attr, font);
-					}
+					//fp = fopen(tmp, "rb");
+					//bm = bitmap_readbm(fp);
 					//fclose(fp);
+					bm = bitmap_loadbm(tmp);
+					attr_func(lastw, attr, bm);
 				}
+				else if(filetype_font(&dl))
+				{
+					font = font_load_path(tmp);
+					font->flags |= FFLG_TRANSP;
+					attr_func(lastw, attr, font);
+				}
+				//fclose(fp);
 					
 				break;
 			case '\"':

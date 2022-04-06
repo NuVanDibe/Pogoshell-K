@@ -142,6 +142,8 @@ int load_state(void)
 	}
 
 	settings_default();
+	filesys_cd_marked("");
+	new_marked = 0;
 	sleep_time = sleep_array[settings_get(SF_SLEEP)];
 	get_theme_name(settings_get(SF_THEME), theme_name);
 
@@ -247,7 +249,7 @@ int sram_del(char *name)
 
 int sram_paste(char *name)
 {
-	char dest[42];
+	char dest[128], *current;
 	int fd;
 
 	if(!clipsize)
@@ -258,7 +260,17 @@ int sram_paste(char *name)
 		name = basename(clipname);
 	}
 
-	sprintf(dest, "/sram/%s", name);
+	if (CurrentUser)
+		sprintf(dest, "/sram/%s", name);
+	else {
+		current = filesys_get_current();
+		if (!strncmp(current, "/sram/", 6)) {
+			strcpy(dest, current);
+			strcat(dest,"/");
+			strcat(dest, name);
+		} else
+			sprintf(dest, "/sram/%s", name);
+	}
 
 	if(free_space() > clipsize+8)
 	{
@@ -448,7 +460,7 @@ void textreader_init(void);
 void setup_screen(void)
 {
 	char tmp[80];
-	int i, count;
+	int i, count, shrt;
 	char *theme;
 	Widget *root;
 	Font *font;
@@ -461,7 +473,9 @@ void setup_screen(void)
 	//BitMap *screen = bitmap_getscreen();
 	//bitmap_clear(screen, 0xFF00);
 
+	//fprintf(stderr, "get_theme_name(%d, %p);\n", settings_get(SF_THEME), theme_name);
 	get_theme_name(settings_get(SF_THEME), theme_name);
+	//fprintf(stderr, "Switch to %s(%p) (%d)\n", theme_name, theme_name, settings_get(SF_THEME));
 
 	memory_free_context(THEME);
 
@@ -504,7 +518,6 @@ void setup_screen(void)
 	mbox = guiparser_findwidget("msgbox");
 	dbox = guiparser_findwidget("dlgbox");
 
-
 	StatusBar = (TextBar *)guiparser_findwidget("status");
 	TitleBar = (TextBar *)guiparser_findwidget("title");
 	MainList = (ListView *)guiparser_findwidget("list");
@@ -520,7 +533,9 @@ void setup_screen(void)
 	TextEmph = (Typeface *)guiparser_findwidget("textemph");
 	TextBig = (Typeface *)guiparser_findwidget("textbig");
 
-	if(dbox)
+	if(dbox && dbox->type == WIDGET_TRICONTAINER &&
+		DialogTxt && DialogTxt->w.type == WIDGET_TEXTFLOW &&
+		((TriContainer *)dbox)->children[1] == (Widget *) DialogTxt)
 	{
 		DialogWin = window_new(MainScreen, 50, 50, 140, 60);
 		window_setwidget(DialogWin, dbox);
@@ -532,7 +547,9 @@ void setup_screen(void)
 		DialogBox->list = NULL;
 	}
 
-	if(mbox)
+	if(mbox && mbox->type == WIDGET_TRICONTAINER &&
+		MessageTxt && MessageTxt->w.type == WIDGET_TEXTFLOW &&
+		((TriContainer *)mbox)->children[1] == (Widget *) MessageTxt)
 	{
 		//textflow_set_attribute(MessageTxt, WATR_TEXT, "This is just a little\ntest of the messagebox,\nI hope it works well!\n--Sasq");
 
@@ -541,15 +558,18 @@ void setup_screen(void)
 		window_setwidget(MessageWin, mbox);
 		window_hide(MessageWin);
 		MessageList = listview_new_typeface(1, 10, MessageTxt->typeface);
-		listview_set_attribute(MessageList, WATR_MARGIN, (void *)2);
-		listview_set_attribute(MessageList, WATR_MARGIN+1, (void *)2);
+		shrt = MessageTxt->marginlistx;
+		listview_set_attribute(MessageList, WATR_MARGIN, (void *) shrt);
+		shrt = MessageTxt->marginlisty;
+		listview_set_attribute(MessageList, WATR_MARGIN+1, (void *) shrt);
 
 		if(MessageTxt->backdrop)
 			listview_set_attribute(MessageList, WATR_BACKDROP, MessageTxt->backdrop);
 		listview_set_attribute(MessageList, WATR_COLOR+0, &(MessageTxt->textcolor[0]));
 		listview_set_attribute(MessageList, WATR_COLOR+2, &(MessageTxt->textcolor[2]));
 		listview_set_attribute(MessageList, WATR_COLOR+3, &(MessageTxt->textcolor[3]));
-		listview_set_attribute(MessageList, WATR_ALIGN, (void *) MessageTxt->align);
+		shrt = MessageTxt->align[1];
+		listview_set_attribute(MessageList, WATR_ALIGN, (void *) shrt);
 		MessageBox = malloc(sizeof(tbox));
 		MessageBox->win = MessageWin;
 		MessageBox->title = MessageTitle;
@@ -701,16 +721,16 @@ void cmd_help(char *name)
 
 void cmd_settings(char *name)
 {
-	int old_hidedot;
-	int r;
+	int old_hidedot, old_theme;
 
+	old_theme = settings_get(SF_THEME);
 	old_hidedot = settings_get(SF_HIDEDOT);
-	r = settings_edit();
+	settings_edit();
 	sleep_time = sleep_array[settings_get(SF_SLEEP)];
 	if (settings_get(SF_HIDEDOT) != old_hidedot)
 		filesys_cd_marked_current();
 	save_state();
-	if (r)
+	if (settings_get(SF_THEME) != old_theme)
 		setup_screen();
 	//reset_gba();
 	update_list();
@@ -732,7 +752,7 @@ extern char *sramfile_mem;
 extern int sram_size;
 int sram_strcmp(const char *a, const char *b);
 
-uchar main_tmp[50];
+char main_tmp[50];
 
 int abs(int x)
 {
@@ -830,7 +850,7 @@ int main(int argc, char **argv)
 	if(srsize)
 	{
 		sram_size = srsize * 1024;
-		sramfile_mem = (uchar *)0x0E040000 - sram_size;
+		sramfile_mem = (char *)0x0E040000 - sram_size;
 	}
 
 	converted = sram_convert();
@@ -977,7 +997,6 @@ int main(int argc, char **argv)
 				count = 0;
 			}
 		}
-
 
 		qualifiers = vkey_get_qualifiers();
 

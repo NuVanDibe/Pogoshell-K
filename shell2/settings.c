@@ -98,9 +98,12 @@ void settings_init(void)
 	{
 		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			if (filetype_theme(&dl)) {
-				if (strcmp(dl.entry.d_name, DEFAULTTHEME) != 0)
-					theme_count++;
+			if (!(dl.entry.d_size & 0x80000000)) {
+				dl.type = 0;
+				if (filetype_theme(&dl)) {
+					if (strcmp(dl.entry.d_name, DEFAULTTHEME) != 0)
+						theme_count++;
+				}
 			}
 		}
 		closedir(dir);
@@ -126,15 +129,18 @@ int set_theme_setting(char *src)
 	{
 		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			if (filetype_theme(&dl)) {
-				if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
-					current = 0;
-				else
-					current = count++;
-				if (!strcmp(dl.entry.d_name, src)) {
-					settings_set(SF_THEME, current);
-					closedir(dir);
-					return 0;
+			if (!(dl.entry.d_size & 0x80000000)) {
+				dl.type = 0;
+				if (filetype_theme(&dl)) {
+					if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
+						current = 0;
+					else
+						current = count++;
+					if (!strcmp(dl.entry.d_name, src)) {
+						settings_set(SF_THEME, current);
+						closedir(dir);
+						return 0;
+					}
 				}
 			}
 		}
@@ -152,22 +158,29 @@ void get_theme_name(char line, char *dest)
 	DirList dl;
 	struct dirent *result;
 
+	//fprintf(stderr, ">get_theme_name(%d, %p);\n", line, dest);
+
 	dir = opendir(GET_PATH(THEMES));
 	count = 1;
 	if (dir)
 	{
 		for (i = 0; ((i < MAX_FILE_COUNT) && !readdir_r(dir, &dl.entry, &result) && (result != NULL)); i++)
 		{
-			if (filetype_theme(&dl)) {
-				if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
-					current = 0;
-				else
-					current = count++;
-				if (line == current) {
-					memcpy(dest, dl.entry.d_name, 32);
-					settings_set(SF_THEME, current);
-					closedir(dir);
-					return;
+			if (!(dl.entry.d_size & 0x80000000)) {
+				dl.type = 0;
+				if (filetype_theme(&dl)) {
+					if (strcmp(dl.entry.d_name, DEFAULTTHEME) == 0)
+						current = 0;
+					else
+						current = count++;
+					//fprintf(stderr, "%d: %d(%d) %d: %s - %d\n", i, current, line, count, dl.entry.d_name, dl.entry.d_size);
+					if (line == current) {
+						//fprintf(stderr, "memcpy(%p, %p, 32);\n", dest, dl.entry.d_name);
+						memcpy(dest, dl.entry.d_name, 32);
+						//settings_set(SF_THEME, current);
+						closedir(dir);
+						return;
+					}
 				}
 			}
 		}
@@ -175,12 +188,11 @@ void get_theme_name(char line, char *dest)
 	}
 }
 
-int settings_edit(void)
+void settings_edit(void)
 {
 	int i,c,h,m;
 	int marked = 0;
 	int qualifiers = 0;
-	int old_theme = settings_get(SF_THEME);
 
 	listview_clear(MainList);
 
@@ -260,7 +272,7 @@ int settings_edit(void)
 				 listview_set_dirty(MainList);
 			break;
 		case RAWKEY_B:
-			return (settings_get(SF_THEME) != old_theme) ? 1 : 0;
+			return;
 		}
 		
 		screen_redraw(MainScreen);

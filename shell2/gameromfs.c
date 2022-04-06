@@ -1,7 +1,7 @@
 
 #include <pogo.h>
 
-static uchar *games[MAX_OPENFILE_COUNT];
+static char *games[MAX_OPENFILE_COUNT];
 static int game_count = 0;
 
 typedef struct {
@@ -216,8 +216,8 @@ void gamesys_init(void)
 {
 	int i;
 	int cart_size = 32*1024*1024;
-	uchar *filestart = NULL;
-	uchar *ptr = (uchar *)0x08000000;
+	char *filestart = NULL;
+	char *ptr = (char *)0x08000000;
 
 	while(ptr[0xbd] == ptr[cart_size/2 + 0xbd] &&
 	      ptr[0xbd + 0x8000] == ptr[cart_size/2 + 0xbd + 0x8000] &&
@@ -232,7 +232,7 @@ void gamesys_init(void)
 	ptr += 0x8000;
 
 	/* Look through entire cart in 32KB increments for roms */
-	while(ptr < (uchar*)(cart_size + 0x08000000))
+	while(ptr < (char*)(cart_size + 0x08000000))
 	{
 		if( ((ptr[3] & 0xFE) == 0xEA) && (ptr[0xb2] == 0x96))
 		{

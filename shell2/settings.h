@@ -5,7 +5,7 @@
 
 //int settings_read(void);
 //int settings_write(void);
-int settings_edit(void);
+void settings_edit(void);
 void settings_icon(BitMap *bm);
 void settings_init(void);
 void settings_default(void);

@@ -8,16 +8,10 @@ extern tbox *MessageBox;
 int CurrentUser;
 char *UserName;
 
-typedef struct
-{
-	char *name;
-	unsigned char uid;
-
-} User;
-
 static User *users[10];
 static int ucount = 0;
 
+UserList userlist;
 
 void update_user(void)
 {
@@ -65,8 +59,13 @@ int read_users(FILE *fp)
 		}
 	}
 
+	userlist.usercount = ucount;
+	userlist.users = users;
+
 	CurrentUser = users[0]->uid;
 	UserName = users[0]->name;
+
+	sram_setuserlist(&userlist);
 
 	sram_setuser(CurrentUser);
 

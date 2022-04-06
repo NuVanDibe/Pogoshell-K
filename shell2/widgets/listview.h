@@ -30,6 +30,7 @@ typedef struct
 	Font *font;
 
 	uint16 colwidth[8];
+	uchar colalign[8];
 
 	BitMap **icons;
 
@@ -40,7 +41,6 @@ typedef struct
 	Color textcolor[4];
 
 } ListView;
-
 
 #define listview_get_marked(l) (l->marked)
 

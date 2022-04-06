@@ -9,6 +9,7 @@
 #include "filesys.h"
 #include "savesystem.h"
 #include "freespace.h"
+#include "jpgview.h"
 #include "text.h"
 #include "users.h"
 #include "settings.h"
@@ -399,6 +400,7 @@ void textreader_set_font(int n, Font *f);
 
 void setup_screen(void)
 {
+	uchar align;
 	char tmp[80];
 	int i, count;
 	char *theme;
@@ -438,6 +440,9 @@ void setup_screen(void)
 
 	ListBar = MainList->scrollbar;
 
+	align = ALIGN_RIGHT;
+	listview_set_attribute(MainList, WATR_ALIGN+1, &align);
+
 	if(mbox)
 	{
 		//textflow_set_attribute(MessageTxt, WATR_TEXT, "This is just a little\ntest of the messagebox,\nI hope it works well!\n--Sasq");
@@ -469,9 +474,13 @@ void setup_screen(void)
 	filetype_set_iconset(icon_list);
 	filetype_readtypes(config_fp);
 
+	font = font_load_path("cnokia.font");
+	//font->flags |= FFLG_TRANSP;
+	jpgviewer_set_font(font);
+
 	font = font_load_path("dungeon.font");
 	textreader_set_font(FONT_TEXT, font);
-
+	
 	font = font_dup(font);
 	font->flags |= FFLG_BOLD;
 	textreader_set_font(FONT_BOLD, font);

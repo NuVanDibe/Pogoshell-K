@@ -34,6 +34,9 @@ void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, int dw, 
 	int smod = (sw - width);
 	int dmod = (dw - width);
 
+	if (!dst)
+		return;
+
 	while(height--)
 	{
 		w = width;
@@ -63,6 +66,9 @@ void block_set(uint16 *dst, int width, int height, int dw, int color)
 	int w;
 	int dmod = (dw - width);
 
+	if (!dst)
+		return;
+
 	while(height--)
 	{
 		w = width;
@@ -89,10 +95,7 @@ static uchar font_putmono(Font *font, char c, uint16 *dest, int width)
 		}
 		else
 		{
-			if(solid)
-				block_copy(dest, &font->pixels[(c - font->first) * w], w, font->height, font->width, width, 1);
-			else
-				block_copy(dest, &font->pixels[(c - font->first) * w], w, font->height, font->width, width, 0);
+			block_copy(dest, &font->pixels[(c - font->first) * w], w, font->height, font->width, width, solid);
 		}
 	}
 	return w;
@@ -118,10 +121,7 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width)
 		w = font->offsets[c - ff + 1] - offset;
 		if(dest)
 		{
-			if(solid)
-				block_copy(dest, &font->pixels[offset], w, font->height, font->width, width, 1);
-			else
-				block_copy(dest, &font->pixels[offset], w, font->height, font->width, width, 0);
+			block_copy(dest, &font->pixels[offset], w, font->height, font->width, width, solid);
 		}
 		w += font->spacing;
 		if(w <= 0) w = 1;
@@ -168,54 +168,67 @@ uchar font_putchar(Font *font, char c, uint16 *dest, int width)
 	}
 }
 
-int font_text(Font * font, char *str, uint16 * dest, int width)
+int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwidth)
 {
-    int l = 0, i = 0;
-    char *s = str;
+    int l, period;
+    char *s = str, *s1, *s2;
+	int left, right;
 
-    // Figure out width.
+	period = font_putchar(font, '.', NULL, width);
+	period += period<<1;
+
+	right = (drawwidth-period)>>1;
+	right = (right < 1) ? 1 : right;
+	left = right;
+
+	l = 0;
+    // Find left side.
     while (*s) {
-	l += font_putchar(font, *s++, NULL, width);
-	i++;
+		l += font_putchar(font, *s++, NULL, width);
+		if (left && l > left) {
+			s1 = s - 2;
+			left = 0;
+		}
+		if (l > drawwidth)
+			break;
     }
 
     // Compensate if too wide.
-    if (l > width) {
-	int r, min, max, swtch = 0;
-
-	// r == number of excess characters (plus elipse)
-	r = (l - width) * i / l + 3;
-	/* Barriers to skip over (the first step into draws an
-	   elipse).
-	 */
-	min = (i - r) / 2;
-	max = (i + r) / 2 + 1;
-	l = i = 0;
-	while (*str) {
-	    if (i < min || i > max)
-		l += font_putchar(font, *str++, dest ? &dest[l] : NULL,
-				  width);
-
-	    else {
-		if (!swtch) {
-		    l += font_putchar(font, '.', dest ? &dest[l] : NULL,
-				      width);
-		    l += font_putchar(font, '.', dest ? &dest[l] : NULL,
-				      width);
-		    l += font_putchar(font, '.', dest ? &dest[l] : NULL,
-				      width);
-		    swtch = 1;
+	if (l > drawwidth) {
+		s = str + strlen(str) - 1;
+		l = 0;
+		// Find right side.
+    	while (s > str) {
+			l += font_putchar(font, *s--, NULL, width);
+			if (l > right) {
+				s2 = s + 2;
+				break;
+			}
 		}
-		str++;
-	    }
-	    i++;
-	}
+		// Draw left.
+		l = 0;
+		while (str < s1)
+			l += font_putchar(font, *str++, dest ? &dest[l] : NULL, width);
+		// Draw middle.
+    	l += font_putchar(font, '.', dest ? &dest[l] : NULL, width);
+    	l += font_putchar(font, '.', dest ? &dest[l] : NULL, width);
+    	l += font_putchar(font, '.', dest ? &dest[l] : NULL, width);
+		// Draw right.
+		str = s2;
+		while (*str)
+		    l += font_putchar(font, *str++, dest ? &dest[l] : NULL, width);
     } else {
-	l = 0;
-	while (*str)
-	    l += font_putchar(font, *str++, dest ? &dest[l] : NULL, width);
-    }
+		// Draw whole str.
+		l = 0;
+		while (*str)
+		    l += font_putchar(font, *str++, dest ? &dest[l] : NULL, width);
+	}
     return l;
+}
+
+int font_text(Font * font, char *str, uint16 * dest, int width)
+{
+	return font_text_clip(font, str, dest, width, width);
 }
 
 /*

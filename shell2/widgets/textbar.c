@@ -31,6 +31,8 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 		else
 			bitmap_fillbox(bm, r, 0x6318);
 
+ 		dst = (uint16 *)bm->pixels + (r->x+tb->margin) + (r->y+tb->margin) * bm->width;
+
 		if(tb->align == ALIGN_CENTER)
 		{
 			l = font_text(tb->font, left, NULL, bm->width);
@@ -42,8 +44,6 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 			l = font_text(tb->font, left, NULL, bm->width);
 			dst += (r->w - l - tb->margin);
 		}
-
- 		dst = (uint16 *)bm->pixels + (r->x+tb->margin) + (r->y+tb->margin) * bm->width;
 
 		font_setcolor(TO_RGB16(tb->textcolor), 0x0000);
 		//dst += (bm->width + 1);

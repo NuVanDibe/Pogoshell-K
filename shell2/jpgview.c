@@ -1,12 +1,23 @@
 
 #include <pogo.h>
+#include "jpgview.h"
+#include "bitmap.h"
+#include "window.h"
 #include "misc.h"
 #include "iwram.h"
 #include "aes.h"
 
+extern Screen *MainScreen;
 JPEG_OUTPUT_TYPE *jpg_ptr;
 int jpg_w;
 int jpg_h;
+
+Font *text;
+
+void jpgviewer_set_font(Font *f)
+{
+	text = f;
+}
 
 void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size);
 
@@ -256,16 +267,25 @@ void jpg_view(char *fname)
 #define MIN(a,b) (a<b ? a : b)
 #define MAX(a,b) (a>b ? a : b)
 
+#define OFFSET 8
+int num[]={1,  3,1, 3,1,3,1,3,1,3,2,3,4,6,8,12,16};
+int den[]={16,32,8,16,4,8,2,4,1,2,1,1,1,1,1,1,1};
+
 void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 {
 	int c,fd, quit = 0, r, l;
-	int x=0, y=0, scale=0, mode=0, rotate=0, toscale=0, toshift=0;
+	int x=0, y=0, scale=0, corscale, mode=0, rotate=0, toscale=0, toshift=0;
 	int dx=0, dy=0;
 	int speed = 8, change1=1, change2=0, oldx=-1, oldy=-1;
 	unsigned short *p;
 	int w, h;
 	int wi, hi;
 	int edgew, edgeh;
+	int count = 0;
+	int dirty = 1, scalechange = 1;
+	char buffer[13];
+	u16 *dst;
+	BitMap *bm;
 
 	r = prepare_jpg(jpg, jpg_ram_usage, jpg_size);
 
@@ -300,6 +320,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 								wi = 160 * jpg_w / jpg_h;
 							}
 						}
+						sprintf(buffer, "%d%%", (int) (hi*100/jpg_h));
 						w = wi;
 						h = hi;
 						break;
@@ -311,37 +332,27 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 							w = wi = 240;
 							h = hi = 160;
 						}
+						sprintf(buffer, "%d%%x%d%%", (int) (wi*100/jpg_w), (int) (hi*100/jpg_h));
 						break;
 					default:
+						corscale = scale + OFFSET;
+						wi = jpg_w*num[corscale]/den[corscale];
+						hi = jpg_h*num[corscale]/den[corscale];
 						if (rotate&1) {
-							if (scale < 0) {
-								wi = jpg_w>>(-scale);
-								hi = jpg_h>>(-scale);
-								edgew = 160<<(-scale);
-								edgeh = 240<<(-scale);
-							} else {
-								wi = jpg_w<<scale;
-								hi = jpg_h<<scale;
-								edgew = 160>>scale;
-								edgeh = 240>>scale;
-							}
+							edgew = 160;
+							edgeh = 240;
 							w = MIN(160, wi);
 							h = MIN(240, hi);
 						} else {
-							if (scale < 0) {
-								wi = jpg_w>>(-scale);
-								hi = jpg_h>>(-scale);
-								edgew = 240<<(-scale);
-								edgeh = 160<<(-scale);
-							} else {
-								wi = jpg_w<<scale;
-								hi = jpg_h<<scale;
-								edgew = 240>>scale;
-								edgeh = 160>>scale;
-							}
+							edgew = 240;
+							edgeh = 160;
 							w = MIN(240, wi);
 							h = MIN(160, hi);
 						}
+						edgew = edgew*den[corscale]/num[corscale];
+						edgeh = edgeh*den[corscale]/num[corscale];
+						corscale = scale + OFFSET;
+						sprintf(buffer, "%d%%", (int) (num[corscale]*100/den[corscale]));
 
 						if((x+edgew) > jpg_w)
 							x = (jpg_w-edgew);
@@ -353,12 +364,32 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 						break;
 				}
 				render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
+				dirty = 1;
 			}
 			change1 = change2 = 0;
 			oldx = x;
 			oldy = y;
 
 			c = getchar();
+
+			count++;
+			Halt();
+			if (count > 50*3) {
+				if (scalechange) {
+					scalechange = 0;
+					render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
+				}
+				count = 0;
+			}
+
+			if (scalechange && dirty) {
+				dirty = 0;
+				bm = MainScreen->bitmap;
+				l = font_text(text, buffer, NULL, bm->width);
+ 				dst = (uint16 *)bm->pixels + (bm->width - l);
+				font_setcolor(0x7fff, 0);
+				font_text(text, buffer, dst, bm->width);
+			}
 
 			switch(c&0x7F)
 			{
@@ -373,6 +404,8 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 					if (c != (RAWKEY_RIGHT|0x80)) {
 						rotate = (rotate+1)&3;
 						change2 = 1;
+						scalechange = dirty = 1;
+						count = 0;
 					}
 				} else {
 					if (rotate&1) {
@@ -387,6 +420,8 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 					if (c != (RAWKEY_LEFT|0x80)) {
 						rotate = (rotate+3)&3;
 						change2 = 1;
+						scalechange = dirty = 1;
+						count = 0;
 					}
 				} else {
 					if (rotate&1) {
@@ -400,8 +435,10 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 				if (toscale) {
 					if (c != (RAWKEY_UP|0x80)) {
 						scale++;
-						scale = (scale > 2) ? 2 : scale;
+						scale = (scale > OFFSET) ? OFFSET : scale;
 						change1 = 1;
+						scalechange = dirty = 1;
+						count = 0;
 					}
 				} else {
 					if (rotate&1) {
@@ -415,8 +452,10 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 				if (toscale) {
 					if (c != (RAWKEY_DOWN|0x80)) {
 						scale--;
-						scale = (scale < -2) ? -2 : scale;
+						scale = (scale < -OFFSET) ? -OFFSET : scale;
 						change1 = 1;
+						scalechange = dirty = 1;
+						count = 0;
 					}
 				} else {
 					if (rotate&1) {
@@ -430,6 +469,8 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 				if (c != (RAWKEY_SELECT|0x80)) {
 					mode=(mode+1)%3;
 					change2 = 1;
+					scalechange = dirty = 1;
+					count = 0;
 				}
 				break;
 			case RAWKEY_START:
@@ -442,6 +483,8 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 					if (c != (RAWKEY_START|0x80)) {
 						scale = 0;
 						change1 = 1;
+						scalechange = dirty = 1;
+						count = 0;
 					}
 				}
 				break;

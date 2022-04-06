@@ -162,7 +162,7 @@ void bitmap_fillbox(BitMap *dst, Rect *r, uint16 col)
 	}
 }
 
-void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
+void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col)
 {
 	int w;
 	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
@@ -178,22 +178,46 @@ void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
 		{
 			high = *d & 0x739c;
 			low = *d & 0x0c63;
-//			high += (col & 0x739c)<<1;
-//			low += (col & 0x0c63)<<1;
 			high += (col & 0x739c);
 			low += (col & 0x0c63);
-/*			over = (high&0x8420);
+			*d = (high+(low&0x318c))>>1;
+			d++;
+		}
+
+		d += dmod;
+	}
+}
+
+void bitmap_addbox(BitMap *dst, Rect *r, uint16 col)
+{
+	int w;
+	uint16 *d = (uint16 *)dst->pixels + r->x + r->y * dst->width;
+	int dmod = (dst->width - r->w);
+	int dh = r->h;
+	int high, low;
+	int over;
+
+	while(dh--)
+	{
+		w = r->w;
+		while(w--)
+		{
+			high = *d & 0x739c;
+			low = *d & 0x0c63;
+			high += (col & 0x739c)<<1;
+			low += (col & 0x0c63)<<1;
+			high += (col & 0x739c);
+			low += (col & 0x0c63);
+			over = (high&0x8420);
 			over >>= 1;
 			over |= (over>>1);
 			over |= (over>>2);
 			over |= (over>>1);
 			*d = ((high&0x7bde)+(low&0x318c))|over;
-*/
-			*d = (high+(low&0x318c))>>1;
-//			*d = (high+(low&0x318c))>>2;
+
+			*d = (high+(low&0x318c))>>2;
 			d++;
 		}
-
 		d += dmod;
 	}
 }

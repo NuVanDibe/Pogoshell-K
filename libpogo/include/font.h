@@ -34,6 +34,7 @@ typedef struct {
 
 uchar font_putchar(Font *font, char c, uint16 *dest, int width);
 int font_text(Font *font, char *str, uint16 *dest, int width);
+int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwidth);
 int font_text_multi(Font **fontlist, int *current, char *str, uint16 *dest, int width);
 
 //uchar font_putchar(Font *font, char c, uchar *dest, int width);

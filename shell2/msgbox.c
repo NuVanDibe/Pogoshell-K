@@ -34,7 +34,6 @@ int msgbox_yesno(char *text)
 	MessageWin->x = (240 - MessageWin->width) / 2;
 	MessageWin->y = (160 - MessageWin->height) / 2;
 
-	
 	window_show(MessageWin);
 	screen_redraw(MainScreen);
 
@@ -82,6 +81,7 @@ int msgbox_list(char *title, char **lines, int num)
 	listview_set_marked(MessageList, marked);
 
 	listview_set_attribute(MessageList, WATR_COLOR, &MessageTxt->textcolor);
+	listview_set_attribute(MessageList, WATR_COLWIDTH, &MessageList->linew);
 
 	//MessageWin->height = MessageList->w.height + 8;
 	i = MessageList->w.height;

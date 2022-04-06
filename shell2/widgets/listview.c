@@ -39,6 +39,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	Rect r2;
 	int i, j, l, y, maxi;
 	uint16 bdcol;
+	int drawwidth;
 	
 	int lineh = lv->lineh;
 	int fonty = (lv->lineh - lv->font->height) / 2;
@@ -109,6 +110,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		r2.w -= 10;
 	r2.h = lineh;
 
+	font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
 	for(i=lv->start; i<maxi; i++)
 	{
 		if(lv->dirty == 0xFF || lv->redrawmap[i>>5]&(1<<(i&31)))
@@ -127,16 +129,29 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 			if(i == lv->marked)
 			{
-				if(lv->textcolor[3].a > 0x7F)
+				if(lv->textcolor[3].a == 0xfF)
 					bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+				else if(lv->textcolor[3].a > 0x7F)
+					bitmap_avgbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
 				else
 					bitmap_fillbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
 				font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
 			}
 			for(j=0; j<lv->columns; j++)
 			{
-				if (lv->colwidth[j])
-					l = font_text(lv->font, lv->texts[j][i], d, bm->width);
+				if (lv->colwidth[j]) {
+					drawwidth = (i == lv->marked) ? bm->width : lv->colwidth[j];
+					if (lv->colalign[j] == ALIGN_LEFT) {
+						l = font_text_clip(lv->font, lv->texts[j][i], d, bm->width, drawwidth);
+					} else {
+						l = font_text_clip(lv->font, lv->texts[j][i], NULL, bm->width, drawwidth);
+						font_text_clip(lv->font, lv->texts[j][i], d +
+							((lv->colalign[j] == ALIGN_RIGHT) ?
+								(lv->colwidth[j] - l) :
+								((lv->colwidth[j] - l)>>1)),
+							bm->width, drawwidth);
+					}
+				}
 				d += lv->colwidth[j]; 
 			}
 			if (i == lv->marked) {
@@ -240,7 +255,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		if(lv->font->height >= lv->lineh)
 			lv->lineh = lv->font->height + 1;
 		lv->w.flags = WFLG_REDRAW;
-		lv->w.height = lv->lineh * lv->lines + lv->marginy;
+		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
 		if(lv->textcolor[0].a != 0x01);
 			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
 		break;
@@ -256,7 +271,10 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		else
 		if((attr & 0xF) == 1)
 			lv->marginy = (int)val;
-		lv->w.height = lv->lineh * lv->lines + lv->marginy;
+		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		break;
+	case WATR_ALIGN:
+		lv->colalign[(attr&0xf)] = *((uchar *)val);
 		break;
 	//case WATR_NAME:
 	//	strcpy(lv->w.name, (char *)val);
@@ -306,6 +324,7 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 		lv->texts[i] = (char **)malloc(sizeof(char *) * maxlines);
 		memset(lv->texts[i], 0, sizeof(char *) * maxlines);
 		lv->colwidth[i] = 1;
+		lv->colalign[i] = ALIGN_LEFT;
 	}
 	//for(i=0; i<maxlines; i++)
 	//{
@@ -454,6 +473,11 @@ void listview_addline(ListView *lv, BitMap *bm, ...)
 
 	lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
 	lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
+
+	if (lv->backdrop) {
+		lv->w.height += lv->backdrop->border*2;
+		lv->w.width += lv->backdrop->border*2;
+	}
 
 	va_end(vl);
 

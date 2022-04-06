@@ -443,17 +443,15 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 		dw2 >>= 1;
 		dw2i = dw2;
 	}
-	if (mh) {
-		l = mh;
-		while (l--) {
-			d = dst;
-			m = (rotate&1) ? 160 : 240;
-			while(m--) {
-				*d = 0x0;
-				d += dx;
-			}
-			dst += dy;
+	l = mh;
+	while (l--) {
+		d = dst;
+		m = (rotate&1) ? 160 : 240;
+		while(m--) {
+			*d = 0x0;
+			d += dx;
 		}
+		dst += dy;
 	}
 	dh = 0;
 	h = h0;//<<shift;
@@ -543,17 +541,15 @@ CODE_IN_IWRAM void render_jpg(int x, int y, int w0, int h0, int wi, int hi, int 
 		d += dy;
 		dst = d;
 	}
-	if (mh) {
-		l = ((rotate&1) ? 240 : 160)-h0-mh;
-		while (l--) {
-			d = dst;
-			m = (rotate&1) ? 160 : 240;
-			while(m--) {
-				*d = 0x0;
-				d += dx;
-			}
-			dst += dy;
+	l = ((rotate&1) ? 240 : 160)-h0-mh;
+	while (l--) {
+		d = dst;
+		m = (rotate&1) ? 160 : 240;
+		while(m--) {
+			*d = 0x0;
+			d += dx;
 		}
+		dst += dy;
 	}
 }
 

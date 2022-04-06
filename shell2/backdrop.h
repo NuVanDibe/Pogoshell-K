@@ -32,6 +32,7 @@ typedef struct
 typedef void (*CustomDrawFunc)(BackDrop *, Rect *, BitMap *);
 
 void backdrop_render(BackDrop *bd, Rect *r, BitMap *bm);
+void backdrop_subrender(BackDrop *bd, Rect *r, Rect *subr, BitMap *bm);
 BackDrop *backdrop_new(uint16 style);
 void backdrop_set_bitmap(BackDrop *bd, BitMap *bm);
 void backdrop_set_color(BackDrop *bd, Color *color, int n);

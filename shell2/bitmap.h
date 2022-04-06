@@ -54,6 +54,7 @@ BitMap *bitmap_readbmp(FILE *fp);
 BitMap *bitmap_readbm(FILE *fp);
 BitMap *bitmap_loadbm(char *name);
 
+void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_addbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_fillbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 style);

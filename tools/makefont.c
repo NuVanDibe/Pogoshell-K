@@ -25,6 +25,7 @@ int colorfont = 0;
 int fixed = 0;
 int spacing = 0;
 int space = -1;
+int charwidth = 0;
 int first = -1;
 int last = 127;
 
@@ -51,8 +52,8 @@ int main(int argc, char **argv)
 
 	int rem_count = 0;
 	int add_count = 0;
-	unsigned short add_offsets[16];
-	unsigned short rem_offsets[16];
+	unsigned short add_offsets[128];
+	unsigned short rem_offsets[128];
 
 	if(argc < 3)
 	{
@@ -62,6 +63,7 @@ int main(int argc, char **argv)
 		printf("-s<num>  Set ASCII of first character\n");
 		printf("-e<num>  Set ASCII of last characters\n");
 		printf("-o<file> Dump offsets to logfile\n");
+		printf("-w<num>  Character width (space for non-fixed)\n");
 		printf("\n Any positive or negative numbers after options indicates\n");
 		printf("offsets to add or remove to the offset list (for instance, chars\n");
 		printf("containing space - like the double quote - will generate an extra\n");
@@ -91,6 +93,10 @@ int main(int argc, char **argv)
 					break;
 				case 'o':
 					offslog = &argv[x][2];
+					break;
+				case 'w':
+					charwidth = atoi(&argv[x][2]);
+					space = 0;
 					break;
 				case 'c':
 					colorfont = 1;
@@ -228,8 +234,14 @@ int main(int argc, char **argv)
 			last = b+first-1;
 
 		/* Calculate space size if not set */
-		if(space == -1)
+		if(space == -1) {
 			space = (hix-lowx+1)/(last-first);
+		} else {
+			if (charwidth < 0)
+				space = (hix-lowx+1)/(last-first) + charwidth;
+			else
+				space = charwidth;
+		}
 
 		font.charwidth = space;
 		font.first = first;

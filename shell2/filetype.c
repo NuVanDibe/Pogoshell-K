@@ -97,9 +97,9 @@ int execute_mb(char *cmd, char *fname, int keys)
 	SETW(REG_IE, 0);
 	SETW(REG_IF, 0);
 	SETW(REG_IME, 0);
-	SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-	SETW(REG_BG1CNT, 0);
 	SETW(REG_SOUNDBIAS, 0x0200);
+	//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+	//SETW(REG_BG1CNT, 0);
 	// Don't use memset as memset is in iwram
 	p2 = (uint16 *) 0x03000000;
 	for (i = 0; i < 0x8000/2; i++)
@@ -159,6 +159,11 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	//if(keys)
 	//	reset_io();
 
+	SETW(REG_IE, 0);
+	SETW(REG_IF, 0);
+	SETW(REG_IME, 0);
+	SETW(REG_SOUNDBIAS, 0x0200);
+		
 	s = strrchr(cmd, '.');
 	if(s && (strncmp(s, ".mb", 3) == 0))
 	{
@@ -176,11 +181,6 @@ int execute_plugin(char *cmd, char *fname, int keys)
 
 		set_ram_start(0);
 
-		SETW(REG_IE, 0);
-		SETW(REG_IF, 0);
-		SETW(REG_IME, 0);
-		SETW(REG_SOUNDBIAS, 0x0200);
-		
 		// Don't use memset as memset is in iwram
 		p2 = (uint16 *) 0x03000000;
 		for (i = 0; i < 0x8000/2; i++)

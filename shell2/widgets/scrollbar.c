@@ -6,67 +6,110 @@
 
 int scrollbar_render(Scrollbar *scr, Rect *r, BitMap *bm)
 {
+	int dirty, draw_trough, draw_bar, space_for_trough, space_for_bar;
 	Rect sbar;
 
-	if (settings_get(SF_SCROLLBAR)) {
-		sbar.w = scr->w.width;
-		sbar.x = r->x;
-		r->w -= sbar.w;
-		if (scr->alignside) {
-			sbar.x = r->x + r->w;
-		} else {
-			sbar.x = 0;
-			r->x += sbar.w;
-		}
-	}
+	dirty = draw_trough = draw_bar = space_for_trough = space_for_bar = 0;
 
 	if (scr->w.flags & WFLG_REDRAW) {
 		scr->w.flags &= ~WFLG_REDRAW;
+		dirty = 1;
+	}
 
-		if (settings_get(SF_SCROLLBAR)) {
-			int i;
+	if (settings_get(SF_SCROLLBAR)) {
+		int i;
 
-			sbar.x += scr->marginx[0];
-			sbar.w -= scr->marginx[0] * 2;
-			sbar.y = r->y + scr->marginy[0];
-			sbar.h = r->h - scr->marginy[0] * 2;
+		if ((scr->style & TROUGH_ALWAYS) == TROUGH_ALWAYS) {
+			space_for_trough = 1;
+			if (dirty)
+				draw_trough = 1;
+		} else if ((scr->style & TROUGH_PARTIAL) == TROUGH_PARTIAL) {
+			space_for_trough = 1;
+			if (dirty && (scr->lines > scr->showing))
+				draw_trough = 1;
+		} else if ((scr->style & TROUGH_MINIMAL) == TROUGH_MINIMAL) {
+			if (scr->lines > scr->showing) {
+				space_for_trough = 1;
+				if (dirty)
+					draw_trough = 1;
+			}
+		}
 
+		if (scr->bar) {
+			if ((scr->style & BAR_ALWAYS) == BAR_ALWAYS) {
+				space_for_bar = 1;
+				if (dirty)
+					draw_bar = 1;
+			} else if ((scr->style & BAR_PARTIAL) == BAR_PARTIAL) {
+				space_for_bar = 1;
+				if (dirty && (scr->lines > scr->showing))
+					draw_bar = 1;
+			} else if ((scr->style & BAR_MINIMAL) == BAR_MINIMAL) {
+				if (scr->lines > scr->showing) {
+					space_for_bar = 1;
+					if (dirty)
+						draw_bar = 1;
+				}
+			}
+		}
+
+		sbar.w = scr->w.width;
+		if (scr->alignside)
+			sbar.x = r->x + r->w - sbar.w;
+		else
+			sbar.x = 0;
+
+		if (space_for_trough) {
+			r->w -= sbar.w;
+			if (!scr->alignside)
+				r->x += sbar.w;
+		} else if (space_for_bar) {
+			r->w -= (sbar.w - scr->marginx[0] * 2);
+			if (!scr->alignside)
+				r->x += (sbar.w - scr->marginx[0] * 2);
+		}
+
+		sbar.x += scr->marginx[0];
+		sbar.w -= scr->marginx[0] * 2;
+		sbar.y = r->y + scr->marginy[0];
+		sbar.h = r->h - scr->marginy[0] * 2;
+
+		if (draw_trough)
+		{
+			Color c;
+
+			c = scr->troughcolor;
+			if (scr->trough)
+				backdrop_render(scr->trough, &sbar, bm);
+			else if (c.a == 0xFF)
+				bitmap_addbox(bm, &sbar, TO_RGB16(c));
+			else if (c.a == 0xFE)
+				bitmap_negbox(bm, &sbar, TO_RGB16(c));
+			else if (c.a > 0x7F)
+				bitmap_avgbox(bm, &sbar, TO_RGB16(c));
+			else
+				bitmap_fillbox(bm, &sbar, TO_RGB16(c));
+		}
+
+		if (draw_bar)
+		{
 			i = scr->lines;
 			if(i < scr->showing)
 				i = scr->showing;
 
-			if ((scr->style & TROUGH_ALWAYS) ||
-				((scr->style & TROUGH_PARTIAL) && (scr->lines > scr->showing)))
-			{
-				Color c;
+			sbar.x += scr->marginx[1];
+			sbar.w -= scr->marginx[1] * 2;
+			sbar.y += scr->marginy[1];
+			sbar.h -= scr->marginy[1] * 2;
 
-				c = scr->troughcolor;
-				if (c.a == 0xFF)
-					bitmap_addbox(bm, &sbar, TO_RGB16(c));
-				else if (c.a == 0xFE)
-					bitmap_negbox(bm, &sbar, TO_RGB16(c));
-				else if (c.a > 0x7F)
-					bitmap_avgbox(bm, &sbar, TO_RGB16(c));
-				else
-					bitmap_fillbox(bm, &sbar, TO_RGB16(c));
-			}
+			sbar.y = sbar.y + scr->start * sbar.h / i;
+			sbar.h = sbar.h * scr->showing / i;
 
-			if (scr->bar &&
-				((scr->style & BAR_ALWAYS) ||
-				 ((scr->style & BAR_PARTIAL) && (scr->lines > scr->showing))))
-			{
-				sbar.x += scr->marginx[1];
-				sbar.w -= scr->marginx[1] * 2;
-				sbar.y += scr->marginy[1];
-				sbar.h -= scr->marginy[1] * 2;
-
-				sbar.y = sbar.y + scr->start * sbar.h / i;
-				sbar.h = sbar.h * scr->showing / i;
-
-				backdrop_render(scr->bar, &sbar, bm);
-			}
+			backdrop_render(scr->bar, &sbar, bm);
 		}
-		return 1;
+
+		if (dirty)
+			return 1;
 	}
 	return 0;
 }
@@ -96,6 +139,7 @@ Scrollbar *scrollbar_new()
 
 	p[0] = 0xff181818;
 	sc->bar = NULL;
+	sc->trough = NULL;
 
 	return sc;
 
@@ -142,10 +186,15 @@ void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 	switch(attr & 0xFF0)
 	{
 	case WATR_BACKDROP:
-		if (sc->bar)
-			free(sc->bar);
-
-		sc->bar = (BackDrop *)val;
+		if (n) {
+			if (sc->trough)
+				free(sc->trough);
+			sc->trough = (BackDrop *)val;
+		} else {
+			if (sc->bar)
+				free(sc->bar);
+			sc->bar = (BackDrop *)val;
+		}
 		sc->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLWIDTH:

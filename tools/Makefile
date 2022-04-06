@@ -13,7 +13,7 @@ linkwrap.exe : linkwrap.c
 	cl linkwrap.c
 	rm -f linkwrap.obj
 
-makefont.exe : makefont.c bmp.c
+makefont128.exe : makefont.c bmp.c
 	cl makefont.c bmp.c
 	rm -f makefont.obj bmp.obj
 

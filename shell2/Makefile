@@ -24,6 +24,8 @@ LIBS = -L$(POGO)/lib -lpogo -lgcc
 CFLAGS	= $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
 CFLAGS2 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
 CFLAGS3 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -Os -nostdinc -I$(POGO)/include
+CFLAGS4 = $(DEFINES) -Wall -c -fomit-frame-pointer -fno-builtin -mthumb -mthumb-interwork -Wall -g -O3 -nostdinc -I$(POGO)/include
+
 
 ASFLAGS = -mthumb-interwork
 
@@ -59,6 +61,9 @@ $(CART)_obj:
 
 mb :
 	mb -s $(TARGET)_$(CART).$(EXT) -c -w 250 -x 400
+
+unapack.o: unapack.c
+	$(CC) -c $(CFLAGS4) $< -o $@
 
 iwram.o : iwram.c
 	$(CC) -c $(CFLAGS3) $< -o $@

@@ -1,7 +1,7 @@
 # Make all fonts
 #
 
-MF = ../../tools/makefont.exe
+MF = ../../tools/makefont128.exe
 
 all: nokia.font screenfox.font fixed6.font fixed5.font fixed4.font fixed4.font
 

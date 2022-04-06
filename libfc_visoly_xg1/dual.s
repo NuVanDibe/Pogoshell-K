@@ -254,8 +254,7 @@ reset_func:
 	cmp		r1, r2
 	bne		0b
 
-	mov		r0,#0xfc
-@	mov		r0,#0xfc		@reset all execept RAM
+	mov		r0,#0xfc		@reset all execept RAM
 @	mov		r0,#0xfe
 	swi		#0x010000
 

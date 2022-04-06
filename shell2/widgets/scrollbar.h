@@ -6,11 +6,13 @@
 
 enum {
 	TROUGH_NEVER = 0,
-	TROUGH_PARTIAL = 1,
-	TROUGH_ALWAYS = 2,
+	TROUGH_MINIMAL = 1,
+	TROUGH_PARTIAL = 2,
+	TROUGH_ALWAYS = 3,
 	BAR_NEVER = 0,
-	BAR_PARTIAL = 4,
-	BAR_ALWAYS = 8
+	BAR_MINIMAL = 4,
+	BAR_PARTIAL = 8,
+	BAR_ALWAYS = 12
 };
 
 #define WIDGET_SCROLLBAR 0x1005
@@ -24,6 +26,7 @@ typedef struct
 	
 	uint16 style;
 	BackDrop *bar;
+	BackDrop *trough;
 	uint16 marginx[2];
 	uint16 marginy[2];
 	uint16 alignside;

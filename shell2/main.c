@@ -58,6 +58,7 @@ char *path[4];
 
 int sram_game_size = 64;
 
+int new_marked = -1;
 uint16 marked;
 
 const char *PogoVersion = "2.0b3mod5";
@@ -135,7 +136,7 @@ int load_state(int what)
 		read(fd, tmp, 128);
 		close(fd);
 		filesys_cd_marked(tmp);
-		marked = state.marked;
+		new_marked = state.marked;
 		memcpy(settings, state.settings, NO_SETTINGS);
 		if (settings[SF_THEME] >= theme_count)
 			settings[SF_THEME] = 0;
@@ -381,6 +382,11 @@ void update_list(void)
 		listview_addline(MainList, filetype_icon(t), &dirname[i*32], &dirsize[i*10]);
 	}
 
+	if (new_marked != -1) {
+		listview_set_marked(MainList, 0);
+		marked = new_marked;
+		new_marked = -1;
+	}
 	listview_set_marked(MainList, marked);
 
 	if(filesys_getstate() == FSTATE_SRAM)
@@ -400,7 +406,6 @@ void textreader_set_font(int n, Font *f);
 
 void setup_screen(void)
 {
-	uchar align;
 	char tmp[80];
 	int i, count;
 	char *theme;
@@ -440,9 +445,6 @@ void setup_screen(void)
 
 	ListBar = MainList->scrollbar;
 
-	align = ALIGN_RIGHT;
-	listview_set_attribute(MainList, WATR_ALIGN+1, &align);
-
 	if(mbox)
 	{
 		//textflow_set_attribute(MessageTxt, WATR_TEXT, "This is just a little\ntest of the messagebox,\nI hope it works well!\n--Sasq");
@@ -459,6 +461,7 @@ void setup_screen(void)
 			listview_set_attribute(MessageList, WATR_BACKDROP, MessageTxt->backdrop);
 		listview_set_attribute(MessageList, WATR_COLOR+0, &(MessageTxt->textcolor[0]));
 		listview_set_attribute(MessageList, WATR_COLOR+3, &(MessageTxt->textcolor[3]));
+		listview_set_attribute(MessageList, WATR_ALIGN, MessageTxt->align);
 	}
 
 	count = IconSet->height / IconHeight;
@@ -480,11 +483,11 @@ void setup_screen(void)
 
 	font = font_load_path("dungeon.font");
 	textreader_set_font(FONT_TEXT, font);
-	
+
 	font = font_dup(font);
 	font->flags |= FFLG_BOLD;
 	textreader_set_font(FONT_BOLD, font);
-
+	
 	font = font_load_path("dungeoni.font");
 	textreader_set_font(FONT_EMPH, font);
 
@@ -603,9 +606,10 @@ extern char *sramfile_mem;
 extern int sram_size;
 int sram_strcmp(const char *a, const char *b);
 
+uchar main_tmp[50];
+
 int main(int argc, char **argv)
 {
-	uchar tmp[50];
 	FILE *fp;
 	int c, i;
 	int converted = 0;
@@ -615,11 +619,11 @@ int main(int argc, char **argv)
 	int srsize = -1;
 	//uint32 *mem = (uint32 *)0x02000000;
 
-	SoftReset(0xfc);
+	SoftReset(0x40); //Reset sound
 
 	rtc_enable();
 	i = rtc_check();
-	rtc_get(tmp);
+	rtc_get(main_tmp);
 
 	/* I assume this is a check if we're in an emulator, to avoid
 	 * display the splash screen.  This is overwritten if there's
@@ -641,11 +645,11 @@ int main(int argc, char **argv)
 	if(find_section(config_fp, "settings"))
 	{
 		char *name, *val;
-		while((c = read_line(tmp, sizeof(tmp), config_fp)) >= 0)
+		while((c = read_line(main_tmp, sizeof(main_tmp), config_fp)) >= 0)
 		{
 			if(c > 0)
 			{
-				if(parse_assignment(tmp, &name, &val))
+				if(parse_assignment(main_tmp, &name, &val))
 				{
 					if(strcmp(name, "SRAM") == 0)
 					{
@@ -730,9 +734,9 @@ int main(int argc, char **argv)
 		if(l & 0x80000000)
 		{
 			l &= 0x7FFFFFFF;
-			fread(tmp, 1, sizeof(tmp), fp);
+			fread(main_tmp, 1, sizeof(main_tmp), fp);
 			fclose(fp);
-			show_text("", tmp, 0);
+			show_text("", main_tmp, 0);
 		}
 	}
 
@@ -878,13 +882,13 @@ int main(int argc, char **argv)
 			{
 				char *name = filesys_fullname(marked);
 				i = 5;
-				strcpy(tmp, TEXT(CMD_BASIC));
+				strcpy(main_tmp, TEXT(CMD_BASIC));
 				if(filesys_getstate() == FSTATE_SRAM)
 				{
-					strcat(tmp, TEXT(CMD_SRAM));
+					strcat(main_tmp, TEXT(CMD_SRAM));
 					i += 2;
 				}
-				i = msgbox_list2(TEXT(COMMANDS), tmp, i);
+				i = msgbox_list2(TEXT(COMMANDS), main_tmp, i);
 
 				if(i >= 0)
 					commands[i](name);

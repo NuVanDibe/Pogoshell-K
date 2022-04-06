@@ -597,13 +597,15 @@ if __name__ == "__main__":
 			align_mask = 128*1024-1
 			xrom = 1
 		if o in ("--exclude"):
-			if len(a) > 0:
-				if a[0] != ".":
-					exclude_ext.append("." + a)
+			ls = a.split(",")
+			for f in ls:
+				if len(f) > 0:
+					if f[0] != ".":
+						exclude_ext.append("." + f)
+					else:
+						exclude_ext.append(f)
 				else:
-					exclude_ext.append(a)
-			else:
-				print "You must specify a non-zero length extension."
+					print "You must specify a non-zero length extension."
 	if autocorrectchar and not correct:
 		usage(argv[0])
 		sys.exit(1)

@@ -62,7 +62,7 @@ CODE_IN_IWRAM void *memcpy_rev(void *dst, const void *src, int l)
 {
 	uchar *d, *s;
 	uint16 *d16, *s16;
-	int l16, odd, n;
+	int l16, odd;
 
 	d = (uchar *)dst + l;
 	s = (uchar *)src + l;

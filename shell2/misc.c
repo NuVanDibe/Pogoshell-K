@@ -66,6 +66,8 @@ int find_section(FILE *fp, char *name)
 	return 0;
 }
 
+// Unused
+#if 0
 int file2ram(char *fname, void *mem, int msize)
 {
 	char *s;
@@ -109,6 +111,7 @@ int file2ram(char *fname, void *mem, int msize)
 
 	return fsize;
 }
+#endif
 
 uchar *file2mem(char *fname, void *mem, int msize)
 {
@@ -125,7 +128,7 @@ uchar *file2mem(char *fname, void *mem, int msize)
 	lseek(fd, 0, SEEK_SET);
 
 	ptr = (uchar *)lseek(fd, 0, SEEK_MEM);
-	if(!ptr)
+	if(mem && !ptr)
 	{
 		// Read file to top of buffer
 		if(s[2] == 'z')

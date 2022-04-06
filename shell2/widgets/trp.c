@@ -2,510 +2,283 @@
 #include <pogo.h>
 
 #include "../window.h"
-#include "textreader.h"
+#include "trp.h"
 #include "../users.h"
+#include "../unapack.h"
 
 #define VRAM ((uint16 *)0x06000000)
 
-extern int CurrentUser;
+#define MAGIC (0x5848681a) //0x1a, "XTX"
+#define AVAILABLE (128*1024)
+#define CACHE 2
 
-// Offsets for lines of current page
-int lines[25];
+// Cache to store decompressed blocks
+static char *cache = (int *)(0x02000000 + 256*1024 - AVAILABLE);
+u32 cache_start = 0;
+u32 cache_count = CACHE;
 
-// Offset for each page in text
-static int *pages = (int *)(0x02000000 + 256*1024 - 1024*4);
-static char *linebuf = (char *)(0x02000000 + 256*1024 - 1024*4 - 4096);
+// Compressed blocks
+uchar *file;
+u32 size, block_size, block_count;
+uchar *blocks;
 
-int page_count = 0;
+int line_starts[160];
 
+static Font *font;
 
-Font *font_list[4];
-
-TextReader treader;
-
-void textreader_set_font(int n, Font *f)
-{
-	font_list[n] = f;
-}
-
-
-// Seeks to beginning of next word, return pixel length
-int next_word(Font *font, char **text)
-{
-	char *p = *text;
-	int l,ff = font->first;
-	int w = 0;
-
-	while(*p > ' ')
-	{
-		if(*p <= font->last)
-		{
-			if(font->flags & FFLG_PROPORTIONAL)
-				l = font->offsets[*p - ff + 1] - font->offsets[*p - ff] + font->spacing;
-			else
-				l = font->charwidth;
-		} else
-			l = 0;
-
-		w += l;
-		p++;
-	}
-
-	while(*p == ' ')
-	{
-		if(w+font->charwidth > 232)
-		{
-			*text = p;
-			return w;
-		}
-		w += (font->charwidth + font->spacing);
-		p++;
-	}
-
-	*text = p;
-	return w;
-}
-
-
-
-/*
-  10 counts as newline, 13 is ignored
-  line-indexes point to after the 10 and the 13 if present
-*/
-
-#define PAR_SIZE 4096
-
-
-// Scan forward one page in the file. A page is 'height' lines of text
-// Returns 0 if not EOF, otherwise number of lines before EOF (always < 'height')
-int scan_page(FILE *fp, int height)
-{
-	int l;
-	int fset;
-	Font *font;
-
-	int c;
-	char *ptr, *lastp = NULL;
-	int len, w;
-	int lc = 0;
-	
-	font = font_list[FONT_TEXT];
-
-	c = 0;
-	while(c != EOF)
-	{
-		// Scan one line (paragraph)
-		ptr = linebuf;
-		len = 0;
-		c = 0;
-
-		lines[lc++] = ftell(fp);
-		if(lc == height+1)
-			return 0;
-
-		// Read complete line to 'linebuf'
-		while((c != 10) && (c != EOF) && (len < PAR_SIZE))
-		{
-			len++;
-			c = getc(fp);
-			*ptr++ = c;
-		}
-		ptr--;
-		*ptr = 0;
-		ptr = linebuf;
-
-		// 'linebuf' = 'ptr' = null-terminated complete line to be wrapped
-		// 'len' = length of that line
-
-		while(*ptr)
-		{
-			w = 0;
-			//  Read all words in line
-			while(w < 232 && *ptr)
-			{
-				fset = 0;
-				// Skip/check unprintables
-				while(*ptr && *ptr < ' ')
-				{
-					// If font has not been set this word and this is a font set command
-					if(!fset && *ptr <= 8)
-					{
-						fset = 1;
-						font = font_list[*ptr - 1];			
-					}
-					ptr++;
-				}
-				
-				// Starting with actual word (after any special chars parsed above)
-				if(*ptr)
-				{
-					lastp = ptr;
-					l = next_word(font, &ptr);
-
-					// now:
-					// lastp = start of word
-					// ptr = end of word
-
-					// Special case: if the first word on the line was too long...
-					if(!w && l > 232)
-						lastp = ptr;
-
-					w += l;
-
-					// If a space made us pass the border, subtract the width of the space
-					// (shouldnt be drawn at the end of a line)
-					if(w >= 232 && ptr[-1] == ' ')
-						w -= font->charwidth;
-				}
-			}
-
-			if(w >= 232)
-			{
-				// We passed screen border
-
-				// Subtract length of last word (because it must be printed on next line)
-				w -= l;
-
-				ptr = lastp;
-				// Store the offset
-				// filepointer is at the end of the unwrapped line
-				// subtract len to get to start of unwrapped line
-				// (ptr - linebuf) is the current offset into that line
-				lines[lc++] = ftell(fp) - len + (ptr - linebuf);
-
-				if(lc == height+1)
-				{
-					// If end of page, return 0
-					fseek(fp, lines[lc-1], SEEK_SET);
-					return 0;
-				}
-
-				w -= 240;
-
-			}
-		}
-	}
-	lines[lc] = ftell(fp);
-	return lc;
-}
-
-enum { AL_LEFT, AL_CENTER, AL_RIGHT };
+TextReaderPlus treaderp;
 
 void block_set(uint16 *dest, int width, int height, int dwidth, uint16 v);
-
 extern void dprint(const char *sz);
-void make_savename(char *dst, char *src, char *ext);
 
-void save_index(char *name)
+void textreaderplus_set_font(int n, Font *f)
 {
-	char tmp[40];
-	unsigned short c;
-	make_savename(tmp, name, ".idx");
-	int i;
-	FILE *fp;
-
-	sram_setuser(100);
-	if((fp = fopen(tmp, "wb")))
-	{
-		for(i=0; i<page_count; i++)
-		{
-			c = pages[i] & 0xFFFF;
-			fwrite(&c, 2, 1, fp);
-		}
-		fclose(fp);
-	}
-	sram_setuser(CurrentUser);
+	font = f;
 }
 
-int load_index(char *name)
+void update_cache(int offset)
 {
-	unsigned short c, lastc;
-	char tmp[40];
-	int total = 0;
-	FILE *fp;
-	make_savename(tmp, name, ".idx");
-	
-	sram_setuser(100);
+	u32 tmp;
 
-	if((fp = fopen(tmp, "rb")))
-	{
-		page_count = 0;
-		lastc = 0;
-		while(fread(&c, 2, 1, fp) > 0)
-		{
-			if(c < lastc) total += 0x10000;
-			pages[page_count] = total | c;
-			lastc = c;
-			page_count++;
-		}
-		fclose(fp);
-		sram_setuser(CurrentUser);
-		return 1;
+	if (offset >= cache_start && offset < cache_start + block_count*block_size)
+		return;
+	tmp = offset/block_size;
+	if (tmp + 1 == cache_start) {
+		cache_start = tmp;
+		memcpy(&cache[block_size], cache, block_size);
+		depack(file+blocks[cache_start], cache);
+	} else if (tmp - 2 >= 0 && tmp - 2 == cache_start) {
+		cache_start = tmp - 1;
+		memcpy(cache, &cache[block_size], block_size);
+		depack(file+blocks[cache_start+1], &cache[block_size]);
+	} else {
+		if (tmp == block_count - 1 || offset%block_size < (block_size>>1))
+			cache_start = tmp - 1;
+		else
+			cache_start = tmp;
+		depack(file+blocks[cache_start], cache);
+		depack(file+blocks[cache_start+1], &cache[block_size]);
 	}
-	sram_setuser(CurrentUser);
-	return 0;
 }
 
-int textreader_show_text(char *name)
+int textreaderplus_show_text(char *name)
 {
-	//uchar *bmark_ptr;
+	u16 *screen;
 	int modifiers = 0;
 	int align = 0;
-	uint16 *vp;
-	int rc,c,i,j,l,lastl;
-	int lin,lastlin;
-	//int last_lastfind = 0;
-	int lastfind = 0;
-	char linebuf[120];
-	int height;
-	int offset,done = 0;
-	Font *font;
-	FILE *fp, *fp2;
-
-	font = font_list[FONT_TEXT];
-
+	int linestart, lineend;
+	char bookmark[48];
+	int height, old_offset, offset, done = 0;
+	FILE *fp;
 	unsigned short bg = 0x7FFF;
 	unsigned short fg = 0x0000;
+	u16 chapter_count;
+	u32 *chapters, chapter = 0;
+	int line, i;
+	int width, w, drawwidth;
+	int ro, relative_offset, relative_size;
+	uchar *text;
+	int rate = 0;
+	int lastpage;
+
+	u16 linebuf[font->height][240];
+
+	file = file2mem(name, NULL, 0);
+
+	if (!file)
+		return 1;
+
+	if (*(u32 *)file != MAGIC)
+		return 1;
+
+	size = *(u32 *)(file+4);
+	block_size = *(u32 *)(file+8);
+	chapter_count = *(u16 *)(file+16);
+	blocks = (uchar **)(file+18);
+
+	block_count = size/block_size;
+	if (size%block_size)
+		block_count++;
+	chapters = blocks + sizeof(uchar **) * page_count;
+
+	if (chapter_count) {
+		for (i = 1; i < chapter_count; i++)
+			if (chapter_count[i-1] >= chapter_count[i])
+				return 1;
+		if (chapter[chapter_count-1] > size)
+			return 1;
+	}
+
+	if ((block_size<<1) > AVAILABLE)
+		return 1;
+
+	strcpy(bookmark, "/sram/");
+	strcat(bookmark, name);
+	strcat(bookmark, ".bookmark");
+	if((fp = fopen(bookmark, "rb"))) {
+		fread(&offset, 1, 4, fp);
+		fclose(fp2);
+		offset &= 0x7FFFFFFF;
+		if (offset > size)
+			return 1;
+	}
 
 	font_setcolor(fg, bg);
 
 	height = (160 / font->height) - 1;
 
-	page_count = 0;
-
-	block_set(VRAM, 240, 160, 240, bg);
-
-	offset = ((160 - font->height * (height+1)) / 2 ) * 240 + 4;
-
-	if((fp = fopen(name, "rb")))
-	{
-		if(!load_index(name))
-		{
-			pages[page_count++] = ftell(fp);
-			while(!scan_page(fp, height))
-			{
-				pages[page_count++] = ftell(fp);
-				if(!(page_count % 10))
-				{
-					sprintf(linebuf, "\372INDEXING %03d (%d)    ", page_count, pages[page_count-1]);
-					font_text(font, linebuf, VRAM, 240);
-					if(getchar() == RAWKEY_B)
-						return 0;
-				}
-			}
-			save_index(name);
-		}
-	}
-	else
-		return -1;
-
-	l = 0;
-	fseek(fp, pages[0], SEEK_SET);
-
-	if((fp2 = fopen("/sram/.bookmark", "rb")))
-	{
-		unsigned int l2;
-		fread(&l2, 1, 4, fp2);
-		l = (int)(l2 & 0x7FFFFFFF);
-		fread(linebuf, 1, sizeof(linebuf), fp2);
-		fclose(fp2);
-		if(strcmp(linebuf, name) == 0)
-			fseek(fp, pages[l], SEEK_SET);
-		else
-			l = 0;
-		
-	}
-
-	lin = 0;
-	lastl = -1;
-	lastlin = -1;
-
 	while(!done)
 	{
-		if((lastl != l) || (lastlin != lin))
-		{
-			c = scan_page(fp, height);
-
-			if(!c)
-				c = height;
-
-			vp = VRAM;
-			i = 0;
-			if(lastl == l)
+		old_offset = offset;
+		block_set(VRAM, 240, 160, 240, bg);
+		update_cache(offset, blocks, size);
+		screen = VRAM;
+		ro = relative_offset = offset - cache_start * block_size;
+		relative_size = size - cache_start * block_size;
+		linestart = offset;
+		line = 0;
+		while (ro < relative_size && line < height) {
+			text = &cache[relative_offset];
+			lineend = linestart;
+			width = 240;
+			w = 0;
+			while (width && ro < relative_size)
 			{
-				i = height-1;
-				vp = (VRAM + (font->height * 240 * i));
-			}
-
-			block_set(vp, 240, 160-font->height, 240, bg);
-			vp += offset;
-			for(; i<height; i++)
-			{
-				if(i < c)
-				{
-					fseek(fp, lines[i], SEEK_SET);
-					fread(linebuf, rc = lines[i+1] - lines[i], 1, fp);
-
-					linebuf[rc] = 0;
-
-					for(j=0; j<rc; j++)
-					{
-						switch(linebuf[j])
-						{
-						case 11:
-							align = AL_CENTER;
-							break;
-						case 14:
-							align = AL_RIGHT;
-							break;
-						case 13:
-							align = AL_LEFT;
-							break;
-						}
-					}
-
-					j = lastfind;
-					rc = font_text_multi(font_list, &j, linebuf, NULL, 240);
-
-					switch(align)
-					{
-					case AL_RIGHT:
-						font_text_multi(font_list, &lastfind, linebuf, (vp+(236-rc)), 240);
+				if (*text == '\n') {
+						lineend = ro - relative_offset + offset;
 						break;
-					case AL_LEFT:
-						font_text_multi(font_list, &lastfind, linebuf, vp, 240);
-						break;
-					case AL_CENTER:
-						font_text_multi(font_list, &lastfind, linebuf, (vp+((236-rc)/2)), 240);
-						break;
-					}
 				}
-
-				vp += (font->height * 240);
+				l = font_putchar_clip(font, *text, &linebuf[w], 240, width);
+				if (*text == ' ' && t) {
+					t = 0;
+					lineend = ro - relative_offset + offset;
+					drawwidth = w;
+				} else if (*text != ' ' && l)
+					t = 1;
+				width -= l;
+				w += l;
+				text++;
+				ro++;
 			}
-			lastl = l;
-			lastlin = lin;
-			vp = (unsigned short *)(0x06000000 + ((160 - font->height) * 480));
-			for(c=0; c<240*font->height; c++)
-				vp[c] = fg;
+			linestart[line] = linestart;
+			lineend[line] = lineend;
 
-			font_setcolor(bg, fg); //txbgcolor, txfgcolor);
-			sprintf(linebuf, "PAGE %03d/%03d * LINE %04d/%04d", l+1, page_count, lin + l*height + 1, page_count*height);
-			font_text(font, linebuf, (vp+2), 240);
-			font_setcolor(fg, bg); //txfgcolor, txbgcolor);
+			block_copy(screen, linebuf, drawwidth, font->height, 240, 1);
+			screen += font->height * 240;
+
+			linestart = ro - relative_offset + offset;
+			line++;
 		}
+		line_start[line] = linestart;
 
 		while((c = getchar()) == EOF)
 			Halt();
+
 		switch(c)
 		{
-		case RAWKEY_L:
-			modifiers |= 1;
-			break;
-		case RAWKEY_R:
-			modifiers |= 2;
-			break;
-		case RAWKEY_L | 0x80:
-			modifiers &= ~1;
-			break;
-		case RAWKEY_R | 0x80:
-			modifiers &= ~2;
-			break;
-		case RAWKEY_START:
-
-		case RAWKEY_UP:
-			if(modifiers == 1)
-				l -= 10;
-			else
-				l -= 1;
-			break;
-		case RAWKEY_A:
-/*			fseek(fp, lines[1], SEEK_SET);
-			scroll(font->height);
-			lin++;
-			break;*/
-		case RAWKEY_DOWN:
-			if(modifiers == 1)
-				l += 10;
-			else
-				l += 1;
-			break;
-		case RAWKEY_LEFT:
-			if(modifiers == 1)
-				lin = l = 0;
-			else
-				l -= 50;
-			break;
-		case RAWKEY_RIGHT:
-			if(modifiers == 1)
-			{
-				l = page_count-1;
-				lin = 0;
-			}
-			else
-				l += 50;
-			break;
-		case RAWKEY_B:
-			done = 1;
-			break;
-		case RAWKEY_SELECT:
-			///gui_messagebox(NULL, TEXT(TREAD_HELP_TITLE), TEXT(TREAD_HELP_TEXT), 0);
-			lastl = -1;
-			break;
+			case RAWKEY_UP:
+				switch(rate)
+				{
+					case 1:
+						break;
+					case 2:
+						for (i = 0; i < chapter_count; i++)
+						{
+							if (chapters[i] > offset)
+								break;
+						}
+						i--;
+						if (chapter_count && i >= 0)
+							offset = chapters[i];
+						break;
+					default:
+						break;
+				}
+				break;
+			case RAWKEY_DOWN:
+				switch(rate)
+				{
+					case 1:
+						lastpage = 0;
+						for (i = 0; i < height; i++)
+						{
+							if (line_start[i] >= size) {
+								lastpage = 1;
+								break;
+							}
+						}
+						if (!lastpage)
+							offset = line_start[height];
+						break;
+					case 2:
+						for (i = 0; i < chapter_count; i++)
+						{
+							if (chapters[i] > offset) {
+								offset = chapters[i];
+								break;
+							}
+						}
+						break;
+					default:
+						lastpage = 0;
+						for (i = 0; i < height; i++)
+						{
+							if (line_start[i] >= size) {
+								lastpage = 1;
+								break;
+							}
+						}
+						if (!lastpage)
+							offset = line_start[1];
+						break;
+				}
+				break;
+			case RAWKEY_LEFT:
+				if (rate > 0)
+					rate--;
+				break;
+			case RAWKEY_RIGHT:
+				if (rate < 2)
+					rate++;
+				break;
+			case RAWKEY_B:
+				done = 1;
+				break;
 		}
 
-		if(lin >= height)
-		{
-			lin = 0;
-			l++;
-		}
-
-		if(l<0) l = 0;
-		if(l>=page_count) l = page_count-1;
-
-		if(lastl != l)
-		{
-			fseek(fp, pages[l], SEEK_SET);
-			lin = 0;
-
-			if((fp2 = fopen("/sram/.bookmark", "wb")))
+		if (offset != old_offset) {
+			if((fp = fopen(bookmark, "wb")))
 			{
-				unsigned int l2 = (unsigned int)l | 0x80000000;
-				fwrite(&l2, 1, 4, fp2);
-				fwrite(name, 1, strlen(name)+1, fp2);
-				fclose(fp2);
+				fwrite(&offset, 1, 4, fp2);
+				fclose(fp);
 			}
 		}
 	}
 
-	fclose(fp);
-
-	if((fp2 = fopen("/sram/.bookmark", "wb")))
+	if((fp = fopen(bookmark, "wb")))
 	{
-		fwrite(&l, 1, 4, fp2);
-		fwrite(name, 1, strlen(name)+1, fp2);
-		fclose(fp2);
+		fwrite(&offset, 1, 4, fp2);
+		fclose(fp);
 	}
 
 	return 0;
 }
 
-void textreader_set_attribute(TextReader *tr, int attr, void *val)
+void textreaderplus_set_attribute(TextReader *tr, int attr, void *val)
 {
 
 }
 
-TextReader *textreader_new()
+TextReaderPlus *textreaderplus_new()
 {
 
 	//render_functions[WIDGET_TEXTREADER & 0xFFF] = (WidgetRenderFunc)textreader_render;
 
-	treader.w.type = WIDGET_TEXTREADER;
-	treader.w.height = 160;
-	treader.w.width = 240;
-	treader.w.flags = WFLG_REDRAW;
+	treaderp.w.type = WIDGET_TEXTREADER;
+	treaderp.w.height = 160;
+	treaderp.w.width = 240;
+	treaderp.w.flags = WFLG_REDRAW;
 
-
-	return &treader;
+	return &treaderp;
 }
 

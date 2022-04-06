@@ -30,7 +30,7 @@ typedef struct
 	Font *font;
 
 	uint16 colwidth[8];
-	uchar colalign[8];
+	uint16 colalign[8];
 
 	BitMap **icons;
 

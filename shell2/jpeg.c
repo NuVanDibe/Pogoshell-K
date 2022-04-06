@@ -66,7 +66,7 @@ void JPEG_IDCT (JPEG_FIXED_TYPE *zz, signed char *chunk, int chunkStride)
 #endif
 
 int bytes_left;
-const unsigned char *rewind_point;
+unsigned char *rewind_point;
 
 #define decoder_value (0x02040000-sizeof(JPEG_Decoder))
 JPEG_Decoder * const decoder = (JPEG_Decoder * const) (decoder_value); // sizeof(JPEG_Decoder)

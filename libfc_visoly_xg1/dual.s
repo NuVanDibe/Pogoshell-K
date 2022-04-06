@@ -229,9 +229,8 @@ executeCart:
 	ldr		r1, =reset_end
 	mov		r2, #0x03000000
 	add		r2, r2, #0x7E00
-	@mov		r3,#0
-	@str		r3,[r2, #0x1FA]
-	str		r11,[r2, #0x1FA]
+	mov		r3,#0
+	strb	r3,[r2, #0x1FA]
 0:
 	ldr		r3,[r0],#4
 	str		r3,[r2],#4
@@ -255,12 +254,12 @@ reset_func:
 	mov		r0,#0xfe
 	swi		#0x010000
 
-@	cmp		r11,#0
-@	bne		1f
+	cmp		r11,#0
+	bne		1f
 
 	swi		#0x000000
-@1:
-@	bx		r11
+1:
+	bx		r11
 reset_end:
 
 	.ALIGN

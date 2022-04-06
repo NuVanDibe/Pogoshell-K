@@ -236,8 +236,8 @@ void execv(const char *cmdname, const char *const *argv)
 			SETW(REG_IME, 0);
 
 
-			//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-			//SETW(REG_BG1CNT, 0);
+			SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+			SETW(REG_BG1CNT, 0);
 
 			//p = (uint32 *)0x03007FC0;
 			//for(i=0; i<4*4; i++)

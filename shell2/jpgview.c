@@ -365,6 +365,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 				}
 				render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);
 				dirty = 1;
+				count = 0;
 			}
 			change1 = change2 = 0;
 			oldx = x;
@@ -374,7 +375,7 @@ void joint_view(uchar *jpg, int jpg_ram_usage, int jpg_size)
 
 			count++;
 			Halt();
-			if (count > 50*3) {
+			if (count > 60*4) {
 				if (scalechange) {
 					scalechange = 0;
 					render_jpg(x, y, w, h, wi, hi, mode, scale, rotate, toshift);

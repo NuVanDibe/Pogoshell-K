@@ -91,8 +91,34 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	r->y += lv->marginy;
 
-	if(!lv->lines)
+	if(lv->scrollbar && lv->dirty == 0xFF)
+	{
+		sbar.x += (sbar.w - 9);
+		sbar.w = 8;
+		sbar.y += 1;
+		sbar.h -= 2;
+
+		bitmap_addbox(bm, &sbar, 0x0C63);
+
+		i = lv->lines;
+		if(i < lv->showing)
+			i = lv->showing;
+
+		sbar.w-=2;
+		sbar.x++;
+		sbar.y = sbar.y + lv->start * sbar.h / i;
+
+		sbar.h = sbar.h * lv->showing / i;
+
+		backdrop_render(lv->scrollbar, &sbar, bm);
+	}
+
+	if(!lv->lines) {
+		lv->dirty = 0;
+	    for (i = 0; i < MAPSLOTCOUNT; i++)
+        	lv->redrawmap[i] = 0;
 		return 1;
+	}
 
 	dst = (uint16 *)bm->pixels + (r->x + lv->iconw + lv->marginx) + (r->y + fonty) * bm->width ;
 
@@ -110,7 +136,10 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		r2.w -= 10;
 	r2.h = lineh;
 
-	font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
+	if(lv->textcolor[0].a != 0x01)
+		font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
+	else
+		font_setcolor(0, 0);
 	for(i=lv->start; i<maxi; i++)
 	{
 		if(lv->dirty == 0xFF || lv->redrawmap[i>>5]&(1<<(i&31)))
@@ -142,14 +171,11 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 				if (lv->colwidth[j]) {
 					drawwidth = (i == lv->marked) ? bm->width : lv->colwidth[j];
 					if (lv->colalign[j] == ALIGN_LEFT) {
-						l = font_text_clip(lv->font, lv->texts[j][i], d, bm->width, drawwidth);
+						l = font_text_truncate(lv->font, lv->texts[j][i], d, bm->width, drawwidth);
 					} else {
-						l = font_text_clip(lv->font, lv->texts[j][i], NULL, bm->width, drawwidth);
-						font_text_clip(lv->font, lv->texts[j][i], d +
-							((lv->colalign[j] == ALIGN_RIGHT) ?
-								(lv->colwidth[j] - l) :
-								((lv->colwidth[j] - l)>>1)),
-							bm->width, drawwidth);
+						l = font_text_truncate(lv->font, lv->texts[j][i], NULL, bm->width, drawwidth);
+						l = (lv->colalign[j] == ALIGN_RIGHT) ? lv->colwidth[j]-l : ((lv->colwidth[j]-l)>>1);
+						l = font_text_truncate(lv->font, lv->texts[j][i], d + l, bm->width, drawwidth);
 					}
 				}
 				d += lv->colwidth[j]; 
@@ -165,28 +191,6 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		}
 		dst += (bm->width * lineh);
 		y += lineh;
-	}
-
-	if(lv->scrollbar && lv->dirty == 0xFF)
-	{
-		sbar.x += (sbar.w - 9);
-		sbar.w = 8;
-		sbar.y += 1;
-		sbar.h -= 2;
-
-		bitmap_addbox(bm, &sbar, 0x0C63);
-
-		i = lv->lines;
-		if(i < lv->showing)
-			i = lv->showing;
-
-		sbar.w-=2;
-		sbar.x++;
-		sbar.y = sbar.y + lv->start * sbar.h / i;
-
-		sbar.h = sbar.h * lv->showing / i;
-
-		backdrop_render(lv->scrollbar, &sbar, bm);
 	}
 
 	lv->dirty = 0;
@@ -274,7 +278,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
 		break;
 	case WATR_ALIGN:
-		lv->colalign[(attr&0xf)] = *((uchar *)val);
+		lv->colalign[(attr&0xf)] = (int)val;
 		break;
 	//case WATR_NAME:
 	//	strcpy(lv->w.name, (char *)val);

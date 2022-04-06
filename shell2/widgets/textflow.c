@@ -112,6 +112,9 @@ void textflow_set_attribute(TextFlow *tb, int attr, void *val)
 			tb->w.width = calc_lengths(tb);
 		}
 		break;
+	case WATR_ALIGN:
+		tb->align = (int)val;
+		break;
 	default:
 		//dprint("Illegal Attribute!!!\n");
 		break;

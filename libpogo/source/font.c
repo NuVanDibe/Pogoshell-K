@@ -34,9 +34,6 @@ void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, int dw, 
 	int smod = (sw - width);
 	int dmod = (dw - width);
 
-	if (!dst)
-		return;
-
 	while(height--)
 	{
 		w = width;
@@ -66,9 +63,6 @@ void block_set(uint16 *dst, int width, int height, int dw, int color)
 	int w;
 	int dmod = (dw - width);
 
-	if (!dst)
-		return;
-
 	while(height--)
 	{
 		w = width;
@@ -78,10 +72,11 @@ void block_set(uint16 *dst, int width, int height, int dw, int color)
 	}
 }
 
-static uchar font_putmono(Font *font, char c, uint16 *dest, int width)
+static uchar font_putmono(Font *font, char c, uint16 *dest, int width, int dw)
 {
 	register int w;
 	int solid = !(font->flags & FFLG_TRANSP);
+
 	if(c < font->first || c >= font->last)
 		return 0;
 
@@ -91,17 +86,17 @@ static uchar font_putmono(Font *font, char c, uint16 *dest, int width)
 		if(c == ' ')
 		{
 			if(solid)
-				block_set(dest, w, font->height, width, colors[BG]);
+				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 		}
 		else
 		{
-			block_copy(dest, &font->pixels[(c - font->first) * w], w, font->height, font->width, width, solid);
+			block_copy(dest, &font->pixels[(c - font->first) * w], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 	}
 	return w;
 }
 
-static uchar font_putprop(Font *font, char c, uint16 *dest, int width)
+static uchar font_putprop(Font *font, char c, uint16 *dest, int width, int dw)
 {
 	register int offset,w;
 	register int ff = font->first;
@@ -111,7 +106,7 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width)
 	{
 		w = font->charwidth;
 		if(dest && solid)
-			block_set(dest, w, font->height, width, colors[BG]);
+			block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 	} 
 	else
 	{
@@ -121,7 +116,7 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width)
 		w = font->offsets[c - ff + 1] - offset;
 		if(dest)
 		{
-			block_copy(dest, &font->pixels[offset], w, font->height, font->width, width, solid);
+			block_copy(dest, &font->pixels[offset], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 		w += font->spacing;
 		if(w <= 0) w = 1;
@@ -129,8 +124,9 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width)
 	return w;
 }
 
-uchar font_putchar(Font *font, char c, uint16 *dest, int width)
+uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwidth)
 {
+	uchar (*putchar)(Font *, char, uint16 *, int, int);
 	int rc, fl;
 
 	if(font->flags & FFLG_COLOR)
@@ -139,36 +135,41 @@ uchar font_putchar(Font *font, char c, uint16 *dest, int width)
 		colors = font_colors;
 
 	if(font->offsets)
-	{
-		if(font->flags & FFLG_BOLD)
-		{
-			font_putprop(font, c, dest, width);
-			fl = font->flags;
-			font->flags |= FFLG_TRANSP;
-			rc = font_putprop(font, c, dest+1, width);
-			font->flags = fl;
-			return rc;
-		}
-		else
-		return font_putprop(font, c, dest, width);
-	}
+		putchar = font_putprop;
 	else
-	{
-		if(font->flags & FFLG_BOLD)
-		{
-			font_putmono(font, c, dest, width);
-			fl = font->flags;
-			font->flags |= FFLG_TRANSP;
-			rc = font_putmono(font, c, dest+1, width);
-			font->flags = fl;
-			return rc;
-		}
-		else
-		return font_putmono(font, c, dest, width);
-	}
+		putchar = font_putmono;
+
+	if (font->flags & FFLG_BOLD) {
+		putchar(font, c, dest, width, drawwidth);
+		fl = font->flags;
+		font->flags |= FFLG_TRANSP;
+		rc = putchar(font, c, dest+1, width, drawwidth-1);
+		font->flags = fl;
+		return rc;
+	} else
+		return putchar(font, c, dest, width, drawwidth);
 }
 
+uchar font_putchar(Font *font, char c, uint16 *dest, int width)
+{
+	return font_putchar_clip(font, c, dest, width, width);
+}
+
+#if 0
 int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwidth)
+{
+	int l = 0, w = 0;
+
+    while (drawwidth > 0 && *str) {
+		l = font_putchar_clip(font, *str++, dest, width, drawwidth);
+		w += l;
+		drawwidth -= l;
+    }
+	return w;
+}
+#endif
+
+int font_text_truncate(Font * font, char *str, uint16 * dest, int width, int drawwidth)
 {
     int l, period;
     char *s = str, *s1, *s2;
@@ -178,7 +179,7 @@ int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwid
 	period += period<<1;
 
 	right = (drawwidth-period)>>1;
-	right = (right < 1) ? 1 : right;
+	right = (right < 0) ? 0 : right;
 	left = right;
 
 	l = 0;
@@ -186,7 +187,7 @@ int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwid
     while (*s) {
 		l += font_putchar(font, *s++, NULL, width);
 		if (left && l > left) {
-			s1 = s - 2;
+			s1 = s - 1;
 			left = 0;
 		}
 		if (l > drawwidth)
@@ -228,7 +229,7 @@ int font_text_clip(Font * font, char *str, uint16 * dest, int width, int drawwid
 
 int font_text(Font * font, char *str, uint16 * dest, int width)
 {
-	return font_text_clip(font, str, dest, width, width);
+	return font_text_truncate(font, str, dest, width, width);
 }
 
 /*

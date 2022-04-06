@@ -23,8 +23,10 @@
 extern char theme_count;
 char theme_name[32];
 
+int screensaver_count;
 int sram_fd = -1;
 #define free_space() ioctl(sram_fd, SR_FREESPACE)
+#define abs(x) ((x < 0) ? -x : x)
 
 extern void SoftReset(unsigned char flags);
 // Device init funtions
@@ -53,8 +55,8 @@ BackDrop *ListBar;
 
 FILE *config_fp;
 
-const char *pathname[4] = {"PLUGINS", "THEMES", "FONTS", "BITMAPS"};
-char *path[4];
+const char *pathname[5] = {"PLUGINS", "THEMES", "FONTS", "BITMAPS", "SCREENSAVERS"};
+char *path[5] = { NULL, NULL, NULL, NULL, NULL };
 
 int sram_game_size = 64;
 
@@ -75,6 +77,7 @@ char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
 struct {
 	unsigned /*short*/ char settings[NO_SETTINGS];
 	uint16 marked;
+	int seed;
 }  __attribute__ ((packed)) state;
 
 /* Save current state to SRAM */
@@ -86,6 +89,7 @@ void save_state(void)
 
 	memcpy(state.settings, settings, NO_SETTINGS);
 	state.marked = marked;
+	state.seed = getseed();
 	
 	fd = open("/sram/.state", O_CREAT);
 	if(fd >= 0)
@@ -145,6 +149,7 @@ int load_state(int what)
 		close(fd);
 		filesys_cd_marked(tmp);
 		new_marked = state.marked;
+		srand(state.seed);
 		memcpy(settings, state.settings, NO_SETTINGS);
 		if (settings[SF_THEME] >= theme_count)
 			settings[SF_THEME] = 0;
@@ -659,7 +664,7 @@ int main(int argc, char **argv)
 						sram_game_size = atoi(val);
 					}
 					else*/
-					for(i=0; i<4; i++)
+					for(i=0; i<5; i++)
 						if(strcmp(name, pathname[i]) == 0)
 						{
 							char *p;
@@ -691,6 +696,28 @@ int main(int argc, char **argv)
 	sram_init();
 
 	sram_fd = open("/sram", 0);
+
+	if (GET_PATH(SCREENSAVERS)) {
+		DIR *dir;
+		struct dirent *de;
+		struct stat sbuf;
+		char filename[128], *p;
+
+		dir = opendir(GET_PATH(SCREENSAVERS));
+		if (dir) {
+			strcpy(filename, GET_PATH(SCREENSAVERS));
+			p = &filename[strlen(filename)];
+			*p = '/';
+			p++;
+			while ((de = readdir(dir))) {
+				strcpy(p, de->d_name);
+				stat(filename, &sbuf);
+				if (!(sbuf.st_mode & S_IFDIR))
+					screensaver_count++;
+			}
+			closedir(dir);
+		}
+	}
 
 	filesys_cd_marked("");
 
@@ -766,8 +793,35 @@ int main(int argc, char **argv)
 			Halt();
 
 			if (sleepcount >= (3*60*60)) {
-				suspend();
-				getchar(); //dump char used for wakeup
+				if (screensaver_count) {
+					DIR *dir;
+					struct dirent *de;
+					int i, j;
+					DirList dl;
+					char filename[128];
+
+					j = rand();
+					i = abs(j) % screensaver_count;
+					dir = opendir(GET_PATH(SCREENSAVERS));
+					do {
+						de = readdir(dir);
+						if (!(de->d_size & 0x80000000))
+							i--;
+					} while (i > 0);
+					closedir(dir);
+					strcpy(filename, "/rom/");
+					strcat(filename, GET_PATH(SCREENSAVERS));
+					strcat(filename, de->d_name);
+					strcpy(dl.name, de->d_name);
+					dl.size = de->d_size;
+					dl.type = 0;
+					i = filetype_lookup(&dl);
+					if (filetype_handle(filename, i, 0) == 2)
+						update_list();
+				} else { 
+					suspend();
+					getchar(); //dump char used for wakeup
+				}
 				sleepcount = 0;
 				count = 50;
 			}

@@ -222,7 +222,6 @@ void execv(const char *cmdname, const char *const *argv)
 			if(argv[0])
 				p[-1] -= (l - 0x08000000);
 
-
 			//reset_io();
 
 			//SETW(REG_IE, 0);

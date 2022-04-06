@@ -34,8 +34,8 @@ struct tm *time2(struct tm *tm)
 
 	//fprintf(2, "%02x %02x\n", data[2], data[4]);
 
-	if(data[4] & 0x80)
-		tm->tm_hour += 12;
+	//if(data[4] & 0x80)
+	//	tm->tm_hour += 12;
 
 	tm->tm_mday = UNBCD(data[2] & 0x3F);
 	tm->tm_mon = UNBCD(data[1]);

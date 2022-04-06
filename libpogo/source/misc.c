@@ -36,6 +36,11 @@ int rand(void)
 
 }
 
+int getseed(void)
+{
+	return seed;
+}
+
 void srand(unsigned int s)
 {
 	seed = s;

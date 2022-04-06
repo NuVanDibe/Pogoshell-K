@@ -66,7 +66,6 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	fix_positions(lv, &tr);
 
-
 	if(lv->w.flags & WFLG_REDRAW)
 		lv->dirty = 0xFF;
 
@@ -121,7 +120,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 		sbar.h = sbar.h * lv->showing / i;
 
-		backdrop_render(lv->scrollbar, &sbar, bm);
+		if (lv->lines > lv->showing)
+			backdrop_render(lv->scrollbar, &sbar, bm);
 	}
 
 	if(!lv->lines) {
@@ -157,7 +157,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 			if (lv->dirty != 0xFF) {
 				if (lv->backdrop)
-					backdrop_subrender(lv->backdrop, r, &r2, bm);
+					backdrop_subrender(lv->backdrop, &tr, &r2, bm);
 				else
 					bitmap_fillbox(bm, &r2, bdcol);
 			}
@@ -166,14 +166,16 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 			if(i == lv->marked)
 			{
-				if(lv->textcolor[3].a == 0xFF)
-					bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
-				if(lv->textcolor[3].a == 0xFE)
-					bitmap_negbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
-				else if(lv->textcolor[3].a > 0x7F)
-					bitmap_avgbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+				Color c;
+				c = lv->textcolor[3];
+				if(c.a == 0xFF)
+					bitmap_addbox(bm, &r2, TO_RGB16(c));
+				else if(c.a == 0xFE)
+					bitmap_negbox(bm, &r2, TO_RGB16(c));
+				else if(c.a > 0x7F)
+					bitmap_avgbox(bm, &r2, TO_RGB16(c));
 				else
-					bitmap_fillbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+					bitmap_fillbox(bm, &r2, TO_RGB16(c));
 				font_setcolor(TO_RGB16(lv->textcolor[2]), TO_RGB16(lv->textcolor[3]));
 			}
 			for(j=0; j<lv->columns; j++)

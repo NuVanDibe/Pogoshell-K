@@ -81,7 +81,7 @@ int save_rle(int fd, int bank)
 	if(write(fd, buf, count) < 0)
 		count = -1;
 
-	close(fd);
+	//close(fd);
 
 	return count;
 }

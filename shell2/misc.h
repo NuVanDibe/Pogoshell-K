@@ -9,8 +9,8 @@ uchar *file2mem(char *fname, void *mem, int msize);
 int parse_assignment(char *line, char **name, char **val);
 Font *font_load_path(char *name);
 char *strdup(char *str);
-extern char *path[4];
-enum {PATH_PLUGINS, PATH_THEMES, PATH_FONTS, PATH_BITMAPS};
+extern char *path[5];
+enum {PATH_PLUGINS, PATH_THEMES, PATH_FONTS, PATH_BITMAPS, PATH_SCREENSAVERS};
 #define GET_PATH(x) (path[PATH_ ## x])
 
 

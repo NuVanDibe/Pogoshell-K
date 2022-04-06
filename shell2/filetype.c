@@ -10,7 +10,8 @@
 #include "widgets/listview.h"
 #include "widgets/textbar.h"
 #include "settings.h"
-#include "misc.h" 
+#include "misc.h"
+#include "text.h"
 
 extern int savebank;
 extern int clipsize;
@@ -151,10 +152,47 @@ void make_arguments(const char *cmdname, const char *const *argv);
 
 int execute_plugin(char *cmd, char *fname, int keys)
 {
+	int i;
+	int plugin_type;
 	char *s;
 	char tmp[64];
 	const char *args[] = {NULL, NULL};
 	args[0] = fname;
+
+	s = strrchr(cmd, '.');
+	if (!s) {
+		statusbar_set(TEXT(INVALID_PLUGIN));
+		screen_redraw(MainScreen);
+		return 1;
+	}
+
+	s++;
+
+	for(i=1; i<ftcount; i++)
+	{
+		if(strcmp(s,filetypes[i]->data) == 0)
+			break;
+	}
+
+	if (i >= ftcount) {
+		statusbar_set(TEXT(INVALID_PLUGIN));
+		screen_redraw(MainScreen);
+		return 1;
+	}
+
+	if (filetypes[i]->handle_func == execute_mb)
+		plugin_type = RAW;
+	else if (filetypes[i]->handle_func == execute_mbz)
+		plugin_type = LZ77;
+	else if (filetypes[i]->handle_func == execute_mbap)
+		plugin_type = APACK;
+	else if (filetypes[i]->handle_func == execute_rom)
+		plugin_type = EXE;
+	else {
+		statusbar_set(TEXT(INVALID_PLUGIN));
+		screen_redraw(MainScreen);
+		return 1;
+	}
 
 	save_state();
 	//clear_vram();
@@ -177,16 +215,12 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	SETW(REG_IME, 0);
 	SETW(REG_SOUNDBIAS, 0x0200);
 		
-	s = strrchr(cmd, '.');
-	if(s && (strncmp(s, ".mb", 3) == 0))
-	{
+	if (plugin_type != EXE) {
 		char *ptr;
 		uint16 *p2;
-		int i;
 
 		memset((void *)(0x02000000), 0, 256*1024);
-		ptr = file2mem(tmp, (void *)0x02000000, 256*1024,
-			(s[3] == 'z') ? LZ77 : ((s[3] == 'a' && s[4] == 'p') ? APACK : RAW));
+		ptr = file2mem(tmp, (void *)0x02000000, 256*1024, plugin_type);
 		if(ptr != (char *) 0x02000000)
 			return 1;
 		make_arguments(tmp, args);

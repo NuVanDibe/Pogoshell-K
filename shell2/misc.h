@@ -1,7 +1,7 @@
 #ifndef MISC_H
 #define MISC_H
 
-enum { LZ77 = 1, APACK = 2, RAW = 0 };
+enum { RAW = 0, LZ77 = 1, APACK = 2, EXE = 3 };
 
 void reset_gba (void);
 int gethex(char *p);

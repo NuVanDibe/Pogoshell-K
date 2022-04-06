@@ -8,9 +8,9 @@ Pogoshell v2.0b3-mod5.
 
 Uses rijndael.py from the tlslite package
 
-Usage: makefs.py [-rbhsxmcva:] [--exclude=] [--glob_exclude=] pogo.gba root flashme.gba
+Usage: makefs.py [-rbdhsxmcva:] [--exclude=] [--glob_exclude=] pogo.gba root flashme.gba
 
-Made by Kuwanger in Jan/Feb 2006
+First made by Kuwanger in Jan/Feb 2006
 """
 
 import sys, os, getopt
@@ -38,6 +38,7 @@ verbose = 0
 emptydir_remove = 0
 use_bridge = 0
 hide_bridge = 0
+directories_last = 1
 moresecurepad = 0
 align_mask = 32767
 xrom = 0
@@ -150,6 +151,12 @@ def binary_first(left, right):
 		return -1
 	elif IS_UNMOVABLE(right.flags):
 		return 1
+	elif directories_last and \
+			IS_BINARY(left.flags) and IS_BINARY(right.flags) and IS_DIRECTORY(left.flags):
+		return 1
+	elif directories_last and \
+			IS_BINARY(left.flags) and IS_BINARY(right.flags) and IS_DIRECTORY(right.flags):
+		return -1
 	elif (IS_BINARY(left.flags) and IS_BINARY(right.flags)) or \
 		 (not IS_BINARY(left.flags) and not IS_BINARY(right.flags)):
 		if right.size < left.size:
@@ -357,7 +364,7 @@ class pogocompilation:
 							ext = current.name[ext+1:]
 						else:
 							ext = ""
-						if ext not in binary_plugins and current.size <= gap:
+						if (not directories_last or not IS_DIRECTORY(current.flags)) and ext not in binary_plugins and current.size <= gap:
 							current.start = offset
 							offset += current.size
 							offset = (offset+3) & ~3
@@ -441,7 +448,7 @@ class pogocompilation:
 									ext = current.name[ext+1:]
 								else:
 									ext = ""
-								if ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
+								if (not directories_last or not IS_DIRECTORY(current.flags)) and ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
 									current.start = offset
 									offset += current.size
 									offset = (offset+3) & ~3
@@ -487,7 +494,7 @@ class pogocompilation:
 							ext = current.name[ext+1:]
 						else:
 							ext = ""
-						if ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
+						if (not directories_last or not IS_DIRECTORY(current.flags)) and ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
 							current.start = offset
 							offset += current.size
 							offset = (offset+3) & ~3
@@ -739,7 +746,7 @@ class pogofile(pogoobject):
 			self.contents = self.contents[0:self.size]
 
 def usage(name):
-	print "Usage: %s [-rbhsxmvc[a<c>]] [--exclude=...] [--glob_exclude=] pogo.gba root root.gba" % name
+	print "Usage: %s [-rbdhsxmvc[a<c>]] [--exclude=...] [--glob_exclude=] pogo.gba root root.gba" % name
 
 if __name__ == "__main__":
 	i = 1
@@ -747,7 +754,7 @@ if __name__ == "__main__":
 	correct = 0
 	autocorrectchar = ""
 	try:
-		opts, args = getopt.gnu_getopt(argv[1:], "rbhsxmcva:", ["romtrunc", "bridge", "hidebridge", "correct", "subdirempty", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude=", "glob_exclude="])
+		opts, args = getopt.gnu_getopt(argv[1:], "rbdhsxmcva:", ["romtrunc", "bridge", "directoriesnotlast", "hidebridge", "correct", "subdirempty", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude=", "glob_exclude="])
 	except getopt.GetoptError:
 		usage(argv[0])
 		sys.exit(1)
@@ -759,6 +766,8 @@ if __name__ == "__main__":
 		if o in ("-h", "--hidebridge"):
 			use_bridge = 1
 			hide_bridge = 1
+		if o in ("-d", "--directoriesnotlast"):
+			directories_last = 0
 		if o in ("-c", "--correct"):
 			correct = 1
 		if o in ("-v", "--verbose"):

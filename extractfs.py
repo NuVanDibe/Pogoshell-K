@@ -129,7 +129,9 @@ def process(contents, position, length, rootstart, path):
 					temp = dir[i:i+16]
 					tmp += dec
 				chunk = tmp[0:realsize]
-				if verbose or list:
+				if verbose and list:
+					print "%08x\t%#8d\t%s" % (start, realsize, newpath)
+				elif verbose or list:
 					print newpath
 				if not list:
 					os.mkdir(name)
@@ -139,7 +141,7 @@ def process(contents, position, length, rootstart, path):
 					os.chdir("..")
 
 def usage(name):
-	print "Usage: [-lvs:] [--verbose] [--list] [--seperator=c] [--hidendir=/path/:keys] %s flashme.gba" % name
+	print "Usage: [-lvs:] [--verbose] [--list] [--seperator=c] [--hiddendir=/path/:keys] %s flashme.gba" % name
 
 if __name__ == "__main__":
 	hd = []

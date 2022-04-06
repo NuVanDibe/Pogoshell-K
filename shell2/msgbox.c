@@ -13,7 +13,7 @@ int msgbox_yesno(tbox *box, char *text)
 {
 	TextBar *tb;
 	int i, c, rc = -1;
-	char *p = malloc(strlen(text) + 24);
+	char p[strlen(text) + 24];
 
 	//fprintf(stderr, "malloc = %p\n", p);
 	sprintf(p, "%s\n(A) = %s  (B) = %s", text, TEXT(YES), TEXT(NO));
@@ -56,7 +56,6 @@ int msgbox_yesno(tbox *box, char *text)
 	}
 
 	//textflow_set_attribute(box->txt, WATR_TEXT, "");
-	free(p);
 
 	window_hide(box->win);
 	screen_redraw(MainScreen);
@@ -172,14 +171,13 @@ int msgbox_list2(tbox *box, char *title, char *str, int num)
 {
 	int rc, i;
 	char *ptr, *start;
-	char **lines;
-	char *tmp;
+	char *lines[num];
+	char tmp[strlen(str)];
 
 	if (!box->list)
 		return -1;
 
-	lines = malloc(num *4);
-	tmp = strdup(str);
+	strcpy(tmp, str);
 
 	ptr = tmp;
 
@@ -193,8 +191,6 @@ int msgbox_list2(tbox *box, char *title, char *str, int num)
 	}
 	rc = msgbox_list(box, title, lines, num);
 
-	free(tmp);
-	free(lines);
 	return rc;
 }
 

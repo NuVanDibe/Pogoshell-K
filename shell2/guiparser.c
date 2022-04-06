@@ -132,7 +132,7 @@ void icons_set_attr(Widget *w, int attr, void *val)
 
 Widget *guiparser_create(char *spec, char *rootitem)
 {
-	int val;
+	int val, valtmp;
 	BitMap *bm;
 	Font *font;
 
@@ -195,6 +195,12 @@ Widget *guiparser_create(char *spec, char *rootitem)
 			{
 				lastw = (Widget *)textflow_new(NULL, 512);
 				attr_func = (WidgetAttrFunc)textflow_set_attribute;
+			}
+			else
+			if(strncmp(startp, "TYPEF", 5) == 0)
+			{
+				lastw = (Widget *)typeface_new(NULL, 1);
+				attr_func = (WidgetAttrFunc)typeface_set_attribute;
 			}
 			else
 			if(strncmp(startp, "ICONS", 5) == 0)
@@ -279,42 +285,35 @@ Widget *guiparser_create(char *spec, char *rootitem)
 				attr_func(lastw, attr, (void *)val);
 				break;
 			default:
-				if(isalpha(*p))
+				val = 0;
+				do
 				{
-					//p++;
-					d = tmp;
-					while(isalnum(*p))
-						*d++ = *p++;
-					*d = 0;
-					p++;
-					if(attr == WATR_NAME)
-					{
-						//fprintf(stderr, "Widget \"%s\" %p\n", tmp, lastw);
-						symbol_add(strdup(tmp), (int)lastw);
-						/*if(strcmp(tmp, "list") == 0)
-							MainList = (ListView *)lastw;
+					if(isalpha(*p))	{
+						//p++;
+						d = tmp;
+						while(isalnum(*p))
+							*d++ = *p++;
+						*d = 0;
+						if(attr == WATR_NAME)
+						{
+							p++;
+							symbol_add(strdup(tmp), (int)lastw);
+							if(strcmp(tmp, rootitem) == 0)
+								rootw = lastw;
+							break;
+						}
 						else
-						if(strcmp(tmp, "status") == 0)
-							StatusBar = (TextBar *)lastw;
-						else
-						if(strcmp(tmp, "title") == 0)
-							TitleBar = (TextBar *)lastw;
-						else*/
-						if(strcmp(tmp, rootitem) == 0)
-							rootw = lastw;
+						{
+							symbol_get(tmp, &valtmp);
+						}
+					} else {
+						valtmp = atoi(p);
+						while(isalnum(*p)) p++;
 					}
-					else
-					{
-						symbol_get(tmp, &val);
-						attr_func(lastw, attr, (void *)val);
-					}
-				}
-				else
-				{
-					val = atoi(p);
-					while(isalnum(*p)) p++;
+					val |= valtmp;
+				} while (*p++ == '|');
+				if (attr != WATR_NAME)
 					attr_func(lastw, attr, (void *)val);
-				}
 				break;
 			}
 

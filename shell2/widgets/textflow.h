@@ -3,6 +3,7 @@
 
 #include "../window.h"
 #include "../backdrop.h"
+#include "typeface.h"
 
 #define WIDGET_TEXTFLOW 0x1004
 typedef struct
@@ -20,7 +21,7 @@ typedef struct
 	uint16 marginu;
 	uint16 margind;
 	uint16 align;
-	Font *font;
+	Typeface *typeface;
 	Color textcolor[4];
 
 } TextFlow;

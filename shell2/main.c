@@ -44,21 +44,28 @@ void jpg_view(char *fname);
 TextBar *StatusBar;
 TextBar *TitleBar;
 ListView *MainList;
-BitMap *IconSet = NULL;
+BitMap *IconSet;
 int IconHeight;
 
 Screen *MainScreen;
 
-Window *MessageWin = NULL;
+Window *MessageWin;
 TextBar *MessageTitle;
 TextFlow *MessageTxt;
 ListView *MessageList;
 tbox *MessageBox;
 
-Window *DialogWin = NULL;
+Window *DialogWin;
 TextBar *DialogTitle;
 TextFlow *DialogTxt;
 tbox *DialogBox;
+
+Typeface *JPGViewerTypeface;
+
+Typeface *TextNormal;
+Typeface *TextBold;
+Typeface *TextEmph;
+Typeface *TextBig;
 
 FILE *config_fp;
 
@@ -183,10 +190,10 @@ int load_user(void)
 	return 0;
 }
 
+#define MAXCLIPSIZE (192*1024)
 char *clipboard;
 char clipname[36];
 int clipsize = 0;
-int maxclipsize;
 
 int sram_copy(char *name)
 {
@@ -205,7 +212,7 @@ int sram_copy(char *name)
 		//lseek(fd, 0, SEEK_SET);
 		l = sb.st_size;
 
-		if(l > maxclipsize)
+		if(l > MAXCLIPSIZE)
 			return -2;
 
 		if(l >= 0)
@@ -435,7 +442,8 @@ void update_list(void)
 static BitMap **icon_list;
 
 void textreader_set_font(int n, Font *f);
-
+void textreader_set_typeface(int n, Typeface *tf);
+void textreader_init(void);
 
 void setup_screen(void)
 {
@@ -453,12 +461,34 @@ void setup_screen(void)
 	//BitMap *screen = bitmap_getscreen();
 	//bitmap_clear(screen, 0xFF00);
 
+	get_theme_name(settings_get(SF_THEME), theme_name);
+
+	memory_free_context(THEME);
+
+	config_fp = fopen(".shell/pogo.cfg", "rb");
+	if(!config_fp)
+		config_fp = fopen(".pogo.cfg", "rb");
+	guiparser_readsymbols(config_fp);
+	fclose(config_fp);
+
+	pfree();
+	clipboard = pmalloc(MAXCLIPSIZE);
+	theme = pmalloc(4097);
+
+	pfree();
+	clipboard = pmalloc(MAXCLIPSIZE);
+	dirlist = pmalloc(sizeof(DirList) * MAX_FILE_COUNT);
+	dirsize = pmalloc(10 * MAX_FILE_COUNT);
+	dirname = pmalloc(32 * MAX_FILE_COUNT);
+
+	IconSet = NULL;
+	MessageWin = NULL;
+	DialogWin = NULL;
+	jpgviewer_init();
+	textreader_init();
+
 	MainScreen = screen_new();
 	win = window_new(MainScreen, 0, 0, 240, 160);
-
-	guiparser_readsymbols(config_fp);
-
-	theme = (char *)0x02000000;
 
 	strcpy(tmp, GET_PATH(THEMES));
 	strcat(tmp, theme_name);
@@ -474,6 +504,7 @@ void setup_screen(void)
 	mbox = guiparser_findwidget("msgbox");
 	dbox = guiparser_findwidget("dlgbox");
 
+
 	StatusBar = (TextBar *)guiparser_findwidget("status");
 	TitleBar = (TextBar *)guiparser_findwidget("title");
 	MainList = (ListView *)guiparser_findwidget("list");
@@ -481,6 +512,13 @@ void setup_screen(void)
 	MessageTitle = (TextBar *)guiparser_findwidget("mtitle");
 	DialogTxt = (TextFlow *)guiparser_findwidget("dflow");
 	DialogTitle = (TextBar *)guiparser_findwidget("dtitle");
+
+	JPGViewerTypeface = (Typeface *)guiparser_findwidget("jpgviewer");
+
+	TextNormal = (Typeface *)guiparser_findwidget("textnormal");
+	TextBold = (Typeface *)guiparser_findwidget("textbold");
+	TextEmph = (Typeface *)guiparser_findwidget("textemph");
+	TextBig = (Typeface *)guiparser_findwidget("textbig");
 
 	if(dbox)
 	{
@@ -502,7 +540,7 @@ void setup_screen(void)
 		//fprintf(stderr, "msgwin %p mbox %p\n", MessageWin, mbox);
 		window_setwidget(MessageWin, mbox);
 		window_hide(MessageWin);
-		MessageList = listview_new(1, 10, MessageTxt->font);
+		MessageList = listview_new_typeface(1, 10, MessageTxt->typeface);
 		listview_set_attribute(MessageList, WATR_MARGIN, (void *)2);
 		listview_set_attribute(MessageList, WATR_MARGIN+1, (void *)2);
 
@@ -530,7 +568,7 @@ void setup_screen(void)
 	if (IconSet) {
 		count = IconSet->height / IconHeight;
 
-		icon_list = malloc(count *4);
+		icon_list = malloc(count * 4);
 
 		for(i=0; i<count; i++)
 		{
@@ -543,22 +581,35 @@ void setup_screen(void)
 	filetype_set_iconset(icon_list);
 	filetype_set_icons();
 
-	font = font_load_path("cnokia.font");
+	if (JPGViewerTypeface)
+		jpgviewer_set_typeface(JPGViewerTypeface);
+	else
+		jpgviewer_set_font(font_load_path("cnokia.font"));
+
 	//font->flags |= FFLG_TRANSP;
-	jpgviewer_set_font(font);
 
-	font = font_load_path("dungeon.font");
-	textreader_set_font(FONT_TEXT, font);
+	if (TextNormal)
+		textreader_set_typeface(FONT_TEXT, TextNormal);
+	else
+		textreader_set_font(FONT_TEXT, font_load_path("dungeon.font"));
 
-	font = font_dup(font);
-	font->flags |= FFLG_BOLD;
-	textreader_set_font(FONT_BOLD, font);
+	if (TextBold)
+		textreader_set_typeface(FONT_TEXT, TextBold);
+	else {
+		font = font_load_path("dungeon.font");
+		font->flags |= FFLG_BOLD;
+		textreader_set_font(FONT_BOLD, font);
+	}
 	
-	font = font_load_path("dungeoni.font");
-	textreader_set_font(FONT_EMPH, font);
+	if (TextEmph)
+		textreader_set_typeface(FONT_TEXT, TextEmph);
+	else
+		textreader_set_font(FONT_EMPH, font_load_path("dungeoni.font"));
 
-	font = font_load_path("dungeon12.font");
-	textreader_set_font(FONT_BIG, font);
+	if (TextBig)
+		textreader_set_typeface(FONT_TEXT, TextBig);
+	else
+		textreader_set_font(FONT_BIG, font_load_path("dungeon12.font"));
 
 	window_setwidget(win, root);
 
@@ -625,9 +676,8 @@ void cmd_switchuser(char *name)
 	if (old_user != CurrentUser) {
 		save_user();
 		load_state();
-		if (settings_get(SF_THEME) != old_theme) {
-			reset_gba();
-		}
+		if (settings_get(SF_THEME) != old_theme)
+			setup_screen();
 		sprintf(tmp, TEXT(SWITCHED_USER), UserName);
 		statusbar_set(tmp);
 	}
@@ -661,7 +711,8 @@ void cmd_settings(char *name)
 		filesys_cd_marked_current();
 	save_state();
 	if (r)
-		reset_gba();
+		setup_screen();
+	//reset_gba();
 	update_list();
 }
 
@@ -709,9 +760,11 @@ int main(int argc, char **argv)
 	SETW(REG_BG3HOFS, 0x0);
 	SETW(REG_BG3VOFS, 0x0);
 
+	/*
 	dirlist = pmalloc(sizeof(DirList) * MAX_FILE_COUNT);
 	dirsize = pmalloc(10 * MAX_FILE_COUNT);
 	dirname = pmalloc(32 * MAX_FILE_COUNT);
+	*/
 
 	rtc_enable();
 	i = rtc_check();
@@ -789,7 +842,6 @@ int main(int argc, char **argv)
 	if (GET_PATH(SCREENSAVERS)) {
 		DIR *dir;
 		struct dirent *de;
-		struct stat sbuf;
 
 		dir = opendir(GET_PATH(SCREENSAVERS));
 		if (dir) {
@@ -807,6 +859,8 @@ int main(int argc, char **argv)
 	read_users(config_fp);
 
 	filetype_readtypes(config_fp);
+
+	fclose(config_fp);
 
 	settings_init();
 	//strcpy(theme_name, "default.theme");
@@ -827,9 +881,9 @@ int main(int argc, char **argv)
 		bmp_view(".shell/splash.bmp");
 	}
 
-	setup_screen();
+	memory_set_context(THEME);
 
-	fclose(config_fp);
+	setup_screen();
 
 	if((fp = fopen("/sram/.bookmark", "rb")))
 	{
@@ -858,10 +912,6 @@ int main(int argc, char **argv)
 		save_state();
 		save_user();
 	}
-
-	// Give the clipboard whatever space is free.
-	clipboard = pmemory_pointer();
-	maxclipsize = pmemory_free();
 
 	savesys_savelastgame();
 

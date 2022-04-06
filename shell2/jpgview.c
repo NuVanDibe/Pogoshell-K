@@ -12,11 +12,31 @@ JPEG_OUTPUT_TYPE *jpg_ptr;
 int jpg_w;
 int jpg_h;
 
-Font *text;
+static Typeface *jpg_typeface;
+
+void jpgviewer_init()
+{
+	jpg_typeface = NULL;
+}
+
+void jpgviewer_set_typeface(Typeface *tf)
+{
+	if (jpg_typeface && !jpg_typeface->global) {
+		if (jpg_typeface->font)
+			free(jpg_typeface->font);
+		free(jpg_typeface);
+	}
+	jpg_typeface = tf;
+}
 
 void jpgviewer_set_font(Font *f)
 {
-	text = f;
+	if (jpg_typeface && !jpg_typeface->global) {
+		if (jpg_typeface->font)
+			free(jpg_typeface->font);
+		free(jpg_typeface);
+	}
+	jpg_typeface = typeface_new(f, 0);
 }
 
 void joint_view(uchar *jpg);
@@ -88,7 +108,7 @@ int decrypt_image(char *fname, uchar **jpg)
 
 	pfree();
 	out = pmalloc((jpg_size+16)&~15);
-	*jpg = out;
+	*jpg = (uchar *) out;
 
     if (out && jpg_size > sizeof(uint64)*2) {
 	    lljpg = (uint64 *) &enc[sizeof(int)];
@@ -383,10 +403,11 @@ void joint_view(uchar *jpg)
 			if (scalechange && dirty) {
 				dirty = 0;
 				bm = MainScreen->bitmap;
-				l = font_text(text, buffer, NULL, bm->width);
+				l = font_text(jpg_typeface->font, buffer, NULL, bm->width);
  				dst = (uint16 *)bm->pixels + (bm->width - l);
 				font_setcolor(0x7fff, 0);
-				font_text(text, buffer, dst, bm->width);
+				font_setshadowoutline(TO_RGB16(jpg_typeface->shadow), TO_RGB16(jpg_typeface->outline));
+				font_text(jpg_typeface->font, buffer, dst, bm->width);
 			}
 
 			switch(c&0x7F)

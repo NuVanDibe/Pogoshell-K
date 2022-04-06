@@ -3,6 +3,7 @@
 
 #include "../window.h"
 #include "../backdrop.h"
+#include "typeface.h"
 
 #define WIDGET_TEXTREADER 0x1010
 typedef struct

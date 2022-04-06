@@ -4,6 +4,7 @@
 
 #include "scrollbar.h"
 #include "../backdrop.h"
+#include "typeface.h"
 
 #define MAPSLOTCOUNT ((MAX_FILE_COUNT+31)>>5)
 
@@ -28,7 +29,7 @@ typedef struct
 	uchar dirty;   // Redraw?
 	uint32 redrawmap[MAPSLOTCOUNT];
 
-	Font *font;
+	Typeface *typeface;
 
 	uint16 colwidth[8];
 	uint16 colalign[8];
@@ -48,8 +49,10 @@ typedef struct
 } ListView;
 
 #define listview_get_marked(l) (l->marked)
+#define listview_get_typeface(l) (l->typeface)
 
 ListView *listview_new(int columns, int maxlines, Font *font);
+ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf);
 void listview_addline(ListView *lv, Color *c, BitMap *icon, ...);
 void listview_setline(ListView *lv, int index, Color *c, BitMap *bm, ...);
 void listview_set_attribute(ListView *tb, int attr, void *val);

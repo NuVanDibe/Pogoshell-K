@@ -39,6 +39,7 @@ BitMap *bitmap_new(int w, int h, int fmt)
 	return b;
 }
 
+#if 0
 void bitmap_free(BitMap *bm)
 {
 	if(bm->format & VIDEOMEM)
@@ -49,6 +50,7 @@ void bitmap_free(BitMap *bm)
 
 	free(bm->pixels);
 }
+#endif
 
 void bitmap_clear(BitMap *dst, int val)
 {

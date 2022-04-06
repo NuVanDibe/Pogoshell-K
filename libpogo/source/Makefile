@@ -4,10 +4,12 @@
 
 ifeq ($(DEBUG),1)
 CFLAGS	= -DDEBUG -Wall -c -g  -fno-builtin -mthumb -mthumb-interwork -I. -I../include
+FONT_CFLAGS	= -DDEBUG -Wall -c -g  -fno-builtin -mthumb -mthumb-interwork -I. -I../include
 LIBNAME = libpogod.a
 OBJDIR = objd
 else
 CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
+FONT_CFLAGS	= -Wall -Os -fno-builtin -fomit-frame-pointer -mthumb -mthumb-interwork -I. -I../include
 LIBNAME = libpogo.a
 OBJDIR = obj
 endif
@@ -36,6 +38,9 @@ all: ../lib/$(LIBNAME)
 $(OBJDIR)/old_%.o : %.c
 	$(CC) -c $(CFLAGS) -DOLD_VERSION $< -o $@
 
+
+$(OBJDIR)/font.o : font.c
+	$(CC) -c $(FONT_CFLAGS) $< -o $@
 
 $(OBJDIR)/%.o : %.c
 	$(CC) -c $(CFLAGS) $< -o $@

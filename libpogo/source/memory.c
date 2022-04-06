@@ -20,6 +20,7 @@ typedef struct _MemHead {
 uint32 *mem_base = NULL;
 MemHead *first_block;
 int mem_size = 63*1024;
+static uint32 context = GLOBAL;
 
 /* Exported by linkscript as start of available memory (after any WRAM variables) */
 extern uint32 __eheap_start;
@@ -31,6 +32,7 @@ void memory_init(uint32 *ptr, int size)
 	mem_base = ptr;
 	mem_size = size;
 	first_block = NULL;
+	context = GLOBAL;
 }
 
 extern void dprint(const char *sz);
@@ -70,10 +72,37 @@ void print_memory(void)
 }
 */
 
-	int free_after;
+void memory_set_context(int new_context)
+{
+	context = (new_context & 0xff)<<24;
+}
+
+void memory_free_context(int free_context)
+{
+	MemHead *last_block = NULL;
+	MemHead *block = first_block;
+
+	while(block)
+	{
+		if(((block->size)>>24) == free_context)
+		{
+			if (!last_block) {
+				first_block = NULL;
+				return;
+			}
+			last_block->next = block = block->next;
+		} else {
+			last_block = block;
+			block = block->next;
+		}
+	}
+
+}
+
 /* Alloc 32bit words */
 void *memory_alloc(int alloc_size)
 {
+	int free_after;
 	MemHead *newblock, *block = first_block;
 
 	if(!mem_base)
@@ -89,7 +118,7 @@ void *memory_alloc(int alloc_size)
 			return NULL;
 		block = first_block = (MemHead *)mem_base;
 		block->next = 0;
-		block->size = alloc_size;
+		block->size = alloc_size | context;
 		//fprintf(stderr, "%p = malloc(%d+%d)\n", block, block->size * 4, sizeof(MemHead));
 		return block->data;
 	}
@@ -98,15 +127,15 @@ void *memory_alloc(int alloc_size)
 	{
 
 		if(block->next)
-			free_after = (uint32 *)block->next - (uint32*)&block->data[block->size];
+			free_after = (uint32 *)block->next - (uint32*)&block->data[block->size & 0x00FFFFFF];
 		else
-			free_after = mem_size - (uint32)(&block->data[block->size] - mem_base);
+			free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
 
 		if(free_after >= (alloc_size + 3))
 		{
-			newblock = (MemHead *)&block->data[block->size];
+			newblock = (MemHead *)&block->data[block->size & 0x00FFFFFF];
 			newblock->next = block->next;
-			newblock->size = alloc_size;
+			newblock->size = alloc_size | context;
 			block->next = newblock;
 			//fprintf(stderr, "%p = malloc(%d+%d)\n", newblock, newblock->size * 4, sizeof(MemHead));
 			return newblock->data;
@@ -165,13 +194,13 @@ void *memory_realloc(void *mem, int alloc_size)
 			/* If we decrease size or if theres enough free space after, just change the size and
 			   return the same pointer */
 			if(block->next)
-				free_after = (uint32 *)block->next - (uint32*)&block->data[block->size];
+				free_after = (uint32 *)block->next - (uint32*)&block->data[block->size & 0x00FFFFFF];
 			else
-				free_after = mem_size - (uint32)(&block->data[block->size] - mem_base);
-			if((alloc_size < block->size) ||
-			   (alloc_size - block->size < free_after))
+				free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
+			if((alloc_size < (block->size & 0x00FFFFFF)) ||
+			   (alloc_size - (block->size & 0X00FFFFFF) < free_after))
 			{
-				block->size = alloc_size;
+				block->size = alloc_size | context;
 				return mem;
 			}
 
@@ -205,9 +234,9 @@ int memory_avail(void)
 	while(block)
 	{
 		if(block->next)
-			free_after = (uint32 *)block->next - (uint32*)&block->data[block->size];
+			free_after = (uint32 *)block->next - (uint32*)&block->data[block->size & 0x00FFFFFF];
 		else
-			free_after = mem_size - (uint32)(&block->data[block->size] - mem_base);
+			free_after = mem_size - (uint32)(&block->data[block->size & 0x00FFFFFF] - mem_base);
 
 		if(free_after > largest_block)
 			largest_block = free_after;

@@ -5,12 +5,14 @@
 
 extern void LZ77UnCompWram(void *Srcp, void *Destp);
 
+#if 0
 #define ROM_BANKSWITCH (volatile u16 *)(0x096B592E)
 #define WRITE_LOC_1 (volatile u16 *)(0x987654*2+0x8000000)
 #define WRITE_LOC_2 (volatile u16 *)(0x012345*2+0x8000000)
 #define WRITE_LOC_3 (volatile u16 *)(0x007654*2+0x8000000)
 #define WRITE_LOC_4 (volatile u16 *)(0x765400*2+0x8000000)
 #define WRITE_LOC_5 (volatile u16 *)(0x013450*2+0x8000000)
+#endif
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -19,6 +21,7 @@ typedef unsigned long u32;
 static void *pmem_ptr = (void *) (0x02000000);
 static int pmem_free = 256*1024;
 
+#if 0
 void reset_gba(void)
 {
   unsigned int i;
@@ -50,6 +53,7 @@ void reset_gba(void)
     "swi 0x00   \n"
     ::: "r0", "r1", "r2", "r3");
 }
+#endif
 
 int gethex(char *p)
 {

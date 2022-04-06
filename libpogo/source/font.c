@@ -14,11 +14,10 @@
 #include "font.h"
 #include "io.h"
 
-enum {BG, FG};
+enum {BG, FG, SHADOW, OUTLINE};
 
 // Current set of colors for non-color fonts
 static uint16 font_colors[16];
-
 
 static uint16 *colors;
 
@@ -28,22 +27,39 @@ void font_setcolor(uint16 fg, uint16 bg)
 	font_colors[BG] = bg;
 }
 
-void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, int dw, int solid)
+void font_setshadowoutline(uint16 shadow, uint16 outline)
+{
+	font_colors[SHADOW] = shadow;
+	font_colors[OUTLINE] = outline;
+}
+
+static void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, int dw, int solid)
 {
 	int w;
 	int smod = (sw - width);
 	int dmod = (dw - width);
+	uint16 fg;
 
-	while(height--)
-	{
-		w = width;
-		if(solid)
+	if (colors == font_colors) {
+		fg = colors[FG];
+
+		while(height--)
 		{
+			w = width;
 			while(w--)
-				*dst++ = colors[*src++];
+			{
+				if(*src)
+					*dst = fg;
+				dst++;
+				src++;
+			}
+			dst += dmod;
+			src += smod;
 		}
-		else
+	} else {
+		while(height--)
 		{
+			w = width;
 			while(w--)
 			{
 				if(*src)
@@ -51,9 +67,9 @@ void block_copy(uint16 *dst, uchar *src, int width, int height, int sw, int dw, 
 				dst++;
 				src++;
 			}
+			dst += dmod;
+			src += smod;
 		}
-		dst += dmod;
-		src += smod;
 	}
 }
 
@@ -74,22 +90,21 @@ void block_set(uint16 *dst, int width, int height, int dw, int color)
 
 static uchar font_putmono(Font *font, char c, uint16 *dest, int width, int dw)
 {
-	register int w;
+	int w;
 	int solid = !(font->flags & FFLG_TRANSP);
-
-	if(c < font->first || c >= font->last)
-		return 0;
 
 	w = font->charwidth;
 	if(dest)
 	{
-		if(c == ' ')
-		{
-			if(solid)
+		if (c == ' ') {
+			if (solid)
 				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
-		}
-		else
-		{
+		} else {
+			if (c < font->first || c >= font->last)
+				return 0;
+
+			if (solid)
+				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 			block_copy(dest, &font->pixels[(c - font->first) * w], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 	}
@@ -98,9 +113,9 @@ static uchar font_putmono(Font *font, char c, uint16 *dest, int width, int dw)
 
 static uchar font_putprop(Font *font, char c, uint16 *dest, int width, int dw)
 {
-	register int offset,w;
-	register int ff = font->first;
+	int offset, w;
 	int solid = !(font->flags & FFLG_TRANSP);
+	int ff = font->first;
 
 	if(c == ' ')
 	{
@@ -112,14 +127,18 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width, int dw)
 	{
 		if(c < ff || c >= font->last)
 			return 0;
-		offset =  font->offsets[c - ff];
+
+		offset = font->offsets[c - ff];
 		w = font->offsets[c - ff + 1] - offset;
+
 		if(dest)
 		{
+			if(solid)
+				block_set(dest, (w < dw) ? w : dw, font->height, width, colors[BG]);
 			block_copy(dest, &font->pixels[offset], (w < dw) ? w : dw, font->height, font->width, width, solid);
 		}
 		w += font->spacing;
-		if(w <= 0) w = 1;
+		if (w <= 0) w = 1;
 	}
 	return w;
 }
@@ -127,27 +146,162 @@ static uchar font_putprop(Font *font, char c, uint16 *dest, int width, int dw)
 uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwidth)
 {
 	uchar (*putchar)(Font *, char, uint16 *, int, int);
-	int rc, fl;
+	int dw = drawwidth;
+	int w, w2, h, h2;
+	int solid = !(font->flags & FFLG_TRANSP),
+		bold = (font->flags & FFLG_BOLD),
+		outline = (font->flags & FFLG_OUTLINE),
+		dropshadow = (font->flags & FFLG_DROPSHADOW);
+	uint16 old_fg;
+	int old_flags;
 
-	if(font->flags & FFLG_COLOR)
-		colors = font->colors;
-	else
-		colors = font_colors;
+	w2 = 0;
+	h2 = 0;
+
+	if (outline) {
+		w2 += 2;
+		h2 += 2;
+	}
+
+	if (bold)
+		w2++;
+
+	if (dropshadow) {
+		w2++;
+		h2++;
+	}
 
 	if(font->offsets)
 		putchar = font_putprop;
 	else
 		putchar = font_putmono;
 
-	if (font->flags & FFLG_BOLD) {
-		putchar(font, c, dest, width, drawwidth);
-		fl = font->flags;
-		font->flags |= FFLG_TRANSP;
-		rc = putchar(font, c, dest+1, width, drawwidth-1);
-		font->flags = fl;
-		return rc;
-	} else
-		return putchar(font, c, dest, width, drawwidth);
+	old_flags = font->flags;
+	colors = font_colors;
+
+	w = putchar(font, c, NULL, width, dw);
+	h = font->height;
+
+	w2 += w;
+	h2 += h;
+
+	if (dest) {
+		if (outline || dropshadow || bold) {
+			if (solid) {
+				block_set(dest, (w2 < dw) ? w2 : dw, h2, width, colors[BG]);
+				font->flags &= FFLG_TRANSP;
+			}
+		}
+
+		if (dropshadow) {
+			old_fg = colors[FG];
+			colors[FG] = colors[SHADOW];
+
+			dest += (width + 1);
+			if (outline) {
+				/*
+				putchar(font, c, dest + (width<<1), width, --dw);
+				dest++;
+				putchar(font, c, dest + (width<<1), width, --dw);
+				dest++;
+				if (bold) {
+					putchar(font, c, dest + (width<<1), width, --dw);
+					dest++;
+				}
+				putchar(font, c, dest, width, dw - 1);
+				putchar(font, c, dest + width, width, dw - 1);
+				putchar(font, c, dest + (width<<1), width, dw - 1);
+				if (bold) {
+					dest--;
+					dw++;
+				}
+				dw += 2;
+				dest -= 2;
+				*/
+				dest++;
+				--dw;
+				if (bold) {
+					putchar(font, c, dest + (width<<1), width, --dw);
+					dest++;
+				}
+				putchar(font, c, dest + width, width, --dw);
+				putchar(font, c, dest + (width<<1), width, dw);
+				dest++;
+				putchar(font, c, dest + width, width, --dw);
+				if (bold) {
+					dest--;
+					dw++;
+				}
+				dw += 2;
+				dest -= 2;
+			} else {
+				putchar(font, c, dest, width, --dw);
+				if (bold)
+					putchar(font, c, dest + 1, width, dw - 1);
+				dw++;
+			}
+			dest -= (width + 1);
+			colors[FG] = old_fg;
+		}
+
+		if (outline) {
+			old_fg = colors[FG];
+			colors[FG] = colors[OUTLINE];
+
+			//putchar(font, c, dest, width, --dw);
+			putchar(font, c, dest + width, width, dw);
+			//putchar(font, c, dest + (width<<1), width, dw);
+			dest++;
+			putchar(font, c, dest, width, --dw);
+			putchar(font, c, dest + (width<<1), width, dw);
+			dest++;
+			if (bold) {
+				putchar(font, c, dest, width, --dw);
+				putchar(font, c, dest + (width<<1), width, dw);
+				dest++;
+			}
+			//putchar(font, c, dest, width, --dw);
+			putchar(font, c, dest + width, width, dw);
+			//putchar(font, c, dest + (width<<1), width, dw);
+			if (bold) {
+				dest--;
+				dw++;
+			}
+			dw += 2;
+			dest += (width - 1);
+			colors[FG] = old_fg;
+		}
+
+		if(font->flags & FFLG_COLOR)
+			colors = font->colors;
+		else
+			colors = font_colors;
+
+		putchar(font, c, dest, width, dw);
+		drawwidth--;
+		if (bold)
+			putchar(font, c, dest + 1, width, dw);
+		font->flags = old_flags;
+	}
+
+	return w2;
+}
+
+int font_height(Font *font)
+{
+	int h2;
+	int outline = (font->flags & FFLG_OUTLINE),
+		dropshadow = (font->flags & FFLG_DROPSHADOW);
+
+	h2 = font->height;
+
+	if (outline)
+		h2 += 2;
+
+	if (dropshadow)
+		h2++;
+
+	return h2;
 }
 
 uchar font_putchar(Font *font, char c, uint16 *dest, int width)
@@ -288,7 +442,8 @@ Font *font_load(char *name)
 		if(!(l & 1))
 			l++;
 
-		size = sizeof(Font) + l + 1;
+		size = sizeof(Font);
+		//size = sizeof(Font) + l + 1;
 
 		rfont = malloc(size);
 		memcpy(rfont, &font, 8);

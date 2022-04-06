@@ -3,6 +3,7 @@
 
 #include "../window.h"
 #include "../backdrop.h"
+#include "typeface.h"
 
 #define WIDGET_TEXTBAR 0x1002
 typedef struct
@@ -13,14 +14,12 @@ typedef struct
 	char *text;
 	uint16 align;
 	uint16 margin;
-	Font *font;
+	Typeface *typeface;
 	Color textcolor;
 
 } TextBar;
 
 TextBar *textbar_new(Font *font, int texlen);
-//void textbar_set_backdrop(TextBar *tb, BackDrop *bd);
-//void textbar_set_color(TextBar *tb, Color *color);
 void textbar_set_attribute(TextBar *tb, int attr, void *val);
 
 #endif

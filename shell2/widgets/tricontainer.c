@@ -66,7 +66,7 @@ TriContainer *tricontainer_new()
 
 void tricontainer_set_attribute(TriContainer *tc, int attr, void *val)
 {
-	switch(attr & 0xFF0)
+	switch(attr & 0xFFF0)
 	{
 	case WATR_CHILD:
 		tc->children[attr & 0xF] = (Widget *)val;

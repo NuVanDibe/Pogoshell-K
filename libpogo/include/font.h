@@ -30,6 +30,8 @@ typedef struct {
 #define FFLG_TRANSP 8
 #define FFLG_BOLD 16
 #define FFLG_ITALIC 32
+#define FFLG_DROPSHADOW 64
+#define FFLG_OUTLINE 128
 
 uchar font_putchar(Font *font, char c, uint16 *dest, int width);
 uchar font_putchar_clip(Font *font, char c, uint16 *dest, int width, int drawwidth);
@@ -42,7 +44,9 @@ int font_text_multi(Font **fontlist, int *current, char *str, uint16 *dest, int 
 //int font_text(Font *font, char *str, uchar *dest, int width);
 //int font_text_multi(Font **fontlist, int *current, char *str, uchar *dest, int width);
 void font_setcolor(uint16 fg, uint16 bg);
+void font_setshadowoutline(uint16 shadow, uint16 outine);
 Font *font_load(char *name);
 Font *font_dup(Font *font);
+int font_height(Font *font);
 
 #endif

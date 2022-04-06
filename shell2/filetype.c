@@ -208,9 +208,17 @@ int execute_plugin(char *cmd, char *fname, int keys)
 
 int set_font(char *cmd, char *fname, int keys)
 {
-	Font *font = font_load(fname);
-	font->flags |= FFLG_TRANSP;
-	listview_set_attribute(MainList, WATR_FONT, font);
+	Typeface *tf, *typeface;
+
+	tf = listview_get_typeface(MainList);
+	typeface = typeface_new(font_load(fname), 0);
+
+	typeface_set_attribute(typeface, WATR_STYLE, FFLG_TRANSP);
+	typeface_set_attribute(typeface, WATR_STYLE, tf->style);
+	typeface_set_attribute(typeface, WATR_COLOR + 0, &(tf->shadow));
+	typeface_set_attribute(typeface, WATR_COLOR + 1, &(tf->outline));
+
+	listview_set_attribute(MainList, WATR_TYPEFACE, typeface);
 	return 1;
 }
 
@@ -226,7 +234,7 @@ int set_theme(char *cmd, char *fname, int keys)
 	{
 		if (!set_theme_setting(s+1)) {
 			save_state();
-			reset_gba();
+			setup_screen();
 		}
 	}
 	return 1;

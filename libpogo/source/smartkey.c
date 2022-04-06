@@ -54,7 +54,7 @@ static KeyLookup lookups[40];
 static char smartbuf[256];
 
 static Font *font;
-static int font_height = 8;
+static int fontheight = 8;
  
 static Device smartdev;
 
@@ -272,7 +272,7 @@ static int handle_marking(int32 k, uint16 c)
 	strcpy(tmp, (char *)ioctl(con_fd, CC_GETLINE, cr_ypos));
 	tmp[cr_xpos] = 0;
 	rc = ioctl(con_fd, CC_GETWIDTH, tmp);
-	cursor_set(rc, cr_ypos * font_height );
+	cursor_set(rc, cr_ypos * fontheight );
 	return 1;
 }
 
@@ -650,7 +650,7 @@ int smart_read(int fd, char *s, int count)
 	c = ioctl(con_fd, CC_GETXY)>>16;
 	//DPRINTF("%d+%d\n", c, l);
 	if(current_mode == 0)
-		cursor_set(c+l, (ioctl(con_fd, CC_GETXY)&0xFFFF) * font_height );
+		cursor_set(c+l, (ioctl(con_fd, CC_GETXY)&0xFFFF) * fontheight );
 
 	if(!linemode)
 		editbuf_commit();
@@ -677,7 +677,7 @@ void smartkey_init(void)
 	font = (Font *)ioctl(con_fd, CC_GETFONT, 0);
 	if(font && font != (Font *)-1)
 	{
-		font_height = font->height;
+		fontheight = font->height;
 //		DPRINTF("Font: %d width, %d height, %d charwidth\n", font->width, font->height, font->charwidth);
 	}
 

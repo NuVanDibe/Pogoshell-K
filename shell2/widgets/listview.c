@@ -62,14 +62,15 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 {
 	//const char col[3] = { 0xFF, 0x00, 0x00};
 	//const char bcol[3] = { 0xC0, 0xC0, 0xC0};
+	Font *f = lv->typeface->font;
 	Rect r2;
 	int i, j, l, y, maxi;
 	uint16 bdcol;
-	int drawwidth;
+	int drawwidth, freewidth;
 	Color c, *cp;
 	
 	int lineh = lv->lineh;
-	int fonty = (lv->lineh - lv->font->height) / 2;
+	int fonty = (lv->lineh - font_height(f)) / 2;
 
 	uint16 *d, *dst;
 
@@ -191,6 +192,11 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 	r2.w = r->w;
 	r2.h = lineh;
 
+	freewidth = 0;
+	for(j=0; j<lv->columns; j++)
+		freewidth += lv->colwidth[j];
+
+	font_setshadowoutline(TO_RGB16(lv->typeface->shadow),TO_RGB16(lv->typeface->outline));
 	//font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
 	for(i=lv->start; i<maxi; i++)
 	{
@@ -234,13 +240,13 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 			for(j=0; j<lv->columns; j++)
 			{
 				if (lv->colwidth[j]) {
-					drawwidth = (i == lv->marked) ? bm->width : lv->colwidth[j];
+					drawwidth = (i == lv->marked) ? freewidth : lv->colwidth[j];
 					if (lv->colalign[j] == ALIGN_LEFT) {
-						l = font_text_truncate(lv->font, lv->texts[j][i], d, bm->width, drawwidth);
+						l = font_text_truncate(f, lv->texts[j][i], d, bm->width, drawwidth);
 					} else {
-						l = font_text_truncate(lv->font, lv->texts[j][i], NULL, bm->width, drawwidth);
+						l = font_text_truncate(f, lv->texts[j][i], NULL, bm->width, drawwidth);
 						l = (lv->colalign[j] == ALIGN_RIGHT) ? lv->colwidth[j]-l : ((lv->colwidth[j]-l)>>1);
-						l = font_text_truncate(lv->font, lv->texts[j][i], d + l, bm->width, drawwidth);
+						l = font_text_truncate(f, lv->texts[j][i], d + l, bm->width, drawwidth);
 					}
 				}
 				d += lv->colwidth[j]; 
@@ -274,10 +280,11 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 void listview_set_attribute(ListView *lv, int attr, void *val)
 {
 	Color c;
+	Font *f;
 	int n = attr & 0xf;
 	uint32 l;
 
-	switch(attr & 0xFF0)
+	switch(attr & 0xFFF0)
 	{
 	case WATR_BACKDROP:
 		if(lv->backdrop)
@@ -306,11 +313,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 
 		//fprintf(stderr, "RGBCOLOR SET %06x\n", l);
 
-
 		lv->textcolor[n] = c;
-		if(!n && lv->font)
-			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
-
 		lv->w.flags |= WFLG_REDRAW;
 
 		break;
@@ -318,32 +321,25 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 	case WATR_COLOR:
 		lv->textcolor[n] = *((Color *)val);
 
-		if(!n)
-		{
-			lv->textcolor[0].a = 0;
-			if(lv->font)
-				font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
-		}
-
 		//fprintf(stderr, "TEXTCOLOR SET\n");
 
 		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_FONT:
-//		fprintf(stderr, "font %p replaces %p\n", val, lv->font);
-		if(lv->font)
-			free(lv->font);
-		lv->font = (Font *)val;
-		if (lv->font->height > lv->lineh)
-			lv->lineh = lv->font->height + 1;
-		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
-		lv->w.width = lv->iconw + lv->linew + lv->marginx * 2;
-		if (lv->backdrop) {
-			lv->w.height += lv->backdrop->border*2;
-			lv->w.width += lv->backdrop->border*2;
+		if (!lv->typeface->global) {
+			if (lv->typeface->font)
+				free(lv->typeface->font);
+			free(lv->typeface);
 		}
-		if(lv->textcolor[0].a != 0x01);
-			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
+		
+		f = (Font *)val;
+		lv->typeface = typeface_new(f, 0);
+
+		if (font_height(f) > lv->lineh)
+			lv->lineh = font_height(f) + 1;
+		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		if (lv->backdrop)
+			lv->w.height += lv->backdrop->border*2;
 		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_SCROLLBAR:
@@ -373,6 +369,12 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 			lv->gradientalign = (int)val;
 		lv->w.flags |= WFLG_REDRAW;
 		break;
+	case WATR_TYPEFACE:
+		if (!lv->typeface->global)
+			free(lv->typeface);
+		lv->typeface = (Typeface *)val;
+		lv->w.flags |= WFLG_REDRAW;
+		break;
 	//case WATR_NAME:
 	//	strcpy(lv->w.name, (char *)val);
 	//	break;
@@ -382,6 +384,11 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 
 
 ListView *listview_new(int columns, int maxlines, Font *font)
+{
+	return listview_new_typeface(columns, maxlines, typeface_new(font, 0));
+}
+
+ListView *listview_new_typeface(int columns, int maxlines, Typeface *tf)
 {
 	int i;
 	uint32 *p;
@@ -395,10 +402,11 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 	lv->marginy = 0;
 
 	lv->w.type = WIDGET_LISTVIEW;
-	lv->font = font;
 
-	if (font)
-		lv->lineh = font->height + 1;
+	lv->typeface = tf;
+
+	if (tf->font)
+		lv->lineh = font_height(tf->font) + 1;
 	else
 		lv->lineh = 0;
 
@@ -409,6 +417,7 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 	p[0] = 0x01000000;
 	p[2] = 0x00FFFFFF;
 	p[3] = 0x00FF0000;
+
 
 	lv->iconw = 0;
 
@@ -459,7 +468,7 @@ void listview_clear(ListView *lv)
 	lv->lines = 0;
 	lv->marked = -1;
 	lv->start = 0;
-	lv->lineh = lv->font->height + 1;
+	lv->lineh = font_height(lv->typeface->font) + 1;
 	lv->iconw = 0;
 	lv->linew = 0;
 	lv->w.height = lv->marginy * 2;
@@ -527,7 +536,7 @@ void listview_setline(ListView *lv, int index, Color *cl, BitMap *bm, ...)
 	for(i=0; i<lv->columns; i++)
 	{
 		lv->texts[i][index] = va_arg(vl, char *);
-		w += font_text(lv->font, lv->texts[i][index], NULL, 240);
+		w += font_text(lv->typeface->font, lv->texts[i][index], NULL, 240);
 	}
 
 
@@ -573,7 +582,7 @@ void listview_addline(ListView *lv, Color *cl, BitMap *bm, ...)
 	for(i=0; i<lv->columns; i++)
 	{
 		lv->texts[i][lv->lines] = va_arg(vl, char *);
-		w += font_text(lv->font, lv->texts[i][lv->lines], NULL, 240);
+		w += font_text(lv->typeface->font, lv->texts[i][lv->lines], NULL, 240);
 	}
 
 

@@ -9,6 +9,7 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 {
 	Rect cr = *org_r;
 	Rect *r = &cr;
+	Font *f = tb->typeface->font;
 
 	int l;
 	char left[256];
@@ -35,24 +36,25 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 
 		if(tb->align == ALIGN_CENTER)
 		{
-			l = font_text(tb->font, left, NULL, bm->width);
+			l = font_text(f, left, NULL, bm->width);
 			dst += ((r->w - l) / 2);
 		}
 		else
 		if(tb->align == ALIGN_RIGHT)
 		{
-			l = font_text(tb->font, left, NULL, bm->width);
+			l = font_text(f, left, NULL, bm->width);
 			dst += (r->w - l - tb->margin);
 		}
 
 		font_setcolor(TO_RGB16(tb->textcolor), 0x0000);
+		font_setshadowoutline(0x0000, 0x7fff);
 		//dst += (bm->width + 1);
-		font_text(tb->font, left, dst, bm->width);
+		font_text(f, left, dst, bm->width);
 		if((tb->align == ALIGN_LEFT) && right)
 		{
-			l = font_text(tb->font, right, NULL, bm->width);
+			l = font_text(f, right, NULL, bm->width);
 			dst += (r->w - l - (tb->margin*2));
-			font_text(tb->font, right, dst, bm->width);
+			font_text(f, right, dst, bm->width);
 		}
 
 		font_setcolor(0, 0);
@@ -65,17 +67,20 @@ int textbar_render(TextBar *tb, Rect *org_r, BitMap *bm)
 
 void textbar_set_attribute(TextBar *tb, int attr, void *val)
 {
+	Font *f;
 	int l;
-	switch(attr & 0xFF0)
+
+	switch(attr & 0xFFF0)
 	{
 	case WATR_BACKDROP:
 		if (tb->backdrop)
 			free(tb->backdrop);
 
 		tb->backdrop = (BackDrop *)val;
-		if(tb->font) {
-			tb->w.height = tb->font->height+tb->margin*2;
-			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+		f = tb->typeface->font;
+		if(f) {
+			tb->w.height = font_height(f)+tb->margin*2;
+			tb->w.width = font_text(f, tb->text, NULL, 240);
 			tb->w.height += tb->backdrop->border*2;
 			tb->w.width += tb->backdrop->border*2;
 		}
@@ -96,9 +101,10 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 		if(strcmp(tb->text, (char *)val) != 0)
 		{
 			strcpy(tb->text, (char *)val);
-			if(tb->font) {
-				tb->w.height = tb->font->height+tb->margin*2;
-				tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+			f = tb->typeface->font;
+			if(f) {
+				tb->w.height = font_height(f)+tb->margin*2;
+				tb->w.width = font_text(f, tb->text, NULL, 240);
 				if (tb->backdrop) {
 					tb->w.height += tb->backdrop->border*2;
 					tb->w.width += tb->backdrop->border*2;
@@ -106,21 +112,24 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 			}
 			tb->w.flags |= WFLG_REDRAW;
 		}
+		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_FONT:
-		if(tb->font != (Font *)val)
-		{
-			if (tb->font)
-				free(tb->font);
-			tb->font = (Font *)val;
-			tb->w.height = tb->font->height+tb->margin*2;
-			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
-			if (tb->backdrop) {
-				tb->w.height += tb->backdrop->border*2;
-				tb->w.width += tb->backdrop->border*2;
-			}
-			tb->w.flags |= WFLG_REDRAW;
+		if (!tb->typeface->global) {
+			if (tb->typeface->font)
+				free(tb->typeface->font);
+			free(tb->typeface);
 		}
+
+		f = (Font *) val;
+		tb->typeface = typeface_new(f, 0);
+		tb->w.height = font_height(f)+tb->margin*2;
+		tb->w.width = font_text(f, tb->text, NULL, 240);
+		if (tb->backdrop) {
+			tb->w.height += tb->backdrop->border*2;
+			tb->w.width += tb->backdrop->border*2;
+		}
+		tb->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_ALIGN:
 		if(tb->align != (int)val)
@@ -128,20 +137,36 @@ void textbar_set_attribute(TextBar *tb, int attr, void *val)
 			tb->align = (int)val;
 			tb->w.flags |= WFLG_REDRAW;
 		}
+		tb->w.flags |= WFLG_REDRAW;
 		break;
 	//case WATR_NAME:
 	//	strcpy(tb->w.name, (char *)val);
 	//	break;
 	case WATR_MARGIN:
 		tb->margin = (int)val;
-		if(tb->font) {
-			tb->w.height = tb->font->height+tb->margin*2;
-			tb->w.width = font_text(tb->font, tb->text, NULL, 240);
+		f = tb->typeface->font;
+		if(f) {
+			tb->w.height = font_height(f)+tb->margin*2;
+			tb->w.width = font_text(f, tb->text, NULL, 240);
 			if (tb->backdrop) {
 				tb->w.height += tb->backdrop->border*2;
 				tb->w.width += tb->backdrop->border*2;
 			}
 		}
+		tb->w.flags |= WFLG_REDRAW;
+		break;
+	case WATR_TYPEFACE:
+		if (!tb->typeface->global)
+			free(tb->typeface);
+		tb->typeface = (Typeface *)val;
+		f = tb->typeface->font;
+		tb->w.height = font_height(f)+tb->margin*2;
+		tb->w.width = font_text(f, tb->text, NULL, 240);
+		if (tb->backdrop) {
+			tb->w.height += tb->backdrop->border*2;
+			tb->w.width += tb->backdrop->border*2;
+		}
+		tb->w.flags |= WFLG_REDRAW;
 		break;
 	default:
 		//dprint("Illegal Attribute!!!\n");
@@ -172,7 +197,8 @@ TextBar *textbar_new(Font *font, int texlen)
 
 	tb->w.type = WIDGET_TEXTBAR;
 	tb->margin = 1;
-	tb->w.height = (font) ? font->height : 0;
+	tb->typeface = typeface_new(font, 0);
+	tb->w.height = (font) ? font_height(font) : 0;
 	tb->w.height += tb->margin*2;
 	tb->w.width = 0;
 	tb->textcolor = Black_Color;
@@ -181,7 +207,6 @@ TextBar *textbar_new(Font *font, int texlen)
 	tb->text = malloc(texlen);
 	strcpy(tb->text, "");
 	tb->align = ALIGN_LEFT;
-	tb->font = font;
 
 	return tb;
 }

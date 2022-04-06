@@ -42,6 +42,7 @@ enum
 	WATR_SCROLLBAR = 0xD0,
 	WATR_MARGIN = 0xE0,
 	WATR_HEIGHT = 0xF0,
+	WATR_TYPEFACE = 0x100,
 };
 
 #define POGO_ASSERT(x) if(!(x)) { dprint(#x); exit(0); }

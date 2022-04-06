@@ -47,10 +47,15 @@ char *strcpy(char *dst, const char *src) CODE_IN_IWRAM;
 char *strncpy(char *dst, const char *src, int n) CODE_IN_IWRAM;
 int memcmp(const char *s1, const char *s2, int n) CODE_IN_IWRAM;
 
+#define GLOBAL 0
+#define THEME 1
+
 void memory_init(uint32 *ptr, int size);
 void *memory_alloc(int size);
 void memory_free(void *mem);
 int memory_avail(void);
+void memory_set_context(int context);
+void memory_free_context(int context);
 
 void Halt(void);
 void set_ram_start(int i);

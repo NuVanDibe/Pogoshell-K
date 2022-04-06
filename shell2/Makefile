@@ -38,7 +38,7 @@ OBJCOPY = $(PREFIX)objcopy
 
 TARGET = pogo
 
-WIDGETS = widgets/textbar.o widgets/tricontainer.o widgets/listview.o widgets/textflow.o widgets/scrollbar.o
+WIDGETS = widgets/textbar.o widgets/tricontainer.o widgets/listview.o widgets/textflow.o widgets/scrollbar.o widgets/typeface.o
 
 CART_OBJFILES = main.o filetype.o filesys.o
 

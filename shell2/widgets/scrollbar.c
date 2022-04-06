@@ -272,7 +272,7 @@ void scrollbar_set_attribute(Scrollbar *sc, int attr, void *val)
 	int i, n = attr & 0xf;
 	uint32 l;
 
-	switch(attr & 0xFF0)
+	switch(attr & 0xFFF0)
 	{
 	case WATR_BACKDROP:
 		switch (n)

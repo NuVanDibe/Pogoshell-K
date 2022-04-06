@@ -19,15 +19,36 @@ static char *linebuf = (char *)(0x02000000 + 256*1024 - 1024*4 - 4096);
 int page_count = 0;
 
 
-Font *font_list[4];
+Typeface *typeface_list[4];
 
 TextReader treader;
 
-void textreader_set_font(int n, Font *f)
+void textreader_init()
 {
-	font_list[n] = f;
+	int i;
+	for (i = 0; i < 4; i++)
+		typeface_list[i] = NULL;
 }
 
+void textreader_set_typeface(int n, Typeface *tf)
+{
+	if (typeface_list[n] && !typeface_list[n]->global) {
+		if (typeface_list[n]->font)
+			free(typeface_list[n]->font);
+		free(typeface_list[n]->font);
+	}
+	typeface_list[n] = tf;
+}
+
+void textreader_set_font(int n, Font *f)
+{
+	if (typeface_list[n] && !typeface_list[n]->global) {
+		if (typeface_list[n]->font)
+			free(typeface_list[n]->font);
+		free(typeface_list[n]->font);
+	}
+	typeface_list[n] = typeface_new(f, 0);
+}
 
 // Seeks to beginning of next word, return pixel length
 int next_word(Font *font, char **text)
@@ -66,6 +87,25 @@ int next_word(Font *font, char **text)
 	return w;
 }
 
+int typeface_text_multi(Typeface **typefacelist, int *current, char *str, uint16 *dest, int width)
+{
+	Typeface *tf;
+	uint16 *outw = dest;
+
+	tf = typefacelist[*current];
+	font_setshadowoutline(TO_RGB16(tf->shadow), TO_RGB16(tf->outline));
+
+	while(*str)
+	{
+		if(*str <= 8) {
+			tf = typefacelist[*current = (*str++ - 1)];
+			font_setshadowoutline(TO_RGB16(tf->shadow), TO_RGB16(tf->outline));
+		} else
+			dest += font_putchar(tf->font, *str++, dest, width);
+	}
+	return dest-outw;
+}
+
 
 
 /*
@@ -89,7 +129,7 @@ int scan_page(FILE *fp, int height)
 	int len, w;
 	int lc = 0;
 	
-	font = font_list[FONT_TEXT];
+	font = typeface_list[FONT_TEXT]->font;
 
 	c = 0;
 	while(c != EOF)
@@ -131,7 +171,7 @@ int scan_page(FILE *fp, int height)
 					if(!fset && *ptr <= 8)
 					{
 						fset = 1;
-						font = font_list[*ptr - 1];			
+						font = typeface_list[*ptr - 1]->font;
 					}
 					ptr++;
 				}
@@ -262,20 +302,23 @@ int textreader_show_text(char *name)
 	Font *font;
 	FILE *fp, *fp2;
 
-	font = font_list[FONT_TEXT];
+	font = typeface_list[FONT_TEXT]->font;
 
-	unsigned short bg = 0x7FFF;
-	unsigned short fg = 0x0000;
+	uint16 bg = 0x7FFF, fg = 0x0000, shadow, outline;
+
+	shadow = TO_RGB16(typeface_list[FONT_TEXT]->shadow);
+	outline = TO_RGB16(typeface_list[FONT_TEXT]->outline);
 
 	font_setcolor(fg, bg);
+	font_setshadowoutline(shadow, outline);
 
-	height = (160 / font->height) - 1;
+	height = (160 / font_height(font)) - 1;
 
 	page_count = 0;
 
 	block_set(VRAM, 240, 160, 240, bg);
 
-	offset = ((160 - font->height * (height+1)) / 2 ) * 240 + 4;
+	offset = ((160 - font_height(font) * (height+1)) / 2 ) * 240 + 4;
 
 	if((fp = fopen(name, "rb")))
 	{
@@ -334,10 +377,10 @@ int textreader_show_text(char *name)
 			if(lastl == l)
 			{
 				i = height-1;
-				vp = (VRAM + (font->height * 240 * i));
+				vp = (VRAM + (font_height(font) * 240 * i));
 			}
 
-			block_set(vp, 240, 160-font->height, 240, bg);
+			block_set(vp, 240, 160-font_height(font), 240, bg);
 			vp += offset;
 			for(; i<height; i++)
 			{
@@ -365,31 +408,32 @@ int textreader_show_text(char *name)
 					}
 
 					j = lastfind;
-					rc = font_text_multi(font_list, &j, linebuf, NULL, 240);
+					rc = typeface_text_multi(typeface_list, &j, linebuf, NULL, 240);
 
 					switch(align)
 					{
 					case AL_RIGHT:
-						font_text_multi(font_list, &lastfind, linebuf, (vp+(236-rc)), 240);
+						typeface_text_multi(typeface_list, &lastfind, linebuf, (vp+(236-rc)), 240);
 						break;
 					case AL_LEFT:
-						font_text_multi(font_list, &lastfind, linebuf, vp, 240);
+						typeface_text_multi(typeface_list, &lastfind, linebuf, vp, 240);
 						break;
 					case AL_CENTER:
-						font_text_multi(font_list, &lastfind, linebuf, (vp+((236-rc)/2)), 240);
+						typeface_text_multi(typeface_list, &lastfind, linebuf, (vp+((236-rc)/2)), 240);
 						break;
 					}
 				}
 
-				vp += (font->height * 240);
+				vp += (font_height(font) * 240);
 			}
 			lastl = l;
 			lastlin = lin;
-			vp = (unsigned short *)(0x06000000 + ((160 - font->height) * 480));
-			for(c=0; c<240*font->height; c++)
+			vp = (unsigned short *)(0x06000000 + ((160 - font_height(font)) * 480));
+			for(c=0; c<240*font_height(font); c++)
 				vp[c] = fg;
 
 			font_setcolor(bg, fg); //txbgcolor, txfgcolor);
+			font_setshadowoutline(outline, shadow);
 			sprintf(linebuf, "PAGE %03d/%03d * LINE %04d/%04d", l+1, page_count, lin + l*height + 1, page_count*height);
 			font_text(font, linebuf, (vp+2), 240);
 			font_setcolor(fg, bg); //txfgcolor, txbgcolor);
@@ -421,7 +465,7 @@ int textreader_show_text(char *name)
 			break;
 		case RAWKEY_A:
 /*			fseek(fp, lines[1], SEEK_SET);
-			scroll(font->height);
+			scroll(font_height(font));
 			lin++;
 			break;*/
 		case RAWKEY_DOWN:

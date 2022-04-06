@@ -239,14 +239,16 @@ executeCart:
 
 	mov		r2, #0x03000000
 	add		r1, r2, #0x7E00
+@	add		r2, r1, #0x200
 
 	bx		r1
 
 reset_func:
 
+@	add		r1,#0x100
 @	mov		r3,#0
 @0:
-@	str		r3,[r1, #-4]!
+@	str		r3,[r1, #4]!
 @	cmp		r1,r2
 @	bne		0b
 

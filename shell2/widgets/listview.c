@@ -93,12 +93,23 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 
 	if(lv->scrollbar && lv->dirty == 0xFF)
 	{
+		Color c;
 		sbar.x += (sbar.w - 9);
 		sbar.w = 8;
 		sbar.y += 1;
 		sbar.h -= 2;
 
-		bitmap_avgbox(bm, &sbar, 0x0C63);
+		c = lv->scrollbar->color[4];
+		if (c.a == 1)
+			bitmap_addbox(bm, &sbar, 0x0C63);
+		else if (c.a == 0xFF)
+			bitmap_addbox(bm, &sbar, TO_RGB16(c));
+		else if (c.a == 0xFE)
+			bitmap_negbox(bm, &sbar, TO_RGB16(c));
+		else if (c.a > 0x7F)
+			bitmap_avgbox(bm, &sbar, TO_RGB16(c));
+		else
+			bitmap_fillbox(bm, &sbar, TO_RGB16(c));
 
 		i = lv->lines;
 		if(i < lv->showing)
@@ -136,10 +147,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 		r2.w -= 10;
 	r2.h = lineh;
 
-	if(lv->textcolor[0].a != 0x01)
-		font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
-	else
-		font_setcolor(0, 0);
+	font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
 	for(i=lv->start; i<maxi; i++)
 	{
 		if(lv->dirty == 0xFF || lv->redrawmap[i>>5]&(1<<(i&31)))
@@ -160,6 +168,8 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 			{
 				if(lv->textcolor[3].a == 0xFF)
 					bitmap_addbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
+				if(lv->textcolor[3].a == 0xFE)
+					bitmap_negbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
 				else if(lv->textcolor[3].a > 0x7F)
 					bitmap_avgbox(bm, &r2, TO_RGB16(lv->textcolor[3]));
 				else
@@ -181,10 +191,7 @@ int listview_render(ListView *lv, Rect *org_r, BitMap *bm)
 				d += lv->colwidth[j]; 
 			}
 			if (i == lv->marked) {
-				if(lv->textcolor[0].a != 0x01)
-					font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
-				else
-					font_setcolor(0, 0);
+				font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
 			}
 			if(lv->icons[i])
 				bitmap_blit(bm, r->x + lv->marginx, r->y + y, lv->icons[i], 0, 0, lv->icons[i]->width, lv->icons[i]->height);
@@ -213,11 +220,11 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 			free(lv->backdrop);
 
 		lv->backdrop = (BackDrop *)val;
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_COLWIDTH:
 		lv->colwidth[n] = (int)val;
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_RGB:
 		l = (int)val;
@@ -231,9 +238,9 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 
 		lv->textcolor[n] = c;
 		if(!n && lv->font)
-				font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
+			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
 
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 
 		break;
 
@@ -249,7 +256,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 
 		//fprintf(stderr, "TEXTCOLOR SET\n");
 
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_FONT:
 //		fprintf(stderr, "font %p replaces %p\n", val, lv->font);
@@ -258,7 +265,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		lv->font = (Font *)val;
 		if(lv->font->height >= lv->lineh)
 			lv->lineh = lv->font->height + 1;
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
 		if(lv->textcolor[0].a != 0x01);
 			font_setcolor(TO_RGB16(lv->textcolor[0]), 0x0000);
@@ -267,7 +274,7 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		if(lv->scrollbar)
 			free(lv->scrollbar);
 		lv->scrollbar = (BackDrop *)val;
-		lv->w.flags = WFLG_REDRAW;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_MARGIN:
 		if((attr & 0xF) == 0)
@@ -276,9 +283,11 @@ void listview_set_attribute(ListView *lv, int attr, void *val)
 		if((attr & 0xF) == 1)
 			lv->marginy = (int)val;
 		lv->w.height = lv->lineh * lv->lines + lv->marginy * 2;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	case WATR_ALIGN:
 		lv->colalign[(attr&0xf)] = (int)val;
+		lv->w.flags |= WFLG_REDRAW;
 		break;
 	//case WATR_NAME:
 	//	strcpy(lv->w.name, (char *)val);
@@ -311,12 +320,12 @@ ListView *listview_new(int columns, int maxlines, Font *font)
 		lv->lineh = 0;
 
 	lv->linew = 0;
-	lv->textcolor[0].a = 1;
 
-	p = (int *)&lv->textcolor[2];
+	p = (uint32 *)&lv->textcolor[0];
 
-	p[0] = 0x00FFFFFF;
-	p[1] = 0x00FF0000;
+	p[0] = 0x00000000;
+	p[2] = 0x00FFFFFF;
+	p[3] = 0x00FF0000;
 
 	lv->iconw = 0;
 
@@ -366,6 +375,12 @@ void listview_clear(ListView *lv)
 	lv->lineh = lv->font->height + 1;
 	lv->iconw = 0;
 	lv->linew = 0;
+	lv->w.height = lv->marginy * 2;
+	lv->w.width = lv->marginx * 2;
+	if (lv->backdrop) {
+		lv->w.height += lv->backdrop->border*2;
+		lv->w.width += lv->backdrop->border*2;
+	}
 	lv->w.flags |= WFLG_REDRAW;
 }
 

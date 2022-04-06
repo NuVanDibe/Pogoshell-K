@@ -63,6 +63,14 @@ uint16 marked;
 
 const char *PogoVersion = "2.0b3mod5";
 
+// Takes a lot of bloody space but I have no better solution currently
+//DirList dirlist[MAX_FILE_COUNT];
+//char dirsize[MAX_FILE_COUNT][10];
+//char dirname[MAX_FILE_COUNT][32];
+DirList *dirlist = (DirList *) 0x02000000;
+char *dirsize = (char *) (0x02000000+(sizeof(DirList))*MAX_FILE_COUNT);
+char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
+
 /* State, saved to  /sram/.state */
 struct {
 	unsigned /*short*/ char settings[NO_SETTINGS];
@@ -327,17 +335,6 @@ void init_devices(void)
 	gamesys_init();
 }
 
-// Takes a lot of bloody space but I have no better solution currently
-//DirList dirlist[MAX_FILE_COUNT];
-//char dirsize[MAX_FILE_COUNT][10];
-//char dirname[MAX_FILE_COUNT][32];
-DirList *dirlist = (DirList *) 0x02000000;
-char *dirsize = (char *) (0x02000000+(sizeof(DirList))*MAX_FILE_COUNT);
-char *dirname = (char *) (0x02000000+(sizeof(DirList)+10)*MAX_FILE_COUNT);
-//#if MODPTR != (0x02000000+(sizeof(DirList)+10+32)*MAX_FILE_COUNT)
-//#error("You must update MODPTR")
-//#endif
-
 BitMap BackgroundBM;
 
 void update_list(void)
@@ -460,8 +457,9 @@ void setup_screen(void)
 		if(MessageTxt->backdrop)
 			listview_set_attribute(MessageList, WATR_BACKDROP, MessageTxt->backdrop);
 		listview_set_attribute(MessageList, WATR_COLOR+0, &(MessageTxt->textcolor[0]));
+		listview_set_attribute(MessageList, WATR_COLOR+2, &(MessageTxt->textcolor[2]));
 		listview_set_attribute(MessageList, WATR_COLOR+3, &(MessageTxt->textcolor[3]));
-		listview_set_attribute(MessageList, WATR_ALIGN, MessageTxt->align);
+		listview_set_attribute(MessageList, WATR_ALIGN, (void *) MessageTxt->align);
 	}
 
 	count = IconSet->height / IconHeight;

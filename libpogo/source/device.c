@@ -205,7 +205,6 @@ void execv(const char *cmdname, const char *const *argv)
 {
 	uint32 *p;
 	uint32 l;
-	int i = 0;
 
 	int fd = open(cmdname, 0);
 	if(fd >= 0)
@@ -215,35 +214,30 @@ void execv(const char *cmdname, const char *const *argv)
 		if((l&0x00007FFF) == 0)
 		{
 
+			memset((void *)(0x02000000), 0, 256*1024);
 			make_arguments(cmdname, argv);
 
 			// Remap for start position of rom
 			p = (uint32 *)(0x02000000+255*1024);
-			//if(p[-1] >= 0x08000000)
+			if(argv[0])
 				p[-1] -= (l - 0x08000000);
 
-			if(!argv[0])
-			{
-				p = (uint32 *)(0x02000000);
-				for(i=0; i<256*256; i++)
-					p[i] = 0;
-			}
 
 			//reset_io();
 
-			SETW(REG_IE, 0);
-			SETW(REG_IF, 0);
-			SETW(REG_IME, 0);
+			//SETW(REG_IE, 0);
+			//SETW(REG_IF, 0);
+			//SETW(REG_IME, 0);
 
 
-			SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-			SETW(REG_BG1CNT, 0);
+			//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+			//SETW(REG_BG1CNT, 0);
 
 			//p = (uint32 *)0x03007FC0;
 			//for(i=0; i<4*4; i++)
 			//	p[i] = 0;
 
-			SETW(REG_SOUNDBIAS, 0x0200);
+			//SETW(REG_SOUNDBIAS, 0x0200);
 
 #ifdef CARTLIB
 			fcExecuteRom(l, jump_adress);
@@ -270,11 +264,12 @@ void execv_mb(const char *cmdname, const char *const *argv)
 	{
 		read(fd, (uchar *)0x02000000, 1024*256);
 
-		SETW(REG_IE, 0);
-		SETW(REG_IF, 0);
-		SETW(REG_IME, 1);
-		SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
-		SETW(REG_BG1CNT, 0);
+		//SETW(REG_IE, 0);
+		//SETW(REG_IF, 0);
+		//SETW(REG_IME, 1);
+		//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
+		//SETW(REG_BG1CNT, 0);
+		SoftReset(0xe2);
 		((void(*)(void))0x02000000)();
 	}
 
@@ -296,6 +291,7 @@ int open(const char *name, int flags)
 	char *cutname;
 
 	if((dev = dev_fromname(name, &cutname)))
+	{
 		if(dev->open) {
 			fd = dev->open(cutname, flags);
 			if(fd < 0)
@@ -308,6 +304,7 @@ int open(const char *name, int flags)
 					return i;
 				}
 		}
+	}
 	return -1;
 }
 

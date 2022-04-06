@@ -138,7 +138,7 @@ void get_theme_name(char line, char *dest)
 
 /*int*/void settings_edit(void)
 {
-	int i,c;
+	int i,c,h;
 	int marked = 0;
 	int qualifiers = 0;
 
@@ -165,6 +165,18 @@ void get_theme_name(char line, char *dest)
 		switch(c)
 		{
 
+		case RAWKEY_LEFT:
+			h = listview_get_marked(MainList);
+			listview_set_marked(MainList, marked - MainList->showing);
+			if (h == listview_get_marked(MainList))
+				listview_set_marked(MainList, 0);
+			break;
+		case RAWKEY_RIGHT:
+			h = listview_get_marked(MainList);
+			listview_set_marked(MainList, marked + MainList->showing);
+			if (h == listview_get_marked(MainList))
+				listview_set_marked(MainList, MainList->lines-1);
+			break;
 		case RAWKEY_UP:
 			if(qualifiers == 1)
 				listview_set_marked(MainList, 0);

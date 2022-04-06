@@ -11,6 +11,7 @@
 
 #include "core.h"
 #include "device.h"
+#include "io.h"
 #include "max_file_count.h"
 #include "aes.h"
 

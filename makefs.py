@@ -6,7 +6,7 @@ Pogoshell v2.0b3-mod5.
 
 Uses rijndael.py from the tlslite package
 
-Usage: makefs.py [-rxmcva:] [--exclude=] pogo.gba root flashme.gba
+Usage: makefs.py [-rexmcva:] [--exclude=] pogo.gba root flashme.gba
 
 Made by Kuwanger in Jan/Feb 2006
 """
@@ -30,6 +30,7 @@ MAXHIDDENDIRS = 64
 MAXHIDDENDIRSIZE = MAXHIDDENDIRS*ROMFILESIZE
 
 verbose = 0
+emptydir_remove = 0
 moresecurepad = 0
 align_mask = 32767
 xrom = 0
@@ -448,6 +449,7 @@ class pogodir(pogoobject):
 		count = 0
 		stats = []
 		wholefolder = os.listdir(path)
+		empty_hiddendir = 0
 		for f in wholefolder:
 			stats.append([ f, os.stat(path + "/" + f)[ST_MODE] ])
 		for f in stats:
@@ -461,29 +463,35 @@ class pogodir(pogoobject):
 							print "Invalid key", f[0]
 							sys.exit(5)
 						self.hiddendir = pogodir(path + "/" + f[0], relative_to_root+f[0] + "/", plugins_dir, truncate, correct, 1)
-						self.hiddendir.size -= (16*3)
-						if self.hiddendir.size > MAXHIDDENDIRSIZE:
-							print "Hidden dir can only be %d entries long.  You must remove at least %d.  Aborting." % ( MAXHIDDENDIRS, self.hiddendir.size / ROMFILESIZE - MAXHIDDENDIRS )
-							sys.exit(1)
-						self.hiddendir.realsize = self.hiddendir.size
-						self.hiddendir.flags |= HIDDEN | ENCRYPTED
-						self.hiddendir.name = self.fillname(f[0], 0)
-						self.hiddendir.size = (self.hiddendir.size + 15) & ~15
-						self.hiddendir.key = long2chrl(value & ((1 << 128) - 1 - (3<<126)), 16)
-						self.key = self.hiddendir.key
+						if emptydir_remove and not self.hiddendir.subdirs and not self.hiddendir.files:
+							empty_hiddendir = 1
+						else:
+							self.hiddendir.size -= (16*3)
+							if self.hiddendir.size > MAXHIDDENDIRSIZE:
+								print "Hidden dir can only be %d entries long.  You must remove at least %d.  Aborting." % ( MAXHIDDENDIRS, self.hiddendir.size / ROMFILESIZE - MAXHIDDENDIRS )
+								sys.exit(1)
+							self.hiddendir.realsize = self.hiddendir.size
+							self.hiddendir.flags |= HIDDEN | ENCRYPTED
+							self.hiddendir.name = self.fillname(f[0], 0)
+							self.hiddendir.size = (self.hiddendir.size + 15) & ~15
+							self.hiddendir.key = long2chrl(value & ((1 << 128) - 1 - (3<<126)), 16)
+							self.key = self.hiddendir.key
 				else:
-					count += 1
 					dir = pogodir(path + "/" + f[0], relative_to_root + f[0] + "/", plugins_dir, truncate, correct, inhidden)
-					dir.name = dir.fillname(f[0], correct)
-					self.subdirs.append(dir)
+					if not emptydir_remove or dir.subdirs or dir.files or dir.hiddendir:
+						count += 1
+						dir.name = dir.fillname(f[0], correct)
+						self.subdirs.append(dir)
 			elif S_ISREG(f[1]):
-				if f[0][f[0].rfind("."):] not in exclude_ext:
+				if relative_to_root == plugins_dir or f[0][f[0].rfind("."):] not in exclude_ext:
 					count += 1
 					file = pogofile(path + "/" + f[0], 0, truncate, correct)
 					if relative_to_root == plugins_dir:
 						#print "Plugin:", f[0]
 						file.flags |= LOWER
 					self.files.append(file)
+		if empty_hiddendir:
+			self.hiddendir = 0
 		self.size = count*ROMFILESIZE + (16*3)
 	def generateraw(self):
 		'''generate the correctly formatted subdirectory, telling
@@ -575,7 +583,7 @@ if __name__ == "__main__":
 	correct = 0
 	autocorrectchar = ""
 	try:
-		opts, args = getopt.gnu_getopt(argv[1:], "rxmcva:", ["romtrunc", "correct", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude="])
+		opts, args = getopt.gnu_getopt(argv[1:], "rsxmcva:", ["romtrunc", "correct", "subdirempty", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude="])
 	except getopt.GetoptError:
 		usage(argv[0])
 		sys.exit(1)
@@ -586,6 +594,8 @@ if __name__ == "__main__":
 			correct = 1
 		if o in ("-v", "--verbose"):
 			verbose = 1
+		if o in ("-s", "--subdirempty"):
+			emptydir_remove = 1
 		if o in ("-a", "--autocorrectchar"):
 			autocorrectchar = a
 			if len(autocorrectchar) != 1:

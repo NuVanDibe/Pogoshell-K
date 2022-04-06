@@ -10,6 +10,7 @@ extern Color Black_Color;
 extern Color Blue_Color;
 extern Color White_Color;
 extern Color Gray_Color;
+extern Color Dark_Color;
 
 typedef struct
 {

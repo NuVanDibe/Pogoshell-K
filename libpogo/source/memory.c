@@ -99,7 +99,7 @@ void *memory_alloc(int alloc_size)
 		block = block->next;
 	}
 
-	dprint("Out of memory!\n");
+	//dprint("Out of memory!\n");
 	return NULL;
 /*
 	block->next = (MemHead *)&block->data[block->size];

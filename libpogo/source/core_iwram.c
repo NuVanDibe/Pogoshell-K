@@ -13,9 +13,21 @@
 #include "rtc.h"
 
 CODE_IN_IWRAM void *memset(void *dest, int v, int l)
-{	uchar *d = dest;
-	while(l--)
+{
+	int l2;
+	uchar *d;
+	uint16 v2, *d2 = dest;
+	
+	v2 = v | (v<<8);
+
+	l2 = l>>1;
+	while (l2--)
+		*d2++ = v2;
+
+	d = (uchar *) d2;
+	if (l & 1)
 		*d++ = v;
+
 	return dest;
 }
 

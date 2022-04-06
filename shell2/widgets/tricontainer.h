@@ -2,6 +2,7 @@
 #define TRICONTAINER_H
 
 #include "../window.h"
+#include "../backdrop.h"
 
 #define WIDGET_TRICONTAINER 0x1001
 typedef struct

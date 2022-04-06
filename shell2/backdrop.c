@@ -14,6 +14,7 @@ BackDrop *backdrop_new(uint16 style)
 	bd->color[1] = Black_Color;
 	bd->color[2] = Gray_Color;
 	bd->color[3] = Gray_Color;
+	bd->color[4] = Dark_Color;
 
 	bd->border = 0;
 	bd->bitmap = NULL;
@@ -24,6 +25,7 @@ BackDrop *backdrop_new(uint16 style)
 void backdrop_set_attribute(BackDrop *bd, int attr, void *val)
 {
 	int l;
+	int n = attr&0xf;
 	switch(attr & 0xFF0)
 	{
 	case WATR_BITMAP:
@@ -35,9 +37,11 @@ void backdrop_set_attribute(BackDrop *bd, int attr, void *val)
 		break;
 	case WATR_RGB:
 		l = (int)val;
-		bd->color[attr & 0xF].r = l>>16;
-		bd->color[attr & 0xF].g = (l>>8) & 0xff;
-		bd->color[attr & 0xF].b = l & 0xff;
+
+		bd->color[n].r = (l>>16) & 0xff;
+		bd->color[n].g = (l>>8) & 0xff;
+		bd->color[n].b = l & 0xff;
+		bd->color[n].a = l>>24;
 		break;
 	case WATR_BORDER:
 		bd->border = (int)val;
@@ -95,24 +99,9 @@ void backdrop_render(BackDrop *bd, Rect *r, BitMap *bm)
 	// Draw inner
 
 	if (bm) {
-			if(bd->style & STYLE_BITMAP)
-			{
-				bitmap_blit(bm, r->x, r->y, bd->bitmap, 0, 0, r->w, r->h);
-			}
-			else
-		{
-			if(bd->style & STYLE_HVRANGE)
-			{
-				bitmap_fillrange(bm, r, &bd->color[2], &bd->color[3], bd->style);
-			}
-			else
-			{
-				bitmap_fillbox(bm, r, TO_RGB16(bd->color[2]));
-			}
-		}
+		backdrop_subrender(bd, r, r, bm);
 
-		if(bd->border)
-		{
+		if(bd->border) {
 			int  y, w;
 			int boffs, roffs;
 			uint16 *d;

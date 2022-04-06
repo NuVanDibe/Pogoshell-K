@@ -14,7 +14,6 @@ int tricontainer_render(TriContainer *tri, Rect *r, BitMap *bm)
 	int redraw = tri->w.flags & WFLG_REDRAW;
 	tri->w.flags &= ~WFLG_REDRAW;
 
-
 	if(tri->children[0])
 	{	
 		h0 = tmpr.h = tri->children[0]->height;

@@ -24,7 +24,7 @@ typedef struct
 	uint16 style;
 	uchar border;
 	uchar something;
-	Color color[4];
+	Color color[5];
 	BitMap *bitmap;
 
 } BackDrop;

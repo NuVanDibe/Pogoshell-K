@@ -84,19 +84,21 @@ int msgbox_list(char *title, char **lines, int num)
 
 	//MessageWin->height = MessageList->w.height + 8;
 	i = MessageList->w.height;
-	i += w->height;
-	i += 4;
+	if (w)
+		i += w->height;
+	// i += 4;
 	MessageWin->height = i;
 	i = MessageList->w.width;
-	if(w->width > i)
+	if(w && w->width > i) {
 		i = w->width;
-	i += 4;
-	MessageWin->width = i;
-	if (MessageList->backdrop) {
-		listview_set_attribute(MessageList, WATR_COLWIDTH, i - MessageList->backdrop->border*2 - 4);
+		MessageWin->width = i;
 	} else {
-		listview_set_attribute(MessageList, WATR_COLWIDTH, i - 4);
+		MessageWin->width = i;
+		if (MessageList->backdrop)
+			i -= MessageList->backdrop->border*2;
 	}
+	//i += 4;
+	listview_set_attribute(MessageList, WATR_COLWIDTH, i);
 	MessageWin->x = (240 - MessageWin->width) / 2;
 	MessageWin->y = (160 - MessageWin->height) / 2;
 

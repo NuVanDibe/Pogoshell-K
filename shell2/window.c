@@ -9,6 +9,7 @@ Color Black_Color = {0,0,0,0};
 Color Blue_Color = {0,0,0xFF,0};
 Color White_Color = {0xFF,0xFF,0xFF,0};
 Color Gray_Color = {0x80,0x80,0x80,0};
+Color Dark_Color = {0x18,0x18,0x18,0};
 
 int widget_render(Widget *w, Rect *r, BitMap *bm)
 {

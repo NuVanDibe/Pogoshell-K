@@ -56,7 +56,9 @@ BitMap *bitmap_loadbm(char *name);
 
 void bitmap_avgbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_addbox(BitMap *dst, Rect *r, uint16 col);
+void bitmap_negbox(BitMap *dst, Rect *r, uint16 col);
 void bitmap_fillbox(BitMap *dst, Rect *r, uint16 col);
+void bitmap_fillsubrange(BitMap *bm, Rect *r, Rect *subr, Color *color0, Color *color1, uint16 style);
 void bitmap_fillrange(BitMap *bm, Rect *r, Color *color0, Color *color1, uint16 style);
 
 #endif

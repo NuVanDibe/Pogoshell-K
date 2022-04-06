@@ -78,7 +78,7 @@ int execute_mb(char *cmd, char *fname, int keys)
 	save_state();
 	//clear_vram();
 	
-	set_ram_start(0);
+	//set_ram_start(0);
 
 	ptr = file2mem(fname, (void *)0x02000000, 256*1024);
 
@@ -96,7 +96,8 @@ int execute_mb(char *cmd, char *fname, int keys)
 	//SETW(REG_IME, 0);
 	//SETW(REG_DISPCNT, DISP_MODE_0 | DISP_BG1_ON );
 	//SETW(REG_BG1CNT, 0);
-	SoftReset(0xe2);
+	//SoftReset(0xe2);
+	SoftReset(0xfe);
 	((void(*)(void))0x02000000)();
 
 	return 1;
@@ -153,11 +154,14 @@ int execute_plugin(char *cmd, char *fname, int keys)
 	s = strrchr(cmd, '.');
 	if(s && (strncmp(s, ".mb", 3) == 0))
 	{
-		char *ptr;
+		uchar *ptr;
+		uint16 *p2;
+		int i;
+
+		ptr = file2mem(tmp, (void *)0x02000000, 256*1024);
+		if(ptr != (uchar *) 0x02000000)
+			memcpy((void *) 0x02000000, ptr, 256*1024);
 		make_arguments(tmp, args);
-		ptr = file2mem(tmp, (void *)0x02000000, 255*1024-8);
-		if(ptr != (void *)0x02000000)
-			memcpy((void *)0x02000000, ptr, 255*1024-8);
 
 		//fprintf(stderr, "Copied from %p\n", ptr);
 
@@ -167,6 +171,11 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		SETW(REG_IF, 0);
 		SETW(REG_IME, 0);
 		SETW(REG_SOUNDBIAS, 0x0200);
+		
+		// Don't use memset as memset is in iwram
+		p2 = (uint16 *) 0x03000000;
+		for (i = 0; i < 0x7e00/2; i++)
+			p2[i] = 0;
 		//SoftReset(0xe2);
 		((void(*)(void))0x02000000)();
 	}

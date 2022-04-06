@@ -64,9 +64,11 @@ static SRamFile *gap = NULL;
 #ifdef WITH_TIME
 uchar *sramfile_mem = (uchar *)0x0E010000;
 int sram_size = 192*1024;
+int savebank = 0;
 #else
 extern char *sramfile_mem;
 extern int sram_size;
+extern int savebank;
 #endif
 
 /* List of open files */

@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """
 makefs.py
 
@@ -6,7 +8,7 @@ Pogoshell v2.0b3-mod5.
 
 Uses rijndael.py from the tlslite package
 
-Usage: makefs.py [-rsxmcva:] [--exclude=] pogo.gba root flashme.gba
+Usage: makefs.py [-rbhsxmcva:] [--exclude=] [--glob_exclude=] pogo.gba root flashme.gba
 
 Made by Kuwanger in Jan/Feb 2006
 """
@@ -15,8 +17,9 @@ import sys, os, getopt
 from rijndael import rijndael
 from sys import argv
 from stat import *
-from struct import pack
+from struct import pack, unpack
 from random import SystemRandom
+from fnmatch import fnmatch
 
 BINARY = 1
 UNMOVABLE = 2
@@ -24,18 +27,24 @@ HIDDEN = 4
 ENCRYPTED = 8
 DIRECTORY = 16
 LOWER = 32
+BRIDGE = 64
+GBC2GBA = 128
 
 ROMFILESIZE = 40
-MAXHIDDENDIRS = 64
+MAXHIDDENDIRS = 100
 MAXHIDDENDIRSIZE = MAXHIDDENDIRS*ROMFILESIZE
 
 verbose = 0
 emptydir_remove = 0
+use_bridge = 0
+hide_bridge = 0
 moresecurepad = 0
 align_mask = 32767
 xrom = 0
 exclude_ext = []
+glob_exclude = []
 binary_ext = []
+bridge_ext = []
 binary_plugins = {}
 
 def hex2chr(string):
@@ -78,6 +87,22 @@ def is_binary(name):
 		return 1
 	return 0
 
+def is_bridge(name):
+	extension = name.rfind(".")
+	if name[extension:].lower() in bridge_ext:
+		return 1
+	return 0
+
+def is_gbc2gba(name):
+	slash = name.rfind("/")
+	slash2 = name.rfind("\\")
+	if slash2 > slash:
+		slash = slash2
+	name = name[slash+1:]
+	if name.lower() == "gbc2gba.gb":
+		return 1
+	return 0
+
 def is_invalid(name):
 	if len(name) > 31:
 		return 1
@@ -98,6 +123,12 @@ def readfile(name):
 
 def IS_BINARY(foo):
 	return (foo & BINARY) == BINARY
+
+def IS_BRIDGE(foo):
+	return (foo & BRIDGE) == BRIDGE
+
+def IS_GBC2GBA(foo):
+	return (foo & GBC2GBA) == GBC2GBA
 
 def IS_HIDDEN(foo):
 	return (foo & HIDDEN) == HIDDEN
@@ -129,6 +160,11 @@ def binary_first(left, right):
 		return -1
 	else:
 		return 1
+
+def filename_sort(left, right):
+	if left.name < right.name:
+		return -1
+	return 1
 
 def romtrunc(contents, size):
 	i = size - 1
@@ -175,7 +211,7 @@ def pogocfg(path):
 		fd.close()
 	except IOError:
 		try:
-			path2 = "/.shell/pogo.cfg"
+			path2 = "/.pogo.cfg"
 			fd = open(path + path2, "rb")
 			fd.close()
 		except IOError:
@@ -223,6 +259,8 @@ class pogocompilation:
 					sys.exit(11)
 				if columns[2] == "EXE":
 					binary_ext.append("." + columns[0].lower())
+				elif columns[2] == "GBX":
+					bridge_ext.append("." + columns[0].lower())
 				elif len(columns) > 3:
 					ext = columns[2].rfind(".")
 					if ext != -1:
@@ -349,6 +387,92 @@ class pogocompilation:
 					offset += f.size
 					neworder.append(f)
 		else:
+			if use_bridge:
+				gbc2gba = 0
+				bridge = []
+				i = 0
+				while i < len(self.objects):
+					f = self.objects[i]
+					if IS_GBC2GBA(f.flags):
+						if gbc2gba:
+							print "More than one GBC2GBA.GB found.  Unable to continue."
+							sys.exit(1)
+						gbc2gba = f
+						del self.objects[i]
+					elif IS_BRIDGE(f.flags):
+						bridge.append(f)
+						del self.objects[i]
+					else:
+						i += 1
+				if not gbc2gba:
+					print "GBC2GBA.GB not found.  Unable to continue."
+					sys.exit(1)
+				if gbc2gba.size != 32768:
+					print "GBC2GBA.GB should be 32KB.  Unable to continue."
+					sys.exit(1)
+				bridge.sort(filename_sort)
+				bridge_barrier = 16*1024*1024 - 32768
+				offset = bridge_barrier
+				gbc2gba.start = offset
+				offset += gbc2gba.size
+				for f in bridge:
+					size = 32768 << (unpack("B", f.contents[0x148])[0])
+					if size < f.size:
+						print f.name, "is larger than its header indicates.  Cannot continue."
+						sys.exit(1)
+					f.size = size
+					f.start = offset
+					offset += size
+				high_offset = offset
+				offset = 0
+				i = 0
+				while i < len(self.objects):
+					f = self.objects[i]
+					if IS_BINARY(f.flags):
+						new_offset = (offset + align_mask) & ~align_mask
+						if new_offset + f.size <= bridge_barrier:
+							offset = (offset+3) & ~3
+							gap = ((offset + align_mask) & ~align_mask) - offset
+							i2 = i + 1
+							while gap != 0 and i2 < len(self.objects):
+								current = self.objects[i2]
+								ext = current.name.rfind(".")
+								if ext != -1:
+									ext = current.name[ext+1:]
+								else:
+									ext = ""
+								if ext not in binary_plugins and not IS_BINARY(current.flags) and current.size <= gap:
+									current.start = offset
+									offset += current.size
+									offset = (offset+3) & ~3
+									gap = ((offset + align_mask) & ~align_mask) - offset
+									neworder.append(current)
+									del self.objects[i2]
+								else:
+									i2 += 1
+							offset += gap
+							for j in binary_plugins.items():
+								if f.name == j[1]:
+									del binary_plugins[j[0]]
+							del self.objects[i]
+							offset = (offset+3) & ~3
+							f.start = offset
+							offset += f.size
+							neworder.append(f)
+						else:
+							i += 1
+					else:
+						offset = (offset+3) & ~3
+						if offset + f.size <= bridge_barrier:
+							del self.objects[i]
+							f.start = offset
+							offset += f.size
+							neworder.append(f)
+						else:
+							i += 1
+				neworder.append(gbc2gba)
+				neworder.extend(bridge)
+				offset = high_offset
 			while self.objects:
 				f = self.objects.pop(0)
 				if IS_BINARY(f.flags):
@@ -469,6 +593,7 @@ class pogodir(pogoobject):
 		self.hiddendir = 0
 		self.key = 0
 		self.files = []
+		self.hiddenfiles = []
 		self.flags |= DIRECTORY | LOWER
 		file = 0
 		dir = 0
@@ -504,18 +629,24 @@ class pogodir(pogoobject):
 							self.key = self.hiddendir.key
 				else:
 					dir = pogodir(path + "/" + f[0], relative_to_root + f[0] + "/", plugins_dir, truncate, correct, inhidden)
+					# bubble up hidden files
+					self.hiddenfiles.extend(dir.hiddenfiles)
+					dir.hiddenfiles = []
 					if not emptydir_remove or dir.subdirs or dir.files or dir.hiddendir:
 						count += 1
 						dir.name = dir.fillname(f[0], correct)
 						self.subdirs.append(dir)
 			elif S_ISREG(f[1]):
-				if relative_to_root == plugins_dir or f[0][f[0].rfind("."):] not in exclude_ext:
-					count += 1
+				if relative_to_root == plugins_dir or ( f[0][f[0].rfind("."):] not in exclude_ext and not any(fnmatch(f[0],p) for p in glob_exclude) ):
 					file = pogofile(path + "/" + f[0], 0, truncate, correct)
 					if relative_to_root == plugins_dir:
 						#print "Plugin:", f[0]
 						file.flags |= LOWER
-					self.files.append(file)
+					if IS_HIDDEN(file.flags):
+						self.hiddenfiles.append(file)
+					else:
+						self.files.append(file)
+						count += 1
 		if empty_hiddendir:
 			self.hiddendir = 0
 		self.size = count*ROMFILESIZE + (16*3)
@@ -570,6 +701,7 @@ class pogodir(pogoobject):
 			f.relative = f.start - rootstart
 	def allfiles(self):
 		collection = self.files[:]
+		collection.extend(self.hiddenfiles[:])
 		if self.hiddendir:
 			collection.extend(self.hiddendir.allfiles())
 		for f in self.subdirs:
@@ -594,6 +726,12 @@ class pogofile(pogoobject):
 		self.flags |= flags
 		if is_binary(name):
 			self.flags |= BINARY
+		elif is_bridge(name):
+			self.flags |= BRIDGE
+		elif is_gbc2gba(name):
+			self.flags |= (BRIDGE|GBC2GBA)
+		if use_bridge and hide_bridge and IS_BRIDGE(self.flags):
+			self.flags |= HIDDEN
 		self.name = self.fillname(name, correct)
 		self.size, self.contents = readfile(name)
 		if (truncate and IS_BINARY(self.flags)):
@@ -601,7 +739,7 @@ class pogofile(pogoobject):
 			self.contents = self.contents[0:self.size]
 
 def usage(name):
-	print "Usage: %s [-rsxmvc[a<c>]] [--exclude=...] pogo.gba root root.gba" % name
+	print "Usage: %s [-rbhsxmvc[a<c>]] [--exclude=...] [--glob_exclude=] pogo.gba root root.gba" % name
 
 if __name__ == "__main__":
 	i = 1
@@ -609,13 +747,18 @@ if __name__ == "__main__":
 	correct = 0
 	autocorrectchar = ""
 	try:
-		opts, args = getopt.gnu_getopt(argv[1:], "rsxmcva:", ["romtrunc", "correct", "subdirempty", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude="])
+		opts, args = getopt.gnu_getopt(argv[1:], "rbhsxmcva:", ["romtrunc", "bridge", "hidebridge", "correct", "subdirempty", "moresecurepad", "verbose", "xrom", "autocorrectchar=", "exclude=", "glob_exclude="])
 	except getopt.GetoptError:
 		usage(argv[0])
 		sys.exit(1)
 	for o, a in opts:
 		if o in ("-r", "--romtrunc"):
 			truncate = 1
+		if o in ("-b", "--bridge"):
+			use_bridge = 1
+		if o in ("-h", "--hidebridge"):
+			use_bridge = 1
+			hide_bridge = 1
 		if o in ("-c", "--correct"):
 			correct = 1
 		if o in ("-v", "--verbose"):
@@ -642,6 +785,10 @@ if __name__ == "__main__":
 						exclude_ext.append(f)
 				else:
 					print "You must specify a non-zero length extension."
+		if o in ("--glob_exclude"):
+			ls = a.split(",")
+			for f in ls:
+				glob_exclude.append(f)
 	if autocorrectchar and not correct:
 		usage(argv[0])
 		sys.exit(1)

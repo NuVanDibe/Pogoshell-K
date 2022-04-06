@@ -8,6 +8,7 @@
 #include "misc.h"
 #include "msgbox.h"
 
+extern int savebank;
 extern tbox *MessageBox;
 
 void statusbar_set(char *text);
@@ -36,7 +37,7 @@ int savesys_savelastgame()
 
 		// Check if there is anything to save
 		uchar *ptr = (uchar *)0x0E00FFFF;
-		set_ram_start(0);
+		set_ram_start(savebank);
 		while(((uint32)ptr >= 0x0E000000) && (ptr[0] == 0)) ptr--;
 
 		if(ptr - 0x0E000000 + 1 > 0)
@@ -55,7 +56,7 @@ int savesys_savelastgame()
 				fd = open(savefile, O_CREAT);
 				write(fd, "SAVE", 5);
 				write(fd, &id, 3);
-				rc = save_rle(fd, 0);
+				rc = save_rle(fd, savebank);
 				if(rc >= 0)
 				{
 					char q[64];
@@ -177,8 +178,8 @@ int savesys_handleexec(char *current)
 		close(fd);
 	}
 
-	// Clear bank 0
-	set_ram_start(0);
+	// Clear bank used for save
+	set_ram_start(savebank);
 	p = (char *)0x0E000000;
 	i = 64*1024;
 	while(i--)
@@ -200,7 +201,7 @@ int savesys_handleexec(char *current)
 			read(fd, tmp2, 8);
 			if(!(tmp2[0] == 'S' && tmp2[1] == 'A' && tmp2[2] == 'V' && tmp2[3] == 'E'))
 				lseek(fd, 0, SEEK_SET);
-			load_rle(fd, 0);
+			load_rle(fd, savebank);
 			close(fd);
 		}
 	}

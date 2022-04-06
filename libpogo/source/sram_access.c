@@ -24,7 +24,7 @@ void sram_read_bytes(const char *sram_src, int size, void *dest)
 
 	d = (char *)dest;
 	s = (int)sram_src & 0xFFFF;
-	bank = (((int)sram_src)>>16) & 0xFF;
+	bank = ((((int)sram_src)>>16) & 0xFF);
 	set_ram_start(bank);
 
 	/*{
@@ -75,7 +75,7 @@ void sram_write_bytes(void *sram_dest, int size, void *src)
 	}
 
 	d = (int)sram_dest & 0xFFFF;
-	bank = (((int)sram_dest)>>16) & 0xFF;
+	bank = ((((int)sram_dest)>>16) & 0xFF);
 	s = (char *)src;
 	set_ram_start(bank);
 

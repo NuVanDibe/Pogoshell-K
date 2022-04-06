@@ -747,6 +747,7 @@ int show_text(char *cmd, char *fname, int keys);
 int vkey_get_qualifiers(void);
 
 extern char *sramfile_mem;
+extern int savebank;
 extern int sram_size;
 int sram_strcmp(const char *a, const char *b);
 
@@ -819,6 +820,11 @@ int main(int argc, char **argv)
 						srsize = atoi(val);
 					}
 					else
+					if(strcmp(name, "SAVEBANK") == 0)
+					{
+						savebank = atoi(val);
+					}
+					else
 					/*if(strcmp(name, "GAME") == 0)
 					{
 						sram_game_size = atoi(val);
@@ -848,7 +854,7 @@ int main(int argc, char **argv)
 	if(srsize)
 	{
 		sram_size = srsize * 1024;
-		sramfile_mem = (char *)0x0E040000 - sram_size;
+		sramfile_mem = (char *)0x0E010000 + (savebank * 0x10000);
 	}
 
 	converted = sram_convert();

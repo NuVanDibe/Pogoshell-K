@@ -12,6 +12,7 @@
 #include "settings.h"
 #include "misc.h" 
 
+extern int savebank;
 extern int clipsize;
 extern uint16 marked;
 
@@ -104,7 +105,7 @@ int execute_mb_joined(char *fname, int decompression, int keys)
 	if (ptr != (void *)0x02000000)
 		return 2;
 
-	set_ram_start(0);
+	set_ram_start(savebank);
 
 	SETW(REG_IE, 0);
 	SETW(REG_IF, 0);
@@ -133,7 +134,7 @@ int execute_rom(char *cmd, char *fname, int keys)
 
 	savesys_handleexec(fname);
 
-	set_ram_start(0);
+	set_ram_start(savebank);
 	//reset_io();
 	if(keys == 2)
 		execv_jump(fname, args, (void *)0x0000008C);
@@ -192,7 +193,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 
 		//fprintf(stderr, "Copied from %p\n", ptr);
 
-		set_ram_start(0);
+		set_ram_start(savebank);
 
 		// Don't use memset as memset is in iwram
 		p2 = (uint16 *) 0x03000000;
@@ -202,7 +203,7 @@ int execute_plugin(char *cmd, char *fname, int keys)
 		((void(*)(void))0x02000000)();
 	}
 
-	set_ram_start(0);
+	set_ram_start(savebank);
 	execv(tmp, args);
 	return 1;
 }
